@@ -359,6 +359,117 @@ suite('5. Game Boy Console OS & Bridge Controller', () => {
 });
 
 // =========================================================================
+// TEST SUITE 6: Multi-Touch Concurrency & Button Isolation
+// =========================================================================
+suite('6. Multi-Touch Concurrency & Button Isolation (B + LEFT Anti-Collision)', () => {
+  const env = createMockEnv();
+  const listeners = {};
+  const elements = {};
+
+  const makeElement = (id) => {
+    const classSet = new Set();
+    const el = {
+      id,
+      classList: {
+        add: (c) => classSet.add(c),
+        remove: (c) => classSet.delete(c),
+        toggle: (c, val) => val ? classSet.add(c) : classSet.delete(c),
+        contains: (c) => classSet.has(c)
+      },
+      addEventListener: (type, cb) => {
+        if (!listeners[id]) listeners[id] = {};
+        if (!listeners[id][type]) listeners[id][type] = [];
+        listeners[id][type].push(cb);
+      },
+      getBoundingClientRect: () => ({ left: 100, top: 1600, width: 70, height: 70 }),
+      contentWindow: { postMessage: (msg) => { env.__lastPostedMessage = msg; } },
+      contentDocument: null,
+      innerText: '',
+      style: {}
+    };
+    elements[id] = el;
+    return el;
+  };
+
+  const windowListeners = {};
+  env.window.addEventListener = (type, cb) => {
+    if (!windowListeners[type]) windowListeners[type] = [];
+    windowListeners[type].push(cb);
+  };
+
+  env.document.getElementById = (id) => elements[id] || makeElement(id);
+
+  loadScript(path.join(__dirname, '../js/console.js'), env);
+  const gb = new env.GameBoyConsole();
+  gb.loadCartridge('space-invaders'); // Enter Space Invaders game
+
+  const btnB = elements['gb-btn-b'];
+  const dpad = elements['gb-dpad'];
+  const armLeft = elements['dpad-left'];
+  const armRight = elements['dpad-right'];
+
+  // Trigger Touch 0: Right thumb presses B button (on the right side of the screen at x=680)
+  const touchB = { identifier: 101, clientX: 680, clientY: 1700 };
+  listeners['gb-btn-b']['touchstart'].forEach(cb => cb({
+    preventDefault: () => {},
+    changedTouches: [touchB],
+    touches: [touchB]
+  }));
+
+  assert(btnB.classList.contains('active') === true, 'B button is active when pressed');
+  assert(env.__lastPostedMessage && env.__lastPostedMessage.key === 'B' && env.__lastPostedMessage.pressed === true, 'Input B pressed was dispatched');
+
+  // Trigger Touch 1: Left thumb presses D-Pad LEFT (at x=110, while center is x=135)
+  // At this moment, e.touches has [touchB, touchLeft], and e.changedTouches has [touchLeft]
+  const touchLeft = { identifier: 102, clientX: 110, clientY: 1635 }; // left of center (135)
+  listeners['gb-dpad']['touchstart'].forEach(cb => cb({
+    preventDefault: () => {},
+    changedTouches: [touchLeft],
+    touches: [touchB, touchLeft] // Multi-touch array: touch 0 is B, touch 1 is D-Pad!
+  }));
+
+  assert(armLeft.classList.contains('active') === true, 'D-Pad LEFT arm is activated despite touch 0 being on the right (B button)');
+  assert(armRight.classList.contains('active') === false, 'CRITICAL: D-Pad RIGHT arm is NOT falsely activated');
+  assert(env.__lastPostedMessage && env.__lastPostedMessage.key === 'LEFT' && env.__lastPostedMessage.pressed === true, 'Input LEFT was correctly dispatched to game');
+
+  // Multi-Touch Move: Touchmove fires with both touches active
+  if (windowListeners['touchmove']) {
+    windowListeners['touchmove'].forEach(cb => cb({
+      preventDefault: () => {},
+      touches: [touchB, touchLeft]
+    }));
+  }
+  assert(armLeft.classList.contains('active') === true, 'D-Pad LEFT remains active during multi-touch touchmove');
+  assert(armRight.classList.contains('active') === false, 'D-Pad RIGHT remains inactive during multi-touch touchmove');
+
+  // Release B button: D-Pad LEFT must NOT be canceled
+  listeners['gb-btn-b']['touchend'].forEach(cb => cb({
+    preventDefault: () => {},
+    changedTouches: [touchB],
+    touches: [touchLeft]
+  }));
+  if (windowListeners['touchend']) {
+    windowListeners['touchend'].forEach(cb => cb({
+      preventDefault: () => {},
+      changedTouches: [touchB],
+      touches: [touchLeft]
+    }));
+  }
+  assert(btnB.classList.contains('active') === false, 'B button is released');
+  assert(armLeft.classList.contains('active') === true, 'D-Pad LEFT remains active after releasing B button');
+
+  // Release D-Pad LEFT
+  if (windowListeners['touchend']) {
+    windowListeners['touchend'].forEach(cb => cb({
+      preventDefault: () => {},
+      changedTouches: [touchLeft],
+      touches: []
+    }));
+  }
+  assert(armLeft.classList.contains('active') === false, 'D-Pad LEFT releases cleanly when its own touch ends');
+});
+
+// =========================================================================
 // SUMMARY
 // =========================================================================
 console.log(`\n==================================================`);

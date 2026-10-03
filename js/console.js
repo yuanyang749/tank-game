@@ -331,19 +331,63 @@ class GameBoyConsole {
 
     const bindButton = (el, key) => {
       if (!el) return;
+      let activeTouchId = null;
+
       el.addEventListener('touchstart', (e) => {
         e.preventDefault();
+        if (e.changedTouches && e.changedTouches.length > 0) {
+          activeTouchId = e.changedTouches[0].identifier;
+        }
         el.classList.add('active');
         this.sendInput(key, true);
       }, { passive: false });
 
       const onEnd = (e) => {
+        if (activeTouchId !== null && e.changedTouches) {
+          let found = false;
+          for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === activeTouchId) {
+              found = true;
+              break;
+            }
+          }
+          if (!found) return; // Ignore touch ends from other fingers!
+        }
         e.preventDefault();
+        activeTouchId = null;
         el.classList.remove('active');
         this.sendInput(key, false);
       };
+
       el.addEventListener('touchend', onEnd, { passive: false });
       el.addEventListener('touchcancel', onEnd, { passive: false });
+
+      // Window fallback to ensure release if finger leaves button
+      window.addEventListener('touchend', (e) => {
+        if (activeTouchId !== null && e.changedTouches) {
+          for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === activeTouchId) {
+              activeTouchId = null;
+              el.classList.remove('active');
+              this.sendInput(key, false);
+              break;
+            }
+          }
+        }
+      });
+      window.addEventListener('touchcancel', (e) => {
+        if (activeTouchId !== null && e.changedTouches) {
+          for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === activeTouchId) {
+              activeTouchId = null;
+              el.classList.remove('active');
+              this.sendInput(key, false);
+              break;
+            }
+          }
+        }
+      });
+
       el.addEventListener('mousedown', () => {
         el.classList.add('active');
         this.sendInput(key, true);
@@ -364,7 +408,7 @@ class GameBoyConsole {
     bindButton(btnStart, 'START');
   }
 
-  // Smooth sliding cross D-Pad on the Game Boy chassis
+  // Multi-Touch Safe Cross D-Pad on the Game Boy chassis
   initDpadTouchSliding() {
     const dpadContainer = document.getElementById('gb-dpad');
     const armUp = document.getElementById('dpad-up');
@@ -374,7 +418,7 @@ class GameBoyConsole {
 
     if (!dpadContainer) return;
 
-    let isTouching = false;
+    let activeTouchId = null;
     let centerX = 0;
     let centerY = 0;
     let currentDir = null;
@@ -410,29 +454,72 @@ class GameBoyConsole {
       }
     };
 
+    const findDpadTouch = (touchList) => {
+      if (activeTouchId === null || !touchList) return null;
+      for (let i = 0; i < touchList.length; i++) {
+        if (touchList[i].identifier === activeTouchId) {
+          return touchList[i];
+        }
+      }
+      return null;
+    };
+
+    // Touch start on D-Pad: Bind strictly to this specific finger
     dpadContainer.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const rect = dpadContainer.getBoundingClientRect();
       centerX = rect.left + rect.width / 2;
       centerY = rect.top + rect.height / 2;
-      isTouching = true;
-      handleCoords(e.touches[0].clientX, e.touches[0].clientY);
+
+      // Use the touch that triggered this event (changedTouches), NOT e.touches[0]!
+      const touch = e.changedTouches ? e.changedTouches[0] : (e.touches ? e.touches[0] : null);
+      if (touch) {
+        activeTouchId = touch.identifier;
+        handleCoords(touch.clientX, touch.clientY);
+      }
     }, { passive: false });
 
+    // Touch move: Track ONLY the finger bound to D-Pad (ignore other fingers like B button!)
     window.addEventListener('touchmove', (e) => {
-      if (!isTouching) return;
-      e.preventDefault();
-      handleCoords(e.touches[0].clientX, e.touches[0].clientY);
+      if (activeTouchId === null) return;
+      const touch = findDpadTouch(e.touches);
+      if (touch) {
+        e.preventDefault();
+        handleCoords(touch.clientX, touch.clientY);
+      }
     }, { passive: false });
 
-    const endTouch = () => {
-      if (isTouching) {
-        isTouching = false;
+    // Touch end: Release D-Pad ONLY when the D-Pad's specific finger lifts!
+    const onTouchEnd = (e) => {
+      if (activeTouchId === null) return;
+      const touch = findDpadTouch(e.changedTouches);
+      if (touch) {
+        activeTouchId = null;
         setDir(null);
       }
     };
-    window.addEventListener('touchend', endTouch);
-    window.addEventListener('touchcancel', endTouch);
+    window.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('touchcancel', onTouchEnd);
+
+    // Direct click/touch support on individual arms for fast discrete tapping
+    const bindDirectArm = (armEl, dir) => {
+      if (!armEl) return;
+      armEl.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const touch = e.changedTouches ? e.changedTouches[0] : null;
+        if (touch) activeTouchId = touch.identifier;
+        const rect = dpadContainer.getBoundingClientRect();
+        centerX = rect.left + rect.width / 2;
+        centerY = rect.top + rect.height / 2;
+        setDir(dir);
+      }, { passive: false });
+    };
+
+    bindDirectArm(armUp, 'UP');
+    bindDirectArm(armDown, 'DOWN');
+    bindDirectArm(armLeft, 'LEFT');
+    bindDirectArm(armRight, 'RIGHT');
   }
 
   initKeyboardBridge() {
