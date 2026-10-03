@@ -41,50 +41,53 @@ html, body {
   align-items: center;
 }
 
-/* ================= Top Bar Hardware Controls ================= */
-#top-bar {
-  position: absolute;
-  top: 4px;
+/* ================= Bottom System Bar Controls ================= */
+#bottom-bar, #top-bar {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 8px) + 8px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 8px;
+  gap: 10px;
   z-index: 100;
-  background: rgba(20, 20, 26, 0.85);
-  backdrop-filter: blur(8px);
-  padding: 4px 10px;
-  border-radius: 20px;
-  border: 1px solid #333;
+  background: rgba(18, 18, 24, 0.94);
+  backdrop-filter: blur(12px);
+  padding: 6px 14px;
+  border-radius: 26px;
+  border: 1.5px solid #3c3c4c;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85);
 }
 
-.top-pill {
-  background: #282830;
-  color: #bbb;
-  border: 1px solid #444;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 11px;
+.bottom-pill, .top-pill {
+  background: #252532;
+  color: #ccc;
+  border: 1px solid #444456;
+  padding: 6px 13px;
+  border-radius: 16px;
+  font-size: 11.5px;
   font-weight: bold;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 4px;
+  transition: all 0.15s ease;
 }
-.top-pill:active, .top-pill.active {
+.bottom-pill:active, .bottom-pill.active, .top-pill:active, .top-pill.active {
   background: #00e5ff;
   color: #000;
   border-color: #fff;
+  transform: scale(0.94);
 }
 
 /* ================= Game Boy Shell Container ================= */
 #gameboy-chassis {
   width: 100vw;
-  max-width: 410px;
+  max-width: 420px;
   height: 98vh;
   height: 98dvh;
-  max-height: 820px;
+  max-height: 840px;
   background: var(--gb-shell);
-  border-radius: 22px 22px 70px 22px; /* Authentic DMG-01 curved bottom-right! */
+  border-radius: 20px 20px 65px 20px; /* Authentic DMG-01 curved bottom-right! */
   box-shadow: 
     inset 0 4px 6px var(--gb-shell-highlight),
     inset -4px -4px 8px var(--gb-shell-shadow),
@@ -93,10 +96,10 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px 16px 16px;
+  padding: 8px 14px 64px 14px; /* Room for bottom system bar */
   position: relative;
   border: 2px solid #b8b6a6;
-  margin-top: 14px;
+  margin-top: 0;
 }
 
 /* Authentic Top Ribs / Ridges */
@@ -113,10 +116,10 @@ html, body {
 /* ================= Screen Bezel ================= */
 #screen-bezel-unit {
   width: 100%;
-  max-width: 374px;
+  max-width: 396px;
   background: var(--gb-bezel);
-  border-radius: 14px 14px 42px 14px;
-  padding: 10px 14px 14px 14px;
+  border-radius: 12px 12px 38px 12px;
+  padding: 6px 10px 10px 10px;
   box-shadow: inset 0 3px 6px #41434c, 0 3px 6px rgba(0,0,0,0.3);
   position: relative;
   display: flex;
@@ -171,7 +174,7 @@ html, body {
 /* Battery LED indicator */
 .battery-indicator {
   position: absolute;
-  left: -2px;
+  left: 2px;
   top: 36%;
   display: flex;
   flex-direction: column;
@@ -198,14 +201,15 @@ html, body {
   letter-spacing: 0.3px;
 }
 
-/* Actual LCD Frame */
+/* Actual LCD Frame - Enlarged & Taller */
 #gb-screen-frame {
-  width: 100%;
-  max-width: 290px;
-  aspect-ratio: 10 / 9;
+  width: calc(100% - 16px);
+  max-width: 352px;
+  height: min(44vh, 345px);
+  aspect-ratio: auto;
   background: #000;
   border-radius: 4px;
-  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.9), 0 2px 4px rgba(0,0,0,0.5);
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.95), 0 2px 5px rgba(0,0,0,0.5);
   margin: 0 auto;
   position: relative;
   overflow: hidden;
