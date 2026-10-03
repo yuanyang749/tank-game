@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#101014">
   <title>Antigravity Retro Game Boy Console - 掌机模拟器</title>
-  <link rel="stylesheet" href="css/gameboy.css">
+  <link rel="stylesheet" href="css/gameboy.css?v=20261003_3">
 </head>
 <body>
 
@@ -81,27 +81,37 @@
         </div>
       </div>
 
-      <!-- Pill Shaped Rubber SELECT & START Buttons -->
-      <div class="select-start-row">
-        <div class="rubber-pill-unit">
-          <div class="rubber-pill-btn" id="gb-btn-select"></div>
-          <span class="rubber-label">SELECT</span>
+      <!-- Pill Shaped Rubber SELECT & START Buttons & Speaker Grille Row -->
+      <div class="secondary-controls-row">
+        <div class="select-start-row">
+          <div class="rubber-pill-unit">
+            <div class="rubber-pill-btn" id="gb-btn-select"></div>
+            <span class="rubber-label">SELECT</span>
+          </div>
+          <div class="rubber-pill-unit">
+            <div class="rubber-pill-btn" id="gb-btn-start"></div>
+            <span class="rubber-label">START</span>
+          </div>
         </div>
-        <div class="rubber-pill-unit">
-          <div class="rubber-pill-btn" id="gb-btn-start"></div>
-          <span class="rubber-label">START</span>
-        </div>
-      </div>
 
-      <!-- Speaker Grille Slits (Bottom Right) -->
-      <div class="speaker-grille">
-        <div class="speaker-slit"></div>
-        <div class="speaker-slit"></div>
-        <div class="speaker-slit"></div>
-        <div class="speaker-slit"></div>
-        <div class="speaker-slit"></div>
-        <div class="speaker-slit"></div>
+        <!-- Speaker Grille Slits (Bottom Right) -->
+        <div class="speaker-grille">
+          <div class="speaker-slit"></div>
+          <div class="speaker-slit"></div>
+          <div class="speaker-slit"></div>
+          <div class="speaker-slit"></div>
+          <div class="speaker-slit"></div>
+          <div class="speaker-slit"></div>
+        </div>
       </div>
+    </div>
+
+    <!-- Bottom System Function Bar (Directly integrated into Game Boy chassis footer!) -->
+    <div id="bottom-bar">
+      <button class="bottom-pill active" id="top-btn-power">⚡ 电源: 开</button>
+      <button class="bottom-pill" id="top-btn-cartridge">💾 换卡带</button>
+      <button class="bottom-pill" id="top-btn-palette">🎨 原彩</button>
+      <button class="bottom-pill" id="top-btn-fullscreen">⛶ 全屏</button>
     </div>
   </div>
 
@@ -140,14 +150,6 @@
 
       <button class="modal-close-btn" id="modal-close-btn">返回游戏</button>
     </div>
-  </div>
-
-  <!-- Bottom System Bar (Moved from top to bottom so it doesn't block screen) -->
-  <div id="bottom-bar">
-    <button class="bottom-pill active" id="top-btn-power">⚡ 电源: 开</button>
-    <button class="bottom-pill" id="top-btn-cartridge">💾 换卡带</button>
-    <button class="bottom-pill" id="top-btn-palette">🎨 原彩</button>
-    <button class="bottom-pill" id="top-btn-fullscreen">⛶ 全屏</button>
   </div>
 
   <!-- Console Engine Script -->
