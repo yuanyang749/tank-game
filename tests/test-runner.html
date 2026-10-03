@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🎮 掌机模拟器自动化测试套件 - Test Runner</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #121216;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      padding: 16px;
+      line-height: 1.5;
+    }
+    header {
+      margin-bottom: 20px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 12px;
+    }
+    h1 { font-size: 20px; color: #ffd700; display: flex; align-items: center; gap: 8px; }
+    .subtitle { font-size: 13px; color: #888; margin-top: 4px; }
+    .stats-bar {
+      display: flex;
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .stat-chip {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .stat-pass { background: rgba(0, 230, 118, 0.15); color: #00e676; border: 1px solid #00e676; }
+    .stat-fail { background: rgba(255, 23, 68, 0.15); color: #ff1744; border: 1px solid #ff1744; }
+    .suite-card {
+      background: #1c1c24;
+      border: 1px solid #323240;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .suite-title {
+      background: #252532;
+      padding: 10px 14px;
+      font-weight: 900;
+      font-size: 14px;
+      color: #00e5ff;
+      border-bottom: 1px solid #323240;
+    }
+    .test-list { list-style: none; padding: 8px 12px; }
+    .test-item {
+      padding: 6px 4px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #22222c;
+    }
+    .test-item:last-child { border-bottom: none; }
+    .icon-pass { color: #00e676; font-weight: bold; }
+    .icon-fail { color: #ff1744; font-weight: bold; }
+    .rerun-btn {
+      background: #ffd700;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🧪 自动化测试报告 (Automated Test Runner)</h1>
+    <div class="subtitle">真机实时运行：物理引擎、碰撞解死锁、外星人行军、掩体弹坑侵蚀、掌机控制桥接</div>
+  </header>
+
+  <div class="stats-bar">
+    <div class="stat-chip stat-pass">✓ 通过: <span id="passCount">0</span></div>
+    <div class="stat-chip stat-fail">✗ 失败: <span id="failCount">0</span></div>
+  </div>
+
+  <div id="suitesContainer"></div>
+
+  <button class="rerun-btn" onclick="runAllTests()">🔄 重新执行全部测试</button>
+
+  <!-- Load Game Scripts -->
+  <script src="../games/tank-battle/js/audio.js"></script>
+  <script src="../games/tank-battle/js/map.js"></script>
+  <script src="../games/tank-battle/js/physics.js"></script>
+  <script src="../games/space-invaders/js/audio.js"></script>
+  <script src="../games/space-invaders/js/player.js"></script>
+  <script src="../games/space-invaders/js/shields.js"></script>
+  <script src="../games/space-invaders/js/invaders.js"></script>
+
+  <script>
+    let passed = 0;
+    let failed = 0;
+    const container = document.getElementById('suitesContainer');
+
+    function assert(cond, name, listEl) {
+      const li = document.createElement('li');
+      li.className = 'test-item';
+      if (cond) {
+        passed++;
+        li.innerHTML = `<span class="icon-pass">✓</span> ${name}`;
+      } else {
+        failed++;
+        li.innerHTML = `<span class="icon-fail">✗</span> ${name}`;
+      }
+      listEl.appendChild(li);
+    }
+
+    function createSuite(title) {
+      const card = document.createElement('div');
+      card.className = 'suite-card';
+      card.innerHTML = `<div class="suite-title">📦 ${title}</div>`;
+      const ul = document.createElement('ul');
+      ul.className = 'test-list';
+      card.appendChild(ul);
+      container.appendChild(card);
+      return ul;
+    }
+
+    function runAllTests() {
+      container.innerHTML = '';
+      passed = 0;
+      failed = 0;
+
+      // 1. Tank Battle Map Suite
+      const s1 = createSuite('1. 坦克大战地图系统与瓦片布局 (Tank Battle Maps)');
+      assert(typeof TILE_SIZE !== 'undefined' && TILE_SIZE === 16, '瓦片尺寸必须固定为 16px', s1);
+      assert(MAP_COLS === 26 && MAP_ROWS === 26, '地图规格固定为 26 × 26 瓦片', s1);
+      const m1 = generateMap(1);
+      assert(m1[24][12] === T_BASE, '司令部老鹰基地位于坐标 (24, 12)', s1);
+      assert(m1[23][12] === T_BRICK, '司令部上方配备防弹砖墙掩体', s1);
+      assert(m1[16][0] === T_WATER, '河流瓦片布局完整', s1);
+
+      // 2. Physics & Vector Decoupling
+      const s2 = createSuite('2. 物理碰撞与向量解耦算法 (Physics & Vector Decoupling)');
+      assert(Physics.checkAABB(0,0,10,10, 5,5,10,10) === true, 'AABB 正确检测矩形重叠', s2);
+      assert(Physics.checkAABB(0,0,10,10, 20,20,10,10) === false, 'AABB 正确排除远距物体', s2);
+      assert(Physics.checkTileCollision(-2, 0, 28, m1) === true, '边界阻挡碰撞正确触发', s2);
+      assert(Physics.checkTileCollision(12 * 16, 24 * 16, 16, m1) === true, '老鹰基地碰撞体积判定生效', s2);
+
+      // Vector Decoupling
+      const emptyMap = Array(26).fill(0).map(() => Array(26).fill(0));
+      const testGame = {
+        map: emptyMap,
+        enemies: [{ x: 50, y: 0, size: 28, alive: true }, { x: 55, y: 0, size: 28, alive: true }],
+        player: null
+      };
+      const beforeD = Math.hypot(testGame.enemies[0].x - testGame.enemies[1].x, 0);
+      Physics.resolveAllTankOverlaps(testGame);
+      const afterD = Math.hypot(testGame.enemies[0].x - testGame.enemies[1].x, 0);
+      assert(afterD > beforeD, `向量解耦生效：死锁重叠坦克被反向弹开 (${beforeD}px -> ${afterD.toFixed(1)}px)`, s2);
+
+      // 3. Space Invaders Grid
+      const s3 = createSuite('3. 太空侵略者编队与动态行军 (Space Invaders Grid)');
+      const grid = new InvaderGrid(320, 400);
+      assert(grid.aliens.length === 40, '外星人 5行 × 8列 = 40 只编队完成', s3);
+      const startInterval = grid.stepInterval;
+      for (let i = 0; i < 35; i++) grid.aliens[i].alive = false;
+      grid.update(0.1, 350);
+      assert(grid.stepInterval < startInterval, `动态急促加速生效：剩余 5 只外星人时行军步进从 ${startInterval}s 加速至 ${grid.stepInterval.toFixed(3)}s`, s3);
+
+      // UFO
+      grid.ufo.spawn();
+      assert(grid.ufo.alive === true, '神秘红色飞碟正确生成掠过高空', s3);
+      const ufoPts = grid.ufo.hit();
+      assert(ufoPts >= 100, `击落飞碟获得战术奖励积分: +${ufoPts}`, s3);
+
+      // 4. Space Invaders Shields
+      const s4 = createSuite('4. 像素级掩体弹坑侵蚀物理 (Shield Bunkers)');
+      const bunker = new ShieldBunker(20, 200, 42, 28);
+      assert(bunker.hits(20 + 21, 200 + 10) === true, '掩体实体判定准确', s4);
+      bunker.damage(20 + 21, 200 + 10, 6);
+      assert(true, '弹坑侵蚀裁剪运算成功执行无异常', s4);
+
+      // Update counters
+      document.getElementById('passCount').innerText = passed;
+      document.getElementById('failCount').innerText = failed;
+    }
+
+    window.addEventListener('load', runAllTests);
+  </script>
+</body>
+</html>

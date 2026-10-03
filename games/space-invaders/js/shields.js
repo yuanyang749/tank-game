@@ -68,7 +68,7 @@ class ShieldBunker {
     for (let i = 0; i < 4; i++) {
       const jx = lx + (Math.random() - 0.5) * (radius * 1.5);
       const jy = ly + (Math.random() - 0.5) * (radius * 1.5);
-      ctx.fillRect(jx, jy, 2, 2);
+      this.ctx.fillRect(jx, jy, 2, 2);
     }
     this.ctx.restore();
     invadersSound.playShieldHit();
