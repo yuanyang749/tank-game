@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#101014">
   <title>Antigravity Retro Game Boy Console - 掌机模拟器</title>
-  <link rel="stylesheet" href="css/gameboy.css?v=20261003_3">
+  <link rel="stylesheet" href="css/gameboy.css?v=20261003_4">
 </head>
 <body>
 
@@ -22,6 +22,7 @@
         <div class="bezel-line-top"></div>
         <div class="bezel-line-bottom"></div>
         <div class="bezel-text">DOT MATRIX WITH STEREO SOUND</div>
+        <button id="in-game-menu-btn" class="bezel-menu-btn hidden" title="返回游戏目录 (SELECT+START)">◀ 目录</button>
       </div>
 
       <div class="screen-housing">
@@ -31,10 +32,67 @@
           <span class="battery-label">BATTERY</span>
         </div>
 
-        <!-- LCD Screen Frame & Canvas/Iframe -->
+        <!-- LCD Screen Frame & Canvas/Iframe/Menu -->
         <div id="gb-screen-frame" class="palette-color">
           <div class="lcd-grid-overlay"></div>
-          <iframe id="game-screen" src="games/tank-battle/index.html?embedded=1"></iframe>
+
+          <!-- Authentic Game Boy Multi-Cart Selection Menu (On-Screen List) -->
+          <div id="gb-menu-view" class="active">
+            <div class="menu-lcd-header">
+              <div class="menu-brand-header">★ ANTIGRAVITY ★</div>
+              <div class="menu-title-banner">GAME BOY MULTI-CART</div>
+              <div class="menu-pixel-hr"></div>
+            </div>
+
+            <div class="menu-game-list" id="menu-game-list">
+              <!-- Game 01: Tank Battle -->
+              <div class="menu-item active" data-index="0" data-game="tank-battle">
+                <span class="menu-cursor">▶</span>
+                <span class="menu-num">1.</span>
+                <div class="menu-text-wrap">
+                  <div class="menu-game-title">像素坦克大战 1990</div>
+                  <div class="menu-game-en">BATTLE CITY · 8-BIT TANK</div>
+                </div>
+                <span class="menu-tag">ROM 01</span>
+              </div>
+
+              <!-- Game 02: Space Invaders -->
+              <div class="menu-item" data-index="1" data-game="space-invaders">
+                <span class="menu-cursor">▶</span>
+                <span class="menu-num">2.</span>
+                <div class="menu-text-wrap">
+                  <div class="menu-game-title">太空侵略者 1978</div>
+                  <div class="menu-game-en">SPACE INVADERS · TAITO</div>
+                </div>
+                <span class="menu-tag">ROM 02</span>
+              </div>
+
+              <!-- Game 03: Geek Guide -->
+              <div class="menu-item" data-index="2" data-game="tutorial">
+                <span class="menu-cursor">▶</span>
+                <span class="menu-num">3.</span>
+                <div class="menu-text-wrap">
+                  <div class="menu-game-title">TERMUX 开发攻略</div>
+                  <div class="menu-game-en">SHIZUKU & MCP MANUAL</div>
+                </div>
+                <span class="menu-tag">DOC 03</span>
+              </div>
+            </div>
+
+            <!-- Authentic LCD Footer Guide -->
+            <div class="menu-lcd-footer">
+              <div class="menu-footer-hint">
+                <span><b class="key-pill">▲▼</b>选择</span>
+                <span><b class="key-pill">A/START</b>启动</span>
+                <span><b class="key-pill">SEL+STA</b>复位</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Game Iframe Screen -->
+          <iframe id="game-screen" src="" class="hidden"></iframe>
+
+          <!-- Powered Off Overlay -->
           <div id="screen-off-overlay" class="hidden">
             <span>POWER OFF</span>
           </div>
@@ -83,15 +141,18 @@
 
       <!-- Pill Shaped Rubber SELECT & START Buttons & Speaker Grille Row -->
       <div class="secondary-controls-row">
-        <div class="select-start-row">
-          <div class="rubber-pill-unit">
-            <div class="rubber-pill-btn" id="gb-btn-select"></div>
-            <span class="rubber-label">SELECT</span>
+        <div class="select-start-wrap">
+          <div class="select-start-row">
+            <div class="rubber-pill-unit">
+              <div class="rubber-pill-btn" id="gb-btn-select"></div>
+              <span class="rubber-label">SELECT</span>
+            </div>
+            <div class="rubber-pill-unit">
+              <div class="rubber-pill-btn" id="gb-btn-start"></div>
+              <span class="rubber-label">START</span>
+            </div>
           </div>
-          <div class="rubber-pill-unit">
-            <div class="rubber-pill-btn" id="gb-btn-start"></div>
-            <span class="rubber-label">START</span>
-          </div>
+          <div class="reset-silk-screen">◀ RESET: SELECT + START ▶</div>
         </div>
 
         <!-- Speaker Grille Slits (Bottom Right) -->
@@ -106,53 +167,45 @@
       </div>
     </div>
 
-    <!-- Bottom System Function Bar (Directly integrated into Game Boy chassis footer!) -->
-    <div id="bottom-bar">
-      <button class="bottom-pill active" id="top-btn-power">⚡ 电源: 开</button>
-      <button class="bottom-pill" id="top-btn-cartridge">💾 换卡带</button>
-      <button class="bottom-pill" id="top-btn-palette">🎨 原彩</button>
-      <button class="bottom-pill" id="top-btn-fullscreen">⛶ 全屏</button>
-    </div>
-  </div>
-
-  <!-- Cartridge Switcher Modal -->
-  <div id="cartridge-modal" class="hidden">
-    <div class="modal-card">
-      <div class="modal-title">💾 选择游戏卡带 (Cartridges)</div>
-      <div class="cartridge-list">
-        <!-- Cartridge 1: Tank Battle -->
-        <div class="cartridge-item active" data-cart="tank-battle">
-          <div class="cart-icon">🎮</div>
-          <div class="cart-info">
-            <div class="cart-name">像素坦克大战 1990</div>
-            <div class="cart-desc">Pixel Tank Battle · 向量解耦物理 · 8-Bit 芯片音效</div>
-          </div>
+    <!-- Game Boy Chassis Hardware Utility Dock (3 Authentic SVG Operations) -->
+    <div class="console-utility-dock">
+      <!-- 1. Power Switch / Button -->
+      <button class="utility-btn active" id="btn-power" aria-label="电源开关" title="电源开关 (POWER)">
+        <div class="btn-cap">
+          <svg class="utility-svg" viewBox="0 0 24 24">
+            <path d="M12 2v10"/>
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+          </svg>
         </div>
+        <span class="btn-label">POWER</span>
+      </button>
 
-        <!-- Cartridge 2: Space Invaders -->
-        <div class="cartridge-item" data-cart="space-invaders">
-          <div class="cart-icon">👾</div>
-          <div class="cart-info">
-            <div class="cart-name">太空侵略者 1978</div>
-            <div class="cart-desc">Space Invaders · 可破坏掩体 · 经典四音步进</div>
-          </div>
+      <!-- 2. Palette Mode Switcher -->
+      <button class="utility-btn" id="btn-palette" aria-label="色彩调色板" title="色彩模式 (PALETTE)">
+        <div class="btn-cap">
+          <svg class="utility-svg" viewBox="0 0 24 24">
+            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.5-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16c3.3 0 6-2.7 6-6 0-5.5-4.5-9.8-10-9.8z"/>
+            <circle cx="7.5" cy="10.5" r="1.5" fill="currentColor"/>
+            <circle cx="12" cy="7.5" r="1.5" fill="currentColor"/>
+            <circle cx="16.5" cy="10.5" r="1.5" fill="currentColor"/>
+          </svg>
         </div>
+        <span class="btn-label" id="palette-label">COLOR</span>
+      </button>
 
-        <!-- Cartridge 3: Tutorial Guide -->
-        <div class="cartridge-item" data-cart="tutorial">
-          <div class="cart-icon">📖</div>
-          <div class="cart-info">
-            <div class="cart-name">Termux 自动化开发全攻略</div>
-            <div class="cart-desc">Shizuku 提权 · MT 管理器 MCP · 移动极客指南</div>
-          </div>
+      <!-- 3. Fullscreen Toggle -->
+      <button class="utility-btn" id="btn-fullscreen" aria-label="全屏显示" title="全屏切换 (FULLSCREEN)">
+        <div class="btn-cap">
+          <svg class="utility-svg" viewBox="0 0 24 24">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
         </div>
-      </div>
-
-      <button class="modal-close-btn" id="modal-close-btn">返回游戏</button>
+        <span class="btn-label">FULLSCREEN</span>
+      </button>
     </div>
   </div>
 
   <!-- Console Engine Script -->
-  <script src="js/console.js"></script>
+  <script src="js/console.js?v=20261003_5"></script>
 </body>
 </html>

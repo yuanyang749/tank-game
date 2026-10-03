@@ -340,6 +340,22 @@ suite('5. Game Boy Console OS & Bridge Controller', () => {
   assert(gb.powerOn === false, 'Console power toggles to OFF');
   gb.togglePower();
   assert(gb.powerOn === true, 'Console power toggles back to ON');
+
+  // Test authentic Game Boy Menu List navigation
+  gb.returnToMenu();
+  assert(gb.inMenu === true, 'Console soft-resets back to Multi-Cartridge menu list');
+
+  gb.navigateMenu(1);
+  assert(gb.menuIndex === 1, 'D-Pad DOWN moves menu cursor to index 1');
+  assert(gb.currentCartridge === 'space-invaders', 'Current selection updated to space-invaders');
+
+  gb.launchSelectedGame();
+  assert(gb.inMenu === false, 'A/START button successfully launches selected game from menu');
+
+  // Test 3 SVG Utility Actions: Palette cycle
+  const initialPalette = gb.paletteMode;
+  gb.cyclePalette();
+  assert(gb.paletteMode !== initialPalette, 'Palette utility button cycles screen color mode');
 });
 
 // =========================================================================
