@@ -313,7 +313,8 @@ suite('5. Game Boy Console OS & Bridge Controller', () => {
         }
       },
       innerText: '',
-      style: {}
+      style: {},
+      src: ''
     };
   };
 
@@ -326,6 +327,11 @@ suite('5. Game Boy Console OS & Bridge Controller', () => {
   // Test cartridge loading
   gb.loadCartridge('space-invaders');
   assert(gb.currentCartridge === 'space-invaders', 'Successfully switched cartridge to space-invaders');
+  assert(gb.iframe.src.includes('space-invaders'), 'Iframe src routed to space invaders');
+
+  gb.loadCartridge('tutorial');
+  assert(gb.currentCartridge === 'tutorial', 'Successfully switched cartridge to tutorial');
+  assert(gb.iframe.src === 'docs/gb-tutorial.html', 'Tutorial cartridge routes specifically to docs/gb-tutorial.html');
 
   // Test input bridge
   gb.sendInput('A', true);
@@ -467,6 +473,36 @@ suite('6. Multi-Touch Concurrency & Button Isolation (B + LEFT Anti-Collision)',
     }));
   }
   assert(armLeft.classList.contains('active') === false, 'D-Pad LEFT releases cleanly when its own touch ends');
+});
+
+// =========================================================================
+// TEST SUITE 7: Dedicated Game Boy Developer Guide Edition (gb-tutorial.html)
+// =========================================================================
+suite('7. Dedicated Game Boy Developer Guide Edition', () => {
+  const gbTutorialPath = path.join(__dirname, '../docs/gb-tutorial.html');
+  assert(fs.existsSync(gbTutorialPath), 'docs/gb-tutorial.html exists');
+
+  const content = fs.readFileSync(gbTutorialPath, 'utf8');
+  assert(content.length > 5000, `gb-tutorial.html has substantial manual content (${content.length} bytes)`);
+
+  // Mobile viewport test
+  assert(content.includes('viewport-fit=cover'), 'Viewport supports mobile edge-to-edge fitting');
+
+  // Compact font-size & styling test (user complaint: title font size was too large)
+  assert(/font-size:\s*1[0-2](\.\d+)?px/.test(content), 'Body font size scaled down to 10-12px for handheld screen');
+  assert(/\.gb-doc-title\s*\{[^}]*font-size:\s*1[3-6](\.\d+)?px/s.test(content), 'Title font size is strictly constrained within 13-16px');
+
+  // Elements adaptation test
+  assert(content.includes('nav-scroll-bar') && content.includes('nav-pill'), 'Quick chapter navigation pills present');
+  assert(content.includes('kv-grid') && content.includes('kv-cell'), 'Key-value responsive grids replace wide overflowing tables');
+  assert(content.includes('gb-controller-hud'), 'Floating Game Boy controller HUD hint bar present');
+  assert(content.includes('callout tip') && content.includes('callout warn'), 'Compact callout alerts present');
+
+  // Game Boy Hardware controller bridging test
+  assert(content.includes("event.data.type !== 'GB_INPUT'"), 'Listens to parent Game Boy GB_INPUT hardware bridge');
+  assert(content.includes("'UP'") && content.includes("'DOWN'"), 'D-Pad UP/DOWN controls vertical line scrolling');
+  assert(content.includes("'A'") && content.includes("'B'"), 'A/B hardware buttons trigger fast page down / up');
+  assert(content.includes("'START'") && content.includes("'SELECT'"), 'START resets to top, SELECT navigates to TOC');
 });
 
 // =========================================================================

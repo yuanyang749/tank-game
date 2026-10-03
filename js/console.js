@@ -217,7 +217,7 @@ class GameBoyConsole {
     } else if (gameId === 'space-invaders') {
       url = 'games/space-invaders/index.html?embedded=1';
     } else if (gameId === 'tutorial') {
-      url = 'docs/tutorial.html';
+      url = 'docs/gb-tutorial.html';
     }
 
     if (this.iframe) {
