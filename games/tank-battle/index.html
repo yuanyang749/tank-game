@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#121212">
+  <title>经典像素坦克大战 - 移动掌机版</title>
+  <link rel="stylesheet" href="css/tank.css">
+</head>
+<body>
+
+  <div id="console-wrapper">
+    <!-- Top Screen Area -->
+    <div id="screen-section">
+      <div id="lcd-hud">
+        <div class="hud-chip">🚩 关卡 <span class="hud-num" id="hudStage">1</span></div>
+        <div class="hud-chip">💖 命 <span class="hud-num" id="hudLives">3</span></div>
+        <div class="hud-chip">🏆 分 <span class="hud-num" id="hudScore">0</span></div>
+        <div class="hud-chip">👾 敌 <span class="hud-num" id="hudEnemies">20</span></div>
+      </div>
+      <div id="screen-bezel">
+        <canvas id="gameCanvas" width="416" height="416"></canvas>
+      </div>
+    </div>
+
+    <!-- Handheld Gamepad Deck (Shown when playing standalone) -->
+    <div id="gamepad-deck">
+      <!-- System Bar -->
+      <div class="system-row">
+        <button class="pill-btn" id="btn-sound">🔊 声音</button>
+        <button class="pill-btn" id="btn-pause">⏸ 暂停</button>
+        <button class="pill-btn" id="btn-fullscreen">⛶ 全屏</button>
+        <button class="pill-btn" id="btn-restart">🔄 重开</button>
+      </div>
+
+      <!-- Controls Row: D-Pad on Left, Action Buttons on Right -->
+      <div class="main-controls-row">
+        <!-- Tactile Slide D-Pad -->
+        <div class="dpad-touchzone" id="dpadZone">
+          <div class="dpad-cross">
+            <div class="dpad-arm up" id="arm-up">▲</div>
+            <div class="dpad-arm down" id="arm-down">▼</div>
+            <div class="dpad-arm left" id="arm-left">◀</div>
+            <div class="dpad-arm right" id="arm-right">▶</div>
+            <div class="dpad-core"></div>
+          </div>
+          <div class="dpad-indicator-dot" id="dpadDot"></div>
+        </div>
+
+        <!-- Arcade Action Buttons -->
+        <div class="arcade-buttons-group">
+          <!-- B Button: Turbo Continuous Fire -->
+          <div class="arcade-btn-wrapper">
+            <div class="arcade-btn btn-b" id="btn-turbo">
+              <span class="btn-letter">B</span>
+              <span class="btn-tag">极速</span>
+            </div>
+            <span class="btn-label-outside">连发</span>
+          </div>
+
+          <!-- A Button: Main Fire -->
+          <div class="arcade-btn-wrapper">
+            <div class="arcade-btn btn-a" id="btn-fire">
+              <span class="btn-letter">A</span>
+              <span class="btn-tag">开火</span>
+            </div>
+            <span class="btn-label-outside">主炮</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modular Scripts -->
+  <script src="js/audio.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

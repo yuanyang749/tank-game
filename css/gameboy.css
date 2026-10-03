@@ -1,0 +1,586 @@
+/* ==========================================================================
+   Antigravity Game Boy (DMG-01) Retro Console Styling
+   Mobile-First Handheld Simulator Architecture
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+:root {
+  --gb-shell: #cfcdbe;
+  --gb-shell-shadow: #b2b0a0;
+  --gb-shell-highlight: #e4e2d4;
+  --gb-bezel: #6e707d;
+  --gb-bezel-inner: #50525d;
+  --gb-screen-dmg: #8bac0f;
+  --gb-screen-dmg-dark: #0f380f;
+  --gb-button-ab: #8f1947;
+  --gb-button-ab-active: #b5225c;
+  --gb-dpad: #2b2b2d;
+  --gb-rubber: #7c7e88;
+  --gb-accent-purple: #86184a;
+  --gb-accent-blue: #002e7a;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #101014;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
+  touch-action: none;
+  overscroll-behavior: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ================= Top Bar Hardware Controls ================= */
+#top-bar {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 100;
+  background: rgba(20, 20, 26, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid #333;
+}
+
+.top-pill {
+  background: #282830;
+  color: #bbb;
+  border: 1px solid #444;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.top-pill:active, .top-pill.active {
+  background: #00e5ff;
+  color: #000;
+  border-color: #fff;
+}
+
+/* ================= Game Boy Shell Container ================= */
+#gameboy-chassis {
+  width: 100vw;
+  max-width: 410px;
+  height: 98vh;
+  height: 98dvh;
+  max-height: 820px;
+  background: var(--gb-shell);
+  border-radius: 22px 22px 70px 22px; /* Authentic DMG-01 curved bottom-right! */
+  box-shadow: 
+    inset 0 4px 6px var(--gb-shell-highlight),
+    inset -4px -4px 8px var(--gb-shell-shadow),
+    0 16px 36px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 16px 16px;
+  position: relative;
+  border: 2px solid #b8b6a6;
+  margin-top: 14px;
+}
+
+/* Authentic Top Ribs / Ridges */
+.shell-groove-top {
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  height: 4px;
+  background: var(--gb-shell-shadow);
+  border-radius: 0 0 4px 4px;
+}
+
+/* ================= Screen Bezel ================= */
+#screen-bezel-unit {
+  width: 100%;
+  max-width: 374px;
+  background: var(--gb-bezel);
+  border-radius: 14px 14px 42px 14px;
+  padding: 10px 14px 14px 14px;
+  box-shadow: inset 0 3px 6px #41434c, 0 3px 6px rgba(0,0,0,0.3);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Dual Color Accent Lines */
+.bezel-lines {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+  position: relative;
+}
+.bezel-line-top {
+  width: 100%;
+  height: 3px;
+  background: var(--gb-accent-purple);
+  border-radius: 2px;
+}
+.bezel-line-bottom {
+  width: 100%;
+  height: 2px;
+  background: var(--gb-accent-blue);
+  border-radius: 2px;
+}
+.bezel-text {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--gb-bezel);
+  padding: 0 8px;
+  font-size: 8.5px;
+  font-style: italic;
+  font-weight: 900;
+  color: #c0c2cc;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+/* Screen Area with Battery LED */
+.screen-housing {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+/* Battery LED indicator */
+.battery-indicator {
+  position: absolute;
+  left: -2px;
+  top: 36%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  z-index: 10;
+}
+.battery-led {
+  width: 8px;
+  height: 8px;
+  background: #3a1111;
+  border-radius: 50%;
+  box-shadow: inset 0 1px 2px #000;
+  transition: all 0.3s ease;
+}
+.battery-led.powered {
+  background: #ff2222;
+  box-shadow: 0 0 8px #ff2222, inset 0 1px 2px #fff;
+}
+.battery-label {
+  font-size: 7px;
+  font-weight: 800;
+  color: #9ea0aa;
+  letter-spacing: 0.3px;
+}
+
+/* Actual LCD Frame */
+#gb-screen-frame {
+  width: 100%;
+  max-width: 290px;
+  aspect-ratio: 10 / 9;
+  background: #000;
+  border-radius: 4px;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.9), 0 2px 4px rgba(0,0,0,0.5);
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+  border: 3px solid #282a32;
+}
+
+/* CRT / LCD Matrix Tint Filter */
+#gb-screen-frame.palette-dmg {
+  filter: sepia(0.8) hue-rotate(55deg) saturate(2.4) brightness(0.9);
+}
+#gb-screen-frame.palette-bw {
+  filter: grayscale(1) contrast(1.15) brightness(1.05);
+}
+#gb-screen-frame.palette-color {
+  filter: none;
+}
+
+/* Scanline / Pixel Grid Overlay */
+.lcd-grid-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15) 0px,
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  z-index: 5;
+}
+
+/* Game Iframe */
+iframe#game-screen {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: #000;
+}
+
+/* Powered off screen state */
+#screen-off-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #0d120d;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #2e442e;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: bold;
+}
+#screen-off-overlay.hidden {
+  display: none;
+}
+
+/* ================= Middle Console Branding ================= */
+.console-branding {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 18px 0 18px;
+}
+.brand-left {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.brand-name {
+  font-size: 13px;
+  font-weight: 900;
+  font-style: italic;
+  color: var(--gb-accent-blue);
+  letter-spacing: 0.5px;
+}
+.brand-sub {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--gb-accent-purple);
+  letter-spacing: 0.8px;
+}
+.brand-right {
+  font-size: 9px;
+  font-weight: 800;
+  color: #7b796d;
+  border: 1px solid #a3a193;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* ================= Lower Controls Deck ================= */
+#lower-deck {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+  flex: 1;
+  min-height: 230px;
+  position: relative;
+}
+
+/* Middle Primary Controls: D-Pad on Left, A/B on Right */
+.primary-controls-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 10px;
+}
+
+/* Tactile DMG-01 D-Pad */
+.dpad-container {
+  width: 138px;
+  height: 138px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+.dpad-well {
+  position: absolute;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #b8b6a7 0%, #a4a293 85%);
+  box-shadow: inset 0 3px 6px rgba(0,0,0,0.4), 0 2px 4px var(--gb-shell-highlight);
+}
+.dpad-cross {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+}
+.dpad-btn {
+  position: absolute;
+  background: var(--gb-dpad);
+  border: 2px solid #3c3c40;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: inset 0 2px 2px #505058, 0 3px 5px rgba(0,0,0,0.5);
+}
+.dpad-btn:active, .dpad-btn.active {
+  background: #111;
+  color: #fff;
+  transform: scale(0.96);
+  box-shadow: inset 0 3px 5px #000;
+}
+.dpad-btn.up {
+  top: 0; left: 37px; width: 36px; height: 40px; border-bottom: none; border-radius: 6px 6px 0 0;
+}
+.dpad-btn.down {
+  bottom: 0; left: 37px; width: 36px; height: 40px; border-top: none; border-radius: 0 0 6px 6px;
+}
+.dpad-btn.left {
+  top: 37px; left: 0; width: 40px; height: 36px; border-right: none; border-radius: 6px 0 0 6px;
+}
+.dpad-btn.right {
+  top: 37px; right: 0; width: 40px; height: 36px; border-left: none; border-radius: 0 6px 6px 0;
+}
+.dpad-center {
+  top: 37px; left: 37px; width: 36px; height: 36px;
+  position: absolute;
+  background: #252528;
+  border-radius: 50%;
+  box-shadow: inset 0 0 6px #000;
+  pointer-events: none;
+}
+
+/* Iconic Slanted A & B Action Buttons */
+.ab-buttons-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transform: rotate(-25deg); /* Classic DMG-01 angle! */
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.04);
+  border-radius: 36px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+}
+.ab-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.ab-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #a5184a, var(--gb-button-ab));
+  border: 2px solid #5a0928;
+  box-shadow: 
+    inset 0 3px 4px rgba(255, 255, 255, 0.4),
+    0 5px 10px rgba(0, 0, 0, 0.5),
+    0 1px 2px #fff;
+  cursor: pointer;
+  touch-action: none;
+}
+.ab-btn:active, .ab-btn.active {
+  background: var(--gb-button-ab-active);
+  transform: scale(0.92) translateY(2px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+}
+.ab-label {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--gb-accent-blue);
+  letter-spacing: 0.5px;
+  transform: rotate(25deg); /* Counter-rotate label so it reads upright! */
+}
+
+/* Rubber Pill SELECT & START Buttons */
+.select-start-row {
+  display: flex;
+  gap: 22px;
+  align-items: center;
+  margin-top: 10px;
+}
+.rubber-pill-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transform: rotate(-25deg);
+}
+.rubber-pill-btn {
+  width: 44px;
+  height: 14px;
+  background: var(--gb-rubber);
+  border-radius: 8px;
+  border: 1px solid #565860;
+  box-shadow: inset 0 2px 2px #989aa6, 0 3px 5px rgba(0,0,0,0.4);
+  cursor: pointer;
+  touch-action: none;
+}
+.rubber-pill-btn:active, .rubber-pill-btn.active {
+  background: #464850;
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+.rubber-label {
+  font-size: 9px;
+  font-weight: 900;
+  color: var(--gb-accent-blue);
+  letter-spacing: 0.5px;
+}
+
+/* Speaker Grille Slits (Bottom Right) */
+.speaker-grille {
+  position: absolute;
+  bottom: 12px;
+  right: 18px;
+  display: flex;
+  gap: 5px;
+  transform: rotate(-28deg);
+  pointer-events: none;
+}
+.speaker-slit {
+  width: 5px;
+  height: 38px;
+  background: #1c1c20;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 3px #000, 0 1px 1px var(--gb-shell-highlight);
+}
+
+/* ================= Cartridge Selection Modal ================= */
+#cartridge-modal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(10, 10, 14, 0.94);
+  backdrop-filter: blur(12px);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  transition: opacity 0.25s ease;
+}
+#cartridge-modal.hidden {
+  display: none;
+}
+.modal-card {
+  width: 100%;
+  max-width: 340px;
+  background: #1a1a22;
+  border: 2px solid #3d3d4c;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modal-title {
+  font-size: 16px;
+  font-weight: 900;
+  color: #ffd700;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.cartridge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cartridge-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #252530;
+  border: 1.5px solid #3c3c4a;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.cartridge-item:active, .cartridge-item.active {
+  background: #343444;
+  border-color: #00e5ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 229, 255, 0.3);
+}
+.cart-icon {
+  font-size: 26px;
+}
+.cart-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cart-name {
+  font-size: 14px;
+  font-weight: bold;
+  color: #fff;
+}
+.cart-desc {
+  font-size: 11px;
+  color: #888;
+}
+.modal-close-btn {
+  background: #333340;
+  color: #bbb;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: center;
+}
+.modal-close-btn:active {
+  background: #444455;
+  color: #fff;
+}
