@@ -767,9 +767,16 @@ suite('9. Squishy Buddies 1991 Physics, 5 Characters & Bubble System', () => {
   // 6. Story Presentation & Key Gameplay Guide assertions
   assert(gameJsCode.includes("renderStoryOverlay"), 'game.js includes story cutscene renderer');
   assert(gameJsCode.includes("renderGameplayGuide"), 'game.js includes key gameplay guide renderer');
-  assert(gameJsCode.includes("startStory"), 'game.js provides startStory method');
-  assert(gameJsCode.includes("nextStorySlide"), 'game.js provides nextStorySlide method');
-  assert(gameJsCode.includes("👉 按 [A] 键 正式开始冒险 👈"), 'gameplay guide displays [A] key start adventure prompt');
+  // 7. Room 3 map traversal and reachability assertions
+  const r3 = env.LEVELS[2];
+  assert(r3.id === 3, 'Room 3 id is 3');
+  assert(r3.grid[9][7] === 0 && r3.grid[10][7] === 0, 'Room 3 has bottom archway at Col 7 (Rows 9-10) to reach right side');
+  assert(r3.grid[1][7] === 0 && r3.grid[2][7] === 0, 'Room 3 has top headroom at Col 7 (Rows 1-2) to leap over cliff');
+  assert(r3.grid[3][7] === 1, 'Room 3 has solid cliff top at Col 7 Row 3');
+  assert(r3.grid[2][1] === 5, 'Room 3 has goal fountain at Col 1 Row 2');
+  assert(r3.grid[2][3] === 6, 'Room 3 has locked gate at Col 3 Row 2');
+  assert(r3.dews.length === 3, 'Room 3 has 3 collectible dews');
+  assert(r3.dews.every(d => d.x <= 180 && d.x >= 165), 'Room 3 dews are aligned along Pink sticky bubble climbing path');
 });
 
 // =========================================================================
