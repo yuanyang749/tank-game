@@ -100,21 +100,62 @@ async function runHeadlessAutomation() {
 
   const tetrisShotPath = path.join(screenshotsDir, 'headless_tetris.png');
   await page.screenshot({ path: tetrisShotPath });
-  console.log(`✅ [4/5] 俄罗斯方块 1989 运行态截图: ${tetrisShotPath}`);
+  console.log(`✅ [4/6] 俄罗斯方块 1989 运行态截图: ${tetrisShotPath}`);
 
-  // 5. 点击复位键回到菜单，并用方向下选择第 4 项（TERMUX 开发攻略）
+  // 5. 复位到菜单并选择软乎乎大冒险 1991 (ROM 04)
+  console.log('🔄 模拟点击实体复位键返回菜单...');
+  await page.tap('#gb-btn-reset');
+  await new Promise(r => setTimeout(r, 600));
+
+  console.log('⬇️ 按下方向键选择 ROM 04 (软乎乎大冒险 1991)...');
+  await page.tap('#dpad-down');
+  await new Promise(r => setTimeout(r, 300));
+
+  const squishyIdx = await page.evaluate(() => window.consoleInstance.menuIndex);
+  console.log(`📋 当前选中卡带索引: ${squishyIdx} (期待: 3 - squishy-buddies)`);
+  if (squishyIdx !== 3) {
+    throw new Error(`菜单切换到软乎乎大冒险失败，当前索引为 ${squishyIdx}`);
+  }
+
+  console.log('🎮 模拟按下 A 键进入软乎乎大冒险标题界面...');
+  await page.tap('#gb-btn-a');
+  await new Promise(r => setTimeout(r, 1200));
+
+  // 模拟在标题画面按下 A 键正式启动游戏
+  console.log('🎮 模拟按下 A 键开始彩虹泉冒险...');
+  await page.tap('#gb-btn-a');
+  await new Promise(r => setTimeout(r, 1000));
+
+  // 模拟果冻滚动、起跳与吐泡泡操作
+  console.log('✨ 模拟软乎乎滚动、吐泡泡与切人测试...');
+  await page.tap('#dpad-right');
+  await new Promise(r => setTimeout(r, 200));
+  await page.tap('#gb-btn-a'); // 跳跃
+  await new Promise(r => setTimeout(r, 200));
+  await page.tap('#gb-btn-b'); // 吐金色固体泡
+  await new Promise(r => setTimeout(r, 300));
+  await page.tap('#gb-btn-select'); // 切换成蓝波波
+  await new Promise(r => setTimeout(r, 300));
+  await page.tap('#gb-btn-b'); // 吐浮水泡
+  await new Promise(r => setTimeout(r, 400));
+
+  const squishyShotPath = path.join(screenshotsDir, 'headless_squishy.png');
+  await page.screenshot({ path: squishyShotPath });
+  console.log(`✅ [5/6] 软乎乎大冒险 1991 运行态截图: ${squishyShotPath}`);
+
+  // 6. 点击复位键回到菜单，并用方向下选择第 5 项（TERMUX 开发攻略）
   console.log('🔄 模拟点击复位键返回菜单...');
   await page.tap('#gb-btn-reset');
   await new Promise(r => setTimeout(r, 600));
 
-  console.log('⬇️ 按下方向键选择第 4 项 (TERMUX 开发攻略)...');
+  console.log('⬇️ 按下方向键选择第 5 项 (TERMUX 开发攻略)...');
   await page.tap('#dpad-down');
   await new Promise(r => setTimeout(r, 300));
 
-  const currentIdx = await page.evaluate(() => window.consoleInstance.menuIndex);
-  console.log(`📋 当前选中卡带索引: ${currentIdx} (期待: 3 - tutorial)`);
-  if (currentIdx !== 3) {
-    throw new Error(`菜单切换到文档失败，当前索引为 ${currentIdx}`);
+  const docIdx = await page.evaluate(() => window.consoleInstance.menuIndex);
+  console.log(`📋 当前选中卡带索引: ${docIdx} (期待: 4 - tutorial)`);
+  if (docIdx !== 4) {
+    throw new Error(`菜单切换到文档失败，当前索引为 ${docIdx}`);
   }
 
   console.log('📖 按下 A 键进入掌机电子文档...');
@@ -123,7 +164,7 @@ async function runHeadlessAutomation() {
 
   const manualShotPath = path.join(screenshotsDir, 'headless_manual.png');
   await page.screenshot({ path: manualShotPath });
-  console.log(`✅ [5/5] Termux 开发攻略文档运行态截图: ${manualShotPath}`);
+  console.log(`✅ [6/6] Termux 开发攻略文档运行态截图: ${manualShotPath}`);
 
   // 验证在文档中再次点击复位键能否顺利回到游戏菜单
   console.log('🔄 在文档内模拟点击实体复位键返回游戏列表...');

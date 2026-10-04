@@ -329,6 +329,10 @@ suite('5. Game Boy Console OS & Bridge Controller', () => {
   assert(gb.currentCartridge === 'space-invaders', 'Successfully switched cartridge to space-invaders');
   assert(gb.iframe.src.includes('space-invaders'), 'Iframe src routed to space invaders');
 
+  gb.loadCartridge('squishy-buddies');
+  assert(gb.currentCartridge === 'squishy-buddies', 'Successfully switched cartridge to squishy-buddies');
+  assert(gb.iframe.src.includes('squishy-buddies'), 'Iframe src routed to squishy-buddies');
+
   gb.loadCartridge('tutorial');
   assert(gb.currentCartridge === 'tutorial', 'Successfully switched cartridge to tutorial');
   assert(gb.iframe.src === 'docs/gb-tutorial.html', 'Tutorial cartridge routes specifically to docs/gb-tutorial.html');
@@ -360,13 +364,17 @@ suite('5. Game Boy Console OS & Bridge Controller', () => {
   assert(gb.currentCartridge === 'tetris', 'Current selection updated to tetris');
 
   gb.navigateMenu(1);
-  assert(gb.menuIndex === 3, 'D-Pad DOWN moves menu cursor to index 3 (tutorial document)');
+  assert(gb.menuIndex === 3, 'D-Pad DOWN moves menu cursor to index 3 (squishy-buddies)');
+  assert(gb.currentCartridge === 'squishy-buddies', 'Current selection updated to squishy-buddies');
+
+  gb.navigateMenu(1);
+  assert(gb.menuIndex === 4, 'D-Pad DOWN moves menu cursor to index 4 (tutorial document)');
   assert(gb.currentCartridge === 'tutorial', 'Current selection updated to tutorial document');
 
-  // Test wrapping UP from 0 to 3
+  // Test wrapping UP from 0 to 4
   gb.menuIndex = 0;
   gb.navigateMenu(-1);
-  assert(gb.menuIndex === 3, 'D-Pad UP from index 0 wraps directly to index 3 (tutorial document)');
+  assert(gb.menuIndex === 4, 'D-Pad UP from index 0 wraps directly to index 4 (tutorial document)');
 
   // Launch and test soft-reset triggers
   gb.launchSelectedGame();
@@ -628,6 +636,86 @@ suite('8. Authentic Tetris 1989 Game Boy Cartridge & Matrix Engine', () => {
   assert(audioCode.includes('melody'), 'audio.js contains Korobeiniki Type A melody');
   assert(audioCode.includes('playMove') && audioCode.includes('playRotate'), 'audio.js has move & rotate SFX');
   assert(audioCode.includes('playDrop') && audioCode.includes('playTetrisClear'), 'audio.js has drop & Tetris fanfare SFX');
+});
+
+// =========================================================================
+// TEST SUITE 9: Squishy Buddies 1991 Physics, 5 Characters & Bubble System
+// =========================================================================
+suite('9. Squishy Buddies 1991 Physics, 5 Characters & Bubble System', () => {
+  const squishyHtml = path.join(__dirname, '../games/squishy-buddies/index.html');
+  const squishyCss = path.join(__dirname, '../games/squishy-buddies/css/squishy.css');
+  const physicsJs = path.join(__dirname, '../games/squishy-buddies/js/physics.js');
+  const audioJs = path.join(__dirname, '../games/squishy-buddies/js/audio.js');
+  const entitiesJs = path.join(__dirname, '../games/squishy-buddies/js/entities.js');
+  const levelsJs = path.join(__dirname, '../games/squishy-buddies/js/levels.js');
+  const gameJs = path.join(__dirname, '../games/squishy-buddies/js/game.js');
+
+  assert(fs.existsSync(squishyHtml), 'games/squishy-buddies/index.html exists');
+  assert(fs.existsSync(squishyCss), 'games/squishy-buddies/css/squishy.css exists');
+  assert(fs.existsSync(physicsJs), 'games/squishy-buddies/js/physics.js exists');
+  assert(fs.existsSync(audioJs), 'games/squishy-buddies/js/audio.js exists');
+  assert(fs.existsSync(entitiesJs), 'games/squishy-buddies/js/entities.js exists');
+  assert(fs.existsSync(levelsJs), 'games/squishy-buddies/js/levels.js exists');
+  assert(fs.existsSync(gameJs), 'games/squishy-buddies/js/game.js exists');
+
+  // Verify multi-cart index.html registration
+  const mainIndexHtml = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert(mainIndexHtml.includes('data-game="squishy-buddies"'), 'index.html contains ROM 04 Squishy Buddies 1991');
+  assert(mainIndexHtml.includes('软乎乎大冒险 1991'), 'index.html lists 软乎乎大冒险 1991');
+
+  // Load and test Physics & Elastic Spring Oscillator
+  const env = createMockEnv();
+  loadScript(physicsJs, env);
+  assert(env.TILE_SIZE === 20, 'TILE_SIZE is 20px (chunky mobile grid)');
+  assert(env.GRID_COLS === 16 && env.GRID_ROWS === 12, '16x12 single-screen layout');
+  assert(env.CANVAS_W === 320 && env.CANVAS_H === 240, 'Canvas resolution 320x240');
+
+  const testEntity = { squashY: 0.5, squashX: 1.0, squashVelY: 0, targetSquashY: 1.0 };
+  env.Physics.updateSquashSpring(testEntity, 0.05);
+  assert(testEntity.squashY > 0.5, 'Spring oscillator rebounds squashed entity upwards');
+  assert(Math.abs(testEntity.squashX - (1 / Math.sqrt(testEntity.squashY))) < 0.001, 'Volume conservation maintains Sx = 1/sqrt(Sy)');
+
+  // Load Entities & Character Roster
+  loadScript(entitiesJs, env);
+  const BUDDY_TYPES = env.BUDDY_TYPES;
+  assert(BUDDY_TYPES.YELLOW && BUDDY_TYPES.BLUE && BUDDY_TYPES.PINK && BUDDY_TYPES.GREEN && BUDDY_TYPES.PURPLE, 'All 5 IP character types defined');
+  assert(BUDDY_TYPES.YELLOW.bubbleType === 'SOLID', 'Yellow spawns SOLID golden platform bubble');
+  assert(BUDDY_TYPES.BLUE.bubbleType === 'FLOAT', 'Blue spawns FLOAT water bubble');
+  assert(BUDDY_TYPES.PINK.bubbleType === 'STICKY', 'Pink spawns STICKY wall climbing bubble');
+  assert(BUDDY_TYPES.GREEN.bubbleType === 'BOUNCY', 'Green spawns BOUNCY spring bubble');
+  assert(BUDDY_TYPES.PURPLE.bubbleType === 'CHAIN_POP', 'Purple spawns CHAIN_POP explosive bubble');
+
+  const player = new env.PlayerBuddy(100, 100);
+  assert(player.typeKey === 'YELLOW', 'Initial active leader is Yellow (大黄)');
+  player.nextBuddy();
+  assert(player.typeKey === 'BLUE', 'nextBuddy rotates leader to Blue');
+  player.nextBuddy();
+  assert(player.typeKey === 'PINK', 'nextBuddy rotates leader to Pink');
+  player.nextBuddy();
+  assert(player.typeKey === 'GREEN', 'nextBuddy rotates leader to Green');
+  player.nextBuddy();
+  assert(player.typeKey === 'PURPLE', 'nextBuddy rotates leader to Purple');
+  player.nextBuddy();
+  assert(player.typeKey === 'YELLOW', 'nextBuddy wraps around to Yellow');
+
+  // Test Bubble Spitting
+  const bubble = player.spitBubble();
+  assert(bubble !== null, 'Player successfully spits bubble');
+  assert(bubble.type === 'SOLID', 'Spit bubble matches active buddy element');
+
+  // Load and verify Handcrafted Levels
+  loadScript(levelsJs, env);
+  const LEVELS = env.LEVELS;
+  assert(Array.isArray(LEVELS) && LEVELS.length === 5, '5 handcrafted single-screen rooms exist');
+  assert(LEVELS[0].grid.length === 12 && LEVELS[0].grid[0].length === 16, 'Level 1 has 16x12 dimensions');
+  assert(LEVELS[0].dews.length === 3, 'Level 1 has 3 collectible dews');
+
+  // Test Game Boy Bridge in game.js
+  const gameJsCode = fs.readFileSync(gameJs, 'utf8');
+  assert(gameJsCode.includes("event.data.type !== 'GB_INPUT'"), 'game.js listens to GB_INPUT messages');
+  assert(gameJsCode.includes("'SELECT'"), 'game.js handles SELECT key to switch leader buddy');
+  assert(gameJsCode.includes("'B'"), 'game.js handles B key to spit bubble');
+  assert(gameJsCode.includes("'A'"), 'game.js handles A key to jump');
 });
 
 // =========================================================================
