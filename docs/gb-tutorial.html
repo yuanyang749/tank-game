@@ -363,8 +363,16 @@ termux-setup-storage</code></pre>
       </div>
     </div>
 
-    <h3>1.3 Antigravity CLI 安装与全局记忆</h3>
-    <p>安装全局 CLI 并配置 <code>GEMINI.md</code>（放在 <code>~/.gemini/antigravity-cli/GEMINI.md</code>），让智能体时刻牢记自己运行在 Android 手机上，输出移动优先代码。</p>
+    <h3>1.3 Antigravity CLI 安装与 PATH 避坑</h3>
+    <pre><code># 1. 一键安装
+curl -fsSL antigravity.google/cli/install.sh | bash
+
+# ⚠️ 关键避坑：Termux 默认 PATH 无 ~/.local/bin，需手动追加
+echo 'export PATH="/data/data/com.termux/files/home/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+
+# 2. 启动智能体
+agy</code></pre>
+    <p>配置 <code>GEMINI.md</code>（放在 <code>~/.gemini/antigravity-cli/GEMINI.md</code>），让智能体时刻牢记自己运行在 Android 手机上，输出移动优先代码。</p>
   </section>
 
   <!-- Chapter 2 -->

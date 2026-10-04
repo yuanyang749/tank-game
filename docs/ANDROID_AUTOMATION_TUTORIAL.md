@@ -121,8 +121,45 @@ Antigravity CLI 是智能体的大脑中枢。在 Termux 中执行官方一键�
 ```bash
 # 1. 一键安装 Antigravity CLI
 curl -fsSL antigravity.google/cli/install.sh | bash
+```
 
-# 2. 安装完成后启动智能体
+#### ⚠️ 致命避坑：安装成功后提示 `No command agy found`？
+
+在 Termux 中运行官方安装脚本后，终端安装日志通常会提示如下告警：
+
+```text
+Download complete and checksum verified.
+⠋ Extracting binary from archive...
+⠋ Configuring shell environment...
+ERROR: logging before google.Init: I1003 01:18:04.037869       1 installer.go:27] Running Antigravity CLI setup...
+
+Warning: /data/data/com.termux/files/home/.local/bin is not present in your active PATH.
+To use the 'agy' CLI globally, please manually add it to your shell profile:
+
+  echo 'export PATH="/data/data/com.termux/files/home/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+
+✅ Antigravity CLI binary placed successfully at /data/data/com.termux/files/home/.local/bin/agy
+Note: The binary is installed, but it is not in your active PATH. Please follow the instructions above to add it, then restart your terminal session.
+```
+
+如果此时直接尝试运行 `agy`，系统会因找不到可执行命令而报错：
+
+```text
+~ $ agy
+No command agy found, did you mean:
+ Command age in package age
+ Command agg in package agg
+```
+
+- **问题原因**：安装程序已成功将可执行文件写入到 `~/.local/bin/agy`（完整路径为 `/data/data/com.termux/files/home/.local/bin/agy`），但 Termux 默认的系统命令搜索路径 `$PATH` 并不包含该目录。
+- **一键修复方案**：只需将该路径永久写入 Shell 配置文件并立即生效：
+  ```bash
+  echo 'export PATH="/data/data/com.termux/files/home/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+  ```
+  执行后再输入 `agy` 即可立即启动智能体！如果当前终端未刷新，完全关闭 Termux 重开一次即可。
+
+```bash
+# 2. 验证并启动智能体
 agy
 ```
 
