@@ -445,6 +445,15 @@ class GameBoyConsole {
     let centerY = 0;
     let currentDir = null;
 
+    const updateCenter = () => {
+      const rect = dpadContainer.getBoundingClientRect();
+      centerX = rect.left + rect.width / 2;
+      centerY = rect.top + rect.height / 2;
+    };
+    updateCenter();
+    window.addEventListener('resize', updateCenter);
+    window.addEventListener('scroll', updateCenter);
+
     const setDir = (dir) => {
       if (currentDir === dir) return;
       if (currentDir) {
@@ -462,6 +471,7 @@ class GameBoyConsole {
     };
 
     const handleCoords = (clientX, clientY) => {
+      if (centerX === 0 && centerY === 0) updateCenter();
       const dx = clientX - centerX;
       const dy = clientY - centerY;
       const dist = Math.hypot(dx, dy);
@@ -489,9 +499,7 @@ class GameBoyConsole {
     // Touch start on D-Pad: Bind strictly to this specific finger
     dpadContainer.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      const rect = dpadContainer.getBoundingClientRect();
-      centerX = rect.left + rect.width / 2;
-      centerY = rect.top + rect.height / 2;
+      updateCenter();
 
       // Use the touch that triggered this event (changedTouches), NOT e.touches[0]!
       const touch = e.changedTouches ? e.changedTouches[0] : (e.touches ? e.touches[0] : null);
@@ -533,7 +541,7 @@ class GameBoyConsole {
 
       const handlePress = (e) => {
         if (e && e.cancelable && e.type !== 'mousedown') e.preventDefault();
-        if (e && e.stopPropagation) e.stopPropagation();
+        updateCenter();
         isTouching = true;
         const touch = e.changedTouches ? e.changedTouches[0] : null;
         if (touch) activeTouchId = touch.identifier;
@@ -542,7 +550,6 @@ class GameBoyConsole {
 
       const handleRelease = (e) => {
         if (e && e.cancelable && e.type !== 'mouseup') e.preventDefault();
-        if (e && e.stopPropagation) e.stopPropagation();
         activeTouchId = null;
         setDir(null);
         setTimeout(() => { isTouching = false; }, 300);

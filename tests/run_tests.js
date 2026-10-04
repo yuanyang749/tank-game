@@ -457,6 +457,7 @@ suite('6. Multi-Touch Concurrency & Button Isolation (B + LEFT Anti-Collision)',
   const dpad = elements['gb-dpad'];
   const armLeft = elements['dpad-left'];
   const armRight = elements['dpad-right'];
+  const armDown = elements['dpad-down'];
 
   // Trigger Touch 0: Right thumb presses B button (on the right side of the screen at x=680)
   const touchB = { identifier: 101, clientX: 680, clientY: 1700 };
@@ -480,6 +481,7 @@ suite('6. Multi-Touch Concurrency & Button Isolation (B + LEFT Anti-Collision)',
 
   assert(armLeft.classList.contains('active') === true, 'D-Pad LEFT arm is activated despite touch 0 being on the right (B button)');
   assert(armRight.classList.contains('active') === false, 'CRITICAL: D-Pad RIGHT arm is NOT falsely activated');
+  assert(armDown.classList.contains('active') === false, 'CRITICAL: D-Pad DOWN arm is NOT falsely activated when pressing LEFT');
   assert(env.__lastPostedMessage && env.__lastPostedMessage.key === 'LEFT' && env.__lastPostedMessage.pressed === true, 'Input LEFT was correctly dispatched to game');
 
   // Multi-Touch Move: Touchmove fires with both touches active
@@ -491,6 +493,7 @@ suite('6. Multi-Touch Concurrency & Button Isolation (B + LEFT Anti-Collision)',
   }
   assert(armLeft.classList.contains('active') === true, 'D-Pad LEFT remains active during multi-touch touchmove');
   assert(armRight.classList.contains('active') === false, 'D-Pad RIGHT remains inactive during multi-touch touchmove');
+  assert(armDown.classList.contains('active') === false, 'CRITICAL: D-Pad DOWN arm remains inactive during touchmove on LEFT');
 
   // Release B button: D-Pad LEFT must NOT be canceled
   listeners['gb-btn-b']['touchend'].forEach(cb => cb({
