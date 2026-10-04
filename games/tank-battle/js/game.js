@@ -404,6 +404,9 @@ class Game {
   }
 
   togglePause() {
+    const now = performance.now();
+    if (this._lastPauseToggle && now - this._lastPauseToggle < 200) return;
+    this._lastPauseToggle = now;
     if (this.state === 'PLAYING') this.state = 'PAUSED';
     else if (this.state === 'PAUSED') this.state = 'PLAYING';
   }

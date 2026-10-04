@@ -327,7 +327,7 @@ class GameBoyConsole {
       return;
     }
 
-    // When playing a game: Bridge input to iframe
+    // When playing a game: Bridge input cleanly to iframe via official GB_INPUT message
     if (this.iframe && this.iframe.contentWindow) {
       this.iframe.contentWindow.postMessage({
         type: 'GB_INPUT',
@@ -335,33 +335,6 @@ class GameBoyConsole {
         pressed
       }, '*');
     }
-
-    // Also dispatch synthetic keyboard event on iframe document if accessible
-    try {
-      const doc = this.iframe.contentDocument;
-      if (doc) {
-        const keyMap = {
-          'UP': { key: 'ArrowUp', code: 'ArrowUp' },
-          'DOWN': { key: 'ArrowDown', code: 'ArrowDown' },
-          'LEFT': { key: 'ArrowLeft', code: 'ArrowLeft' },
-          'RIGHT': { key: 'ArrowRight', code: 'ArrowRight' },
-          'A': { key: 'z', code: 'KeyZ' },
-          'B': { key: 'x', code: 'KeyX' },
-          'START': { key: 'Enter', code: 'Enter' },
-          'SELECT': { key: 'Shift', code: 'ShiftLeft' }
-        };
-        const mapped = keyMap[key];
-        if (mapped) {
-          const evt = new KeyboardEvent(pressed ? 'keydown' : 'keyup', {
-            key: mapped.key,
-            code: mapped.code,
-            bubbles: true,
-            cancelable: true
-          });
-          doc.dispatchEvent(evt);
-        }
-      }
-    } catch (e) {}
   }
 
   /* ================= Hardware Physical Controls ================= */
@@ -372,9 +345,11 @@ class GameBoyConsole {
     const bindButton = (el, key) => {
       if (!el) return;
       let activeTouchId = null;
+      let isTouching = false;
 
       el.addEventListener('touchstart', (e) => {
         e.preventDefault();
+        isTouching = true;
         if (e.changedTouches && e.changedTouches.length > 0) {
           activeTouchId = e.changedTouches[0].identifier;
         }
@@ -397,6 +372,7 @@ class GameBoyConsole {
         activeTouchId = null;
         el.classList.remove('active');
         this.sendInput(key, false);
+        setTimeout(() => { isTouching = false; }, 300);
       };
 
       el.addEventListener('touchend', onEnd, { passive: false });
@@ -410,6 +386,7 @@ class GameBoyConsole {
               activeTouchId = null;
               el.classList.remove('active');
               this.sendInput(key, false);
+              setTimeout(() => { isTouching = false; }, 300);
               break;
             }
           }
@@ -422,6 +399,7 @@ class GameBoyConsole {
               activeTouchId = null;
               el.classList.remove('active');
               this.sendInput(key, false);
+              setTimeout(() => { isTouching = false; }, 300);
               break;
             }
           }
@@ -429,10 +407,12 @@ class GameBoyConsole {
       });
 
       el.addEventListener('mousedown', () => {
+        if (isTouching) return;
         el.classList.add('active');
         this.sendInput(key, true);
       });
       window.addEventListener('mouseup', () => {
+        if (isTouching) return;
         el.classList.remove('active');
         this.sendInput(key, false);
       });
