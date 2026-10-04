@@ -395,6 +395,7 @@ class Game {
 
     this.respawnPlayer();
     this.state = 'PLAYING';
+    this.stageBannerTimer = 2.2;
     sound.playStageStart();
     this.updateHUD();
   }
@@ -470,6 +471,7 @@ class Game {
   update(dt) {
     if (this.state !== 'PLAYING') return;
 
+    if (this.stageBannerTimer > 0) this.stageBannerTimer -= dt;
     if (this.freezeTimer > 0) this.freezeTimer -= dt;
 
     if (this.shovelTimer > 0) {
@@ -710,16 +712,42 @@ class Game {
       ctx.font = 'bold 15px sans-serif';
       ctx.fillText('👉 按 A 或 点击屏幕重新挑战 👈', CANVAS_WIDTH / 2, 270);
     } else if (this.state === 'STAGECLEAR') {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.82)';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
       ctx.fillStyle = '#4caf50';
       ctx.font = 'bold 30px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`第 ${this.stage} 关 胜利!`, CANVAS_WIDTH / 2, 160);
+      ctx.fillText(`第 ${this.stage} 关 胜利!`, CANVAS_WIDTH / 2, 145);
 
       ctx.fillStyle = '#ffd700';
+      ctx.font = 'bold 14px "Courier New", monospace';
+      ctx.fillText(`★ NEXT: ${getStageName(this.stage + 1)} ★`, CANVAS_WIDTH / 2, 190);
+
+      ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 16px sans-serif';
-      ctx.fillText('👉 按 A 或 点击屏幕进入下一关 👈', CANVAS_WIDTH / 2, 230);
+      ctx.fillText('👉 按 A 或 点击屏幕进入下一关 👈', CANVAS_WIDTH / 2, 245);
+    }
+
+    // Temporary Stage Start Banner
+    if (this.state === 'PLAYING' && this.stageBannerTimer > 0) {
+      ctx.save();
+      const alpha = Math.min(1, this.stageBannerTimer * 1.5);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+      ctx.fillRect(24, 180, CANVAS_WIDTH - 48, 56);
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(24, 180, CANVAS_WIDTH - 48, 56);
+
+      ctx.fillStyle = '#ffd700';
+      ctx.font = 'bold 15px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`★ STAGE ${this.stage} ★`, CANVAS_WIDTH / 2, 203);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '12px sans-serif';
+      ctx.fillText(getStageName(this.stage), CANVAS_WIDTH / 2, 224);
+      ctx.restore();
     }
   }
 

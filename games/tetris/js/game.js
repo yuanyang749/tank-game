@@ -9,17 +9,19 @@ class TetrisGame {
     this.board = new TetrisBoard();
     
     // Display scaling
-    this.width = 320;
+    this.width = 360;
     this.height = 400;
     this.canvas.width = this.width;
     this.canvas.height = this.height;
 
-    // Playfield layout parameters on 320x400 canvas
-    this.blockSize = 16;
-    this.boardX = 16;
-    this.boardY = 56;
-    this.boardW = this.board.cols * this.blockSize; // 160 px
-    this.boardH = this.board.rows * this.blockSize; // 320 px
+    // Playfield layout parameters on 360x400 canvas (Enlarged Playfield Width)
+    this.blockW = 21;
+    this.blockH = 18;
+    this.blockSize = 21; // Backward compatibility for any helper
+    this.boardX = 12;
+    this.boardY = 28;
+    this.boardW = this.board.cols * this.blockW; // 210 px (Enlarged from 160px: +31.25% wider)
+    this.boardH = this.board.rows * this.blockH; // 360 px
 
     // Game state
     this.state = 'TITLE'; // 'TITLE', 'PLAYING', 'PAUSED', 'GAMEOVER'
@@ -413,19 +415,19 @@ class TetrisGame {
     ctx.strokeRect(bx - 2, by - 2, bw + 4, bh + 4);
     ctx.strokeStyle = '#306230';
     ctx.lineWidth = 1;
-    ctx.strokeRect(bx - 5, by - 5, bw + 10, bh + 10);
+    ctx.strokeRect(bx - 4, by - 4, bw + 8, bh + 8);
 
     // Top Header Banner
     ctx.fillStyle = '#0f380f';
-    ctx.fillRect(0, 0, this.width, 36);
+    ctx.fillRect(0, 0, this.width, 24);
 
     ctx.fillStyle = '#9bbc0f';
-    ctx.font = 'bold 13px "Courier New", monospace';
-    ctx.fillText('★ TETRIS 1989 ★', 16, 23);
+    ctx.font = 'bold 12px "Courier New", monospace';
+    ctx.fillText('★ TETRIS 1989 ★', 12, 17);
 
     ctx.fillStyle = '#8bac0f';
     ctx.font = '10px "Courier New", monospace';
-    ctx.fillText('GAME BOY DMG', 224, 23);
+    ctx.fillText('GAME BOY DMG', this.width - 96, 17);
   }
 
   renderPlacedBlocks(ctx) {
@@ -436,13 +438,13 @@ class TetrisGame {
       for (let c = 0; c < this.board.cols; c++) {
         const val = grid[r][c];
         if (val !== 0) {
-          const px = this.boardX + c * this.blockSize;
-          const py = this.boardY + r * this.blockSize;
+          const px = this.boardX + c * this.blockW;
+          const py = this.boardY + r * this.blockH;
           if (isClearing && Math.floor(this.board.clearAnimationTimer / 2) % 2 === 0) {
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(px, py, this.blockSize, this.blockSize);
+            ctx.fillRect(px, py, this.blockW, this.blockH);
           } else {
-            this.drawSingleBlock(ctx, px, py, val);
+            this.drawSingleBlock(ctx, px, py, val, this.blockW, this.blockH);
           }
         }
       }
@@ -461,9 +463,9 @@ class TetrisGame {
     for (let r = 0; r < matrix.length; r++) {
       for (let c = 0; c < matrix[r].length; c++) {
         if (matrix[r][c] !== 0) {
-          const px = this.boardX + (ghost.x + c) * this.blockSize;
-          const py = this.boardY + (ghost.y + r) * this.blockSize;
-          ctx.strokeRect(px + 1, py + 1, this.blockSize - 2, this.blockSize - 2);
+          const px = this.boardX + (ghost.x + c) * this.blockW;
+          const py = this.boardY + (ghost.y + r) * this.blockH;
+          ctx.strokeRect(px + 1, py + 1, this.blockW - 2, this.blockH - 2);
         }
       }
     }
@@ -476,40 +478,39 @@ class TetrisGame {
       for (let c = 0; c < matrix[r].length; c++) {
         const val = matrix[r][c];
         if (val !== 0) {
-          const px = offsetX + (piece.x + c) * this.blockSize;
-          const py = offsetY + (piece.y + r) * this.blockSize;
-          this.drawSingleBlock(ctx, px, py, val);
+          const px = offsetX + (piece.x + c) * this.blockW;
+          const py = offsetY + (piece.y + r) * this.blockH;
+          this.drawSingleBlock(ctx, px, py, val, this.blockW, this.blockH);
         }
       }
     }
   }
 
-  drawSingleBlock(ctx, x, y, typeId) {
-    const sz = this.blockSize;
+  drawSingleBlock(ctx, x, y, typeId, w = this.blockW, h = this.blockH) {
     const palette = BLOCK_COLORS[typeId] || { base: '#306230', light: '#8bac0f', dark: '#0f380f' };
 
     // Base fill
     ctx.fillStyle = palette.base;
-    ctx.fillRect(x, y, sz, sz);
+    ctx.fillRect(x, y, w, h);
 
     // 3D Beveled Highlight (Top & Left)
     ctx.fillStyle = palette.light;
-    ctx.fillRect(x, y, sz, 2);
-    ctx.fillRect(x, y, 2, sz);
+    ctx.fillRect(x, y, w, 2);
+    ctx.fillRect(x, y, 2, h);
 
     // 3D Beveled Shadow (Bottom & Right)
     ctx.fillStyle = palette.dark;
-    ctx.fillRect(x, y + sz - 2, sz, 2);
-    ctx.fillRect(x + sz - 2, y, 2, sz);
+    ctx.fillRect(x, y + h - 2, w, 2);
+    ctx.fillRect(x + w - 2, y, 2, h);
 
     // Inner Dot / Retro Texture
     ctx.fillStyle = palette.dark;
-    ctx.fillRect(x + Math.floor(sz / 2) - 1, y + Math.floor(sz / 2) - 1, 3, 3);
+    ctx.fillRect(x + Math.floor(w / 2) - 1, y + Math.floor(h / 2) - 1, 3, 3);
   }
 
   renderSideHud(ctx) {
-    const hx = 188;
-    const hw = 118;
+    const hx = 232;
+    const hw = 116;
 
     const drawCard = (y, h, title, val) => {
       ctx.fillStyle = '#8bac0f';
@@ -519,27 +520,27 @@ class TetrisGame {
       ctx.strokeRect(hx, y, hw, h);
 
       ctx.fillStyle = '#0f380f';
-      ctx.font = 'bold 9px "Courier New", monospace';
-      ctx.fillText(title, hx + 8, y + 13);
+      ctx.font = 'bold 8.5px "Courier New", monospace';
+      ctx.fillText(title, hx + 6, y + 13);
 
       ctx.font = 'bold 13px "Courier New", monospace';
       ctx.textAlign = 'right';
-      ctx.fillText(val.toString(), hx + hw - 8, y + h - 7);
+      ctx.fillText(val.toString(), hx + hw - 6, y + h - 6);
       ctx.textAlign = 'left';
     };
 
     // 1. Score Card
-    drawCard(56, 36, 'SCORE', this.board.score);
+    drawCard(28, 38, 'SCORE 得分', this.board.score);
 
     // 2. Lines Card
-    drawCard(100, 36, 'LINES', this.board.lines);
+    drawCard(72, 38, 'LINES 消行', this.board.lines);
 
     // 3. Level Card
-    drawCard(144, 36, 'LEVEL', this.board.level);
+    drawCard(116, 38, 'LEVEL 等级', this.board.level);
 
     // 4. Next Piece Preview Box
-    const ny = 190;
-    const nh = 76;
+    const ny = 160;
+    const nh = 74;
     ctx.fillStyle = '#8bac0f';
     ctx.fillRect(hx, ny, hw, nh);
     ctx.strokeStyle = '#0f380f';
@@ -547,61 +548,77 @@ class TetrisGame {
     ctx.strokeRect(hx, ny, hw, nh);
 
     ctx.fillStyle = '#0f380f';
-    ctx.font = 'bold 9px "Courier New", monospace';
-    ctx.fillText('NEXT', hx + 8, ny + 13);
+    ctx.font = 'bold 8.5px "Courier New", monospace';
+    ctx.fillText('NEXT 下一块', hx + 6, ny + 13);
 
-    // Draw Next Piece Centered in Preview Box
+    // Draw Next Piece Centered in Preview Box with crisp 15x15 preview blocks
     if (this.board.nextPiece) {
       const np = this.board.nextPiece;
       const m = np.matrix;
-      const pieceW = m[0].length * this.blockSize;
-      const pieceH = m.length * this.blockSize;
+      const pw = 15;
+      const ph = 15;
+      const pieceW = m[0].length * pw;
+      const pieceH = m.length * ph;
       const startX = hx + Math.floor((hw - pieceW) / 2);
-      const startY = ny + 20 + Math.floor((nh - 24 - pieceH) / 2);
+      const startY = ny + 18 + Math.floor((nh - 22 - pieceH) / 2);
 
       for (let r = 0; r < m.length; r++) {
         for (let c = 0; c < m[r].length; c++) {
           if (m[r][c] !== 0) {
-            this.drawSingleBlock(ctx, startX + c * this.blockSize, startY + r * this.blockSize, m[r][c]);
+            this.drawSingleBlock(ctx, startX + c * pw, startY + r * ph, m[r][c], pw, ph);
           }
         }
       }
     }
 
     // 5. Hi-Score Card
-    drawCard(276, 36, 'TOP SCORE', Math.max(this.board.score, this.highScore));
+    drawCard(240, 38, 'TOP 最高分', Math.max(this.board.score, this.highScore));
 
-    // 6. Retro Nintendo / Game Boy Micro Seal
+    // 6. Retro Controls & System Helper Card
+    const cy = 284;
+    const ch = 104;
+    ctx.fillStyle = '#8bac0f';
+    ctx.fillRect(hx, cy, hw, ch);
+    ctx.strokeStyle = '#0f380f';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(hx, cy, hw, ch);
+
     ctx.fillStyle = '#0f380f';
-    ctx.font = 'bold 8px "Courier New", monospace';
-    ctx.fillText('ORIGINAL 1989', hx + 12, 335);
-    ctx.fillText('AUTHENTIC DMG', hx + 12, 350);
+    ctx.font = 'bold 8.5px "Courier New", monospace';
+    ctx.fillText('CONTROLS 操作', hx + 6, cy + 13);
+    ctx.font = '7.5px "Courier New", monospace';
+    ctx.fillText('◀ ▶: 左右移动', hx + 6, cy + 30);
+    ctx.fillText('▲  : 硬降落底', hx + 6, cy + 46);
+    ctx.fillText('▼  : 软降加速', hx + 6, cy + 62);
+    ctx.fillText('A  : 顺时旋转', hx + 6, cy + 78);
+    ctx.fillText('B  : 逆时旋转', hx + 6, cy + 94);
   }
 
   renderTitleOverlay(ctx) {
-    ctx.fillStyle = 'rgba(15, 56, 15, 0.85)';
-    ctx.fillRect(20, 100, 280, 200);
+    const tw = this.width - 40;
+    ctx.fillStyle = 'rgba(15, 56, 15, 0.88)';
+    ctx.fillRect(20, 95, tw, 210);
     ctx.strokeStyle = '#9bbc0f';
     ctx.lineWidth = 3;
-    ctx.strokeRect(22, 102, 276, 196);
+    ctx.strokeRect(22, 97, tw - 4, 206);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 22px "Courier New", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('TETRIS 1989', this.width / 2, 145);
+    ctx.fillText('TETRIS 1989', this.width / 2, 140);
 
     ctx.fillStyle = '#9bbc0f';
     ctx.font = '11px "Courier New", monospace';
-    ctx.fillText('GAME BOY RETRO EDITION', this.width / 2, 170);
+    ctx.fillText('GAME BOY RETRO EDITION', this.width / 2, 165);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 13px "Courier New", monospace';
-    ctx.fillText('👉 按 A 或 点击开始 👈', this.width / 2, 215);
+    ctx.fillText('👉 按 A 或 点击开始 👈', this.width / 2, 210);
 
     ctx.fillStyle = '#8bac0f';
     ctx.font = '10px "Courier New", monospace';
-    ctx.fillText('十字键: 移动/速降  A/B: 旋转', this.width / 2, 245);
-    ctx.fillText('SELECT: 音乐开关  START: 暂停', this.width / 2, 265);
+    ctx.fillText('十字键: 移动/速降  A/B: 旋转', this.width / 2, 240);
+    ctx.fillText('SELECT: 音乐开关  START: 暂停', this.width / 2, 260);
     ctx.textAlign = 'left';
   }
 
@@ -617,11 +634,12 @@ class TetrisGame {
   }
 
   renderGameOverOverlay(ctx) {
+    const gw = this.width - 50;
     ctx.fillStyle = 'rgba(15, 56, 15, 0.9)';
-    ctx.fillRect(30, 120, 260, 160);
+    ctx.fillRect(25, 120, gw, 160);
     ctx.strokeStyle = '#f00000';
     ctx.lineWidth = 2;
-    ctx.strokeRect(32, 122, 256, 156);
+    ctx.strokeRect(27, 122, gw - 4, 156);
 
     ctx.fillStyle = '#ff6060';
     ctx.font = 'bold 20px "Courier New", monospace';
