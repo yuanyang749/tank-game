@@ -831,6 +831,34 @@ suite('9. Squishy Buddies 1991 Physics, 5 Characters & Bubble System', () => {
   }
   assert(greenBuddy.x > 195, 'Player smoothly moves right into crawlway tunnel without getting stuck');
   assert(greenBuddy.isCrouched === true, 'Player maintains crouched state during crawlway entry');
+
+  // 10. DOWN + A Squishy Slide Mechanic assertions
+  const slideBuddy = new env.PlayerBuddy(190, 52.775);
+  slideBuddy.setType('PURPLE');
+  slideBuddy.onGround = true;
+  assert(slideBuddy.isSliding === false, 'Player is not sliding initially');
+
+  // Trigger DOWN + A: while holding DOWN, press A
+  slideBuddy.jump({ down: true, right: false, left: false, up: false, a: true });
+  assert(slideBuddy.isSliding === true, 'Pressing DOWN + A triggers isSliding === true');
+  assert(slideBuddy.isCrouched === true, 'Player is immediately crouched during slide');
+  assert(slideBuddy.vx >= 165, 'Slide gives fast forward boost (vx >= 165)');
+  assert(slideBuddy.targetSquashY <= 0.32, 'Player is squished extra flat during slide');
+
+  // Update physics for 15 frames: slide carries player through crawlway entrance
+  for (let f = 0; f < 15; f++) {
+    slideBuddy.update(1/60, { down: false, right: false, left: false, up: false, a: false }, r4.grid, null);
+  }
+  assert(slideBuddy.x > 210, 'Slide momentum carries player inside crawlway tunnel (x > 210)');
+  assert(slideBuddy.isCrouched === true, 'Player remains crouched inside crawlway tunnel');
+
+  // Standing and pressing A without DOWN performs standard jump
+  const jumpBuddy = new env.PlayerBuddy(100, 190);
+  jumpBuddy.setType('YELLOW');
+  jumpBuddy.onGround = true;
+  jumpBuddy.jump({ down: false, a: true });
+  assert(jumpBuddy.isSliding === false, 'Standard jump does not trigger slide');
+  assert(jumpBuddy.vy < -200, 'Standard jump produces negative vertical launch velocity');
 });
 
 // =========================================================================

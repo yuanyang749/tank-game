@@ -185,7 +185,7 @@ class SquishyGame {
         case 'A':
           this.input.a = pressed;
           if (pressed && this.state === 'PLAYING') {
-            this.player.jump();
+            this.player.jump(this.input);
             this.vibrate(10);
           }
           break;
@@ -251,7 +251,7 @@ class SquishyGame {
         case 'ArrowUp': case 'KeyW': this.input.up = true; break;
         case 'KeyZ': case 'Space':
           this.input.a = true;
-          if (this.state === 'PLAYING') this.player.jump();
+          if (this.state === 'PLAYING') this.player.jump(this.input);
           break;
         case 'KeyX': case 'KeyJ':
           this.input.b = true;
@@ -302,7 +302,7 @@ class SquishyGame {
     bindBtn('btn-jump', () => {
       if (this.state === 'TITLE') this.startStory();
       else if (this.state === 'STORY') this.nextStorySlide();
-      else if (this.state === 'PLAYING') this.player.jump();
+      else if (this.state === 'PLAYING') this.player.jump(this.input);
       this.input.a = true;
     }, () => this.input.a = false);
     bindBtn('btn-spit', () => {
@@ -359,6 +359,15 @@ class SquishyGame {
 
     // 1. Update Player
     this.player.update(dt, this.input, this.grid, this.audio);
+
+    // Slide dust particles
+    if (this.player.isSliding && Math.random() < 0.45) {
+      this.particles.push(new Particle(
+        this.player.x - this.player.facing * (this.player.radius * 0.8),
+        this.player.y + 4,
+        '#ffffff'
+      ));
+    }
 
     // Hazard respawn check
     if (this.player.onHazard || this.player.y > CANVAS_H - 8) {
@@ -1221,11 +1230,11 @@ class SquishyGame {
       }
     };
 
-    // Card 1: 滚动与压扁钻缝
+    // Card 1: 滚动与压扁滑行
     drawCard(8, 27, 304, 38, '#00ffcc',
-      '◀ ▶ 滚动移动  |  ▼ 压扁身体钻缝',
-      '按左右键翻滚前行；按住【下键】压扁身体匍匐钻缝！',
-      '💡 技巧：遇到1格矮洞必须压扁才能通过，净空不足自动保持趴姿'
+      '◀ ▶ 滚动移动  |  ▼ + A 俯冲滑行',
+      '按左右键翻滚前行；按【下+A键】压扁俯冲滑行钻缝！',
+      '💡 技巧：遇到1格矮洞按住下+按A即可一滑到底，净空不足自动保持趴姿'
     );
 
     // Card 2: 跳跃与踩泡二段跳

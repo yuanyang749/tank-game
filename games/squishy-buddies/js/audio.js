@@ -58,6 +58,12 @@ class SquishyAudioEngine {
     this.playTone(160, 'triangle', 0.12, 0.16, 60);
   }
 
+  // Squishy Slide Swoosh (Glide whoosh sound)
+  playSlide() {
+    if (!this.enabled || !this.ctx) return;
+    this.playTone(320, 'triangle', 0.16, 0.14, 180);
+  }
+
   // Spit Bubble: Pew-Plop!
   playSpit() {
     if (!this.enabled || !this.ctx) return;

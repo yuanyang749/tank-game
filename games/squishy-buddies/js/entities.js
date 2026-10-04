@@ -87,6 +87,8 @@ class PlayerBuddy {
     this.facing = 1; // 1 for right, -1 for left
     this.onGround = false;
     this.isCrouched = false;
+    this.isSliding = false;
+    this.slideTimer = 0;
     this.onHazard = false;
     
     // Spring Squash & Stretch variables
@@ -133,13 +135,40 @@ class PlayerBuddy {
     this.setType(BUDDY_KEYS[nextIdx]);
   }
 
-  jump() {
-    if (this.onGround && !this.isCrouched) {
+  jump(input) {
+    const isDownPressed = Boolean(this.isCrouched || (input && input.down));
+    if (this.onGround && isDownPressed) {
+      // Crouch + A -> Squishy Slide (俯冲滑行)!
+      this.slide(input);
+      return;
+    }
+
+    if (this.onGround && !this.isCrouched && !this.isSliding) {
       this.vy = this.type.jumpPower;
       this.onGround = false;
       this.squashY = 1.45; // Launch stretch
       this.squashVelY = -8;
       if (window.squishyAudio) window.squishyAudio.playJump();
+    }
+  }
+
+  slide(input) {
+    if (input) {
+      if (input.right) this.facing = 1;
+      else if (input.left) this.facing = -1;
+    }
+    this.isSliding = true;
+    this.slideTimer = 0.55; // 0.55s slide duration covers ~90px
+    this.isCrouched = true;
+    this.targetSquashY = 0.30; // Pressed extra flat
+    this.squashY = 0.32;
+    this.squashVelY = 8;
+    const slideSpeed = Math.max(180, (this.type.speed || 120) * 1.4);
+    this.vx = this.facing * slideSpeed;
+    if (window.squishyAudio && window.squishyAudio.playSlide) {
+      window.squishyAudio.playSlide();
+    } else if (window.squishyAudio && window.squishyAudio.playJump) {
+      window.squishyAudio.playJump();
     }
   }
 
@@ -161,12 +190,18 @@ class PlayerBuddy {
   }
 
   update(dt, input, grid, audio) {
-    // 1. Handle Cooldowns & Blinking
+    // 1. Handle Cooldowns & Timers
     if (this.spitCooldown > 0) this.spitCooldown -= dt;
     this.blinkTimer -= dt;
     if (this.blinkTimer <= 0) {
       this.isBlinking = !this.isBlinking;
       this.blinkTimer = this.isBlinking ? 0.12 : (Math.random() * 4 + 2);
+    }
+    if (this.isSliding) {
+      this.slideTimer -= dt;
+      if (this.slideTimer <= 0) {
+        this.isSliding = false;
+      }
     }
 
     // 2. Handle Inputs
@@ -175,8 +210,10 @@ class PlayerBuddy {
     if (grid) {
       const standingHalfH = (this.radius || 10) * 0.85;
       const headRow = Math.floor((this.y - standingHalfH) / TILE_SIZE);
-      // When crouched and moving horizontally toward an obstacle, look ahead into the tunnel entrance
-      const lookahead = (this.isCrouched && input.right) ? 8 : ((this.isCrouched && input.left) ? -8 : 0);
+      const isSquished = this.isCrouched || this.isSliding;
+      // When squished and moving horizontally toward an obstacle, look ahead into the tunnel entrance
+      const lookahead = (isSquished && (input.right || (this.isSliding && this.facing === 1))) ? 8 : 
+                        ((isSquished && (input.left || (this.isSliding && this.facing === -1))) ? -8 : 0);
       const checkX = this.x + lookahead;
       const leftCol = Math.floor((Math.min(this.x, checkX) - this.radius * 0.7) / TILE_SIZE);
       const rightCol = Math.floor((Math.max(this.x, checkX) + this.radius * 0.7) / TILE_SIZE);
@@ -191,7 +228,7 @@ class PlayerBuddy {
       }
     }
 
-    const wantsCrouch = Boolean(input.down || ceilingAbove);
+    const wantsCrouch = Boolean(input.down || ceilingAbove || this.isSliding);
     if (wantsCrouch !== this.isCrouched) {
       const standingHalfH = (this.radius || 10) * 0.85;
       const crouchHalfH = (this.radius || 10) * 0.4;
@@ -205,27 +242,34 @@ class PlayerBuddy {
       }
     }
 
-    if (this.isCrouched) {
+    if (this.isSliding) {
+      this.targetSquashY = 0.30; // Pressed extra flat during slide
+      const slideSpeed = Math.max(180, (this.type.speed || 120) * 1.4);
+      const progress = Math.max(0, this.slideTimer / 0.55);
+      this.vx = this.facing * (slideSpeed * (0.65 + 0.35 * progress));
+    } else if (this.isCrouched) {
       this.targetSquashY = 0.38; // Pressed flat into a thin pancake
       this.vx *= 0.85; // Slower glide
     } else {
       this.targetSquashY = 1.0;
     }
 
-    if (input.left) {
-      this.facing = -1;
-      this.vx = -this.type.speed * (this.isCrouched ? 0.5 : 1);
-      this.walkCycle += dt * 14;
-    } else if (input.right) {
-      this.facing = 1;
-      this.vx = this.type.speed * (this.isCrouched ? 0.5 : 1);
-      this.walkCycle += dt * 14;
-    } else {
-      this.vx *= 0.7; // Smooth damping
+    if (!this.isSliding) {
+      if (input.left) {
+        this.facing = -1;
+        this.vx = -this.type.speed * (this.isCrouched ? 0.5 : 1);
+        this.walkCycle += dt * 14;
+      } else if (input.right) {
+        this.facing = 1;
+        this.vx = this.type.speed * (this.isCrouched ? 0.5 : 1);
+        this.walkCycle += dt * 14;
+      } else {
+        this.vx *= 0.7; // Smooth damping
+      }
     }
 
     // Walking rhythmic mini-squash (bouncy roll gait)
-    if (this.onGround && Math.abs(this.vx) > 10 && !this.isCrouched) {
+    if (this.onGround && Math.abs(this.vx) > 10 && !this.isCrouched && !this.isSliding) {
       this.targetSquashY = 1.0 + Math.sin(this.walkCycle) * 0.12;
     }
 
@@ -233,6 +277,12 @@ class PlayerBuddy {
 
     // 3. Tile Move & Physics
     Physics.resolveTileMove(this, grid, dt);
+
+    // Cancel slide if blocked by solid wall
+    if (this.isSliding && Math.abs(this.vx) < 1.0) {
+      this.isSliding = false;
+      this.slideTimer = 0;
+    }
 
     // Landing impact detection
     if (!wasOnGround && this.onGround) {
