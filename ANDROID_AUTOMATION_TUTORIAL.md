@@ -401,6 +401,8 @@ function checkTankTankCollision(tankA, tankB) {
 
 随着开发深入，单体游戏已无法满足多款复古经典共存的需求。智能体自主完成了系统级重构，将工程演进为 **Game Boy DMG-01 复古掌机模拟器中枢**：
 
+![Game Boy 经典掌机多卡带菜单界面](images/gameboy_menu.png)
+
 1. **宿主机身与卡带解耦架构**：
    - 根目录 `index.html` 扮演掌机硬件机壳与控制中枢；
    - 各游戏作为独立卡带工程存放在 `games/` 子目录（如 `games/tank-battle/`、`games/space-invaders/`），支持独立开发与多文件模块化维护；
@@ -410,9 +412,13 @@ function checkTankTankCollision(tankA, tankB) {
    - 屏幕支持三种经典调色盘实时切换：**DMG 复古橄榄绿液晶屏**、**Pocket 高对比度黑白屏**、**Vivid 原彩街机模式**；
    - 底栏集成优雅的现代化 SVG 硬件功能坞（POWER 电源键、COLOR 调色盘、FULLSCREEN 全屏）。
 
+![像素坦克大战掌机运行实录](images/gameboy_tank.png)
+
 ### 4.5 经典卡带：《太空侵略者 1978》点阵弹坑物理与梯级音频加速
 
 作为多合一卡带的第二款重磅经典，智能体完全在手机端自主实现了《太空侵略者 1978》：
+
+![太空侵略者 1978 掌机运行实录](images/gameboy_space_invaders.png)
 
 1. **4 步步进低音进行曲动态加速引擎**：
    - 原作震撼业界的标志性四音符步进进行曲（Bass Marching Loop）；
@@ -475,6 +481,8 @@ window.addEventListener('touchmove', (e) => {
 - **比例降维重构**：将封面主标题约束至 13.5px，正文字号优化为 10.5px，并采用复古 DMG 卡带包装盒卡片风格；
 - **排版元器件专精适配**：采用滑动章节胶囊胶带（Pills）、双列键值排版替代易超宽溢出的 HTML 表格，搭配黑客绿磷光终端代码块；
 - **实体硬件按键联动**：打通 `GB_INPUT` 协议，用户可直接使用掌机上的物理十字键上下滚动条目，按 A/B 键进行 200px 快速翻页，按 START 键一键回顶，实现了真正沉浸式的“机卡一体”把玩体验。
+
+![Game Boy 掌机专供说明书与 MCP 教程](images/gameboy_guide.png)
 
 ---
 
