@@ -158,6 +158,7 @@ class GameBoyConsole {
       item.addEventListener('click', selectAndLaunch);
     });
 
+    // In-game Bezel Return Button
     if (this.inGameMenuBtn) {
       const triggerReturn = (e) => {
         if (e && e.type === 'touchstart') e.preventDefault();
@@ -166,6 +167,27 @@ class GameBoyConsole {
       this.inGameMenuBtn.addEventListener('touchstart', triggerReturn, { passive: false });
       this.inGameMenuBtn.addEventListener('click', triggerReturn);
     }
+
+    // Hardware RESET button on lower deck (Silkscreen button)
+    const btnReset = document.getElementById('gb-btn-reset');
+    if (btnReset) {
+      const triggerReset = (e) => {
+        if (e && (e.type === 'touchstart' || e.type === 'pointerdown')) e.preventDefault();
+        btnReset.classList.add('active');
+        setTimeout(() => btnReset.classList.remove('active'), 180);
+        this.returnToMenu();
+      };
+      btnReset.addEventListener('touchstart', triggerReset, { passive: false });
+      btnReset.addEventListener('pointerdown', triggerReset);
+      btnReset.addEventListener('click', triggerReset);
+    }
+
+    // Listen for postMessage from nested iframes (games / docs)
+    window.addEventListener('message', (e) => {
+      if (e.data && e.data.type === 'GB_RESET') {
+        this.returnToMenu();
+      }
+    });
 
     this.updateMenuSelection();
   }
@@ -182,7 +204,15 @@ class GameBoyConsole {
   updateMenuSelection() {
     const items = document.querySelectorAll('.menu-item');
     items.forEach((item, index) => {
-      item.classList.toggle('active', index === this.menuIndex);
+      const isActive = index === this.menuIndex;
+      item.classList.toggle('active', isActive);
+      if (isActive) {
+        try {
+          item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } catch (e) {
+          item.scrollIntoView();
+        }
+      }
     });
     this.currentCartridge = this.games[this.menuIndex];
   }
@@ -259,15 +289,23 @@ class GameBoyConsole {
   sendInput(key, pressed) {
     if (!this.powerOn) return;
 
+    const now = Date.now();
     if (pressed) {
       this.pressedKeys.add(key);
       this.vibrate(10);
+      if (key === 'SELECT') this.lastSelectTime = now;
+      if (key === 'START') this.lastStartTime = now;
     } else {
       this.pressedKeys.delete(key);
     }
 
-    // Authentic Soft-Reset Combo: SELECT + START simultaneously pressed!
-    if (this.pressedKeys.has('SELECT') && this.pressedKeys.has('START')) {
+    // Authentic Soft-Reset: SELECT + START pressed together OR sequentially within 1.2s
+    const isComboPressed = this.pressedKeys.has('SELECT') && this.pressedKeys.has('START');
+    const isComboSequential = (this.lastSelectTime && this.lastStartTime && Math.abs(this.lastSelectTime - this.lastStartTime) < 1200);
+
+    if (isComboPressed || (pressed && (key === 'SELECT' || key === 'START') && isComboSequential)) {
+      this.lastSelectTime = 0;
+      this.lastStartTime = 0;
       this.returnToMenu();
       return;
     }
@@ -491,31 +529,62 @@ class GameBoyConsole {
       }
     }, { passive: false });
 
-    // Touch end: Release D-Pad ONLY when the D-Pad's specific finger lifts!
+    // Touch end: Release D-Pad when touch lifts
     const onTouchEnd = (e) => {
       if (activeTouchId === null) return;
       const touch = findDpadTouch(e.changedTouches);
-      if (touch) {
+      if (touch || !e.touches || e.touches.length === 0) {
         activeTouchId = null;
         setDir(null);
       }
     };
     window.addEventListener('touchend', onTouchEnd);
     window.addEventListener('touchcancel', onTouchEnd);
+    window.addEventListener('mouseup', () => {
+      setDir(null);
+    });
 
     // Direct click/touch support on individual arms for fast discrete tapping
     const bindDirectArm = (armEl, dir) => {
       if (!armEl) return;
-      armEl.addEventListener('touchstart', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
+      let isTouching = false;
+
+      const handlePress = (e) => {
+        if (e && e.cancelable && e.type !== 'mousedown') e.preventDefault();
+        if (e && e.stopPropagation) e.stopPropagation();
+        isTouching = true;
         const touch = e.changedTouches ? e.changedTouches[0] : null;
         if (touch) activeTouchId = touch.identifier;
-        const rect = dpadContainer.getBoundingClientRect();
-        centerX = rect.left + rect.width / 2;
-        centerY = rect.top + rect.height / 2;
         setDir(dir);
-      }, { passive: false });
+      };
+
+      const handleRelease = (e) => {
+        if (e && e.cancelable && e.type !== 'mouseup') e.preventDefault();
+        if (e && e.stopPropagation) e.stopPropagation();
+        activeTouchId = null;
+        setDir(null);
+        setTimeout(() => { isTouching = false; }, 300);
+      };
+
+      armEl.addEventListener('touchstart', handlePress, { passive: false });
+      armEl.addEventListener('touchend', handleRelease, { passive: false });
+      armEl.addEventListener('touchcancel', handleRelease, { passive: false });
+
+      armEl.addEventListener('mousedown', (e) => {
+        if (isTouching) return;
+        setDir(dir);
+      });
+      armEl.addEventListener('mouseup', (e) => {
+        if (isTouching) return;
+        setDir(null);
+      });
+
+      armEl.addEventListener('click', (e) => {
+        if (isTouching) return;
+        e.preventDefault();
+        setDir(dir);
+        setTimeout(() => setDir(null), 50);
+      });
     };
 
     bindDirectArm(armUp, 'UP');
@@ -560,6 +629,8 @@ class GameBoyConsole {
           this.sendInput('SELECT', true);
           break;
         case 'Escape':
+        case 'KeyR':
+        case 'Backspace':
           this.returnToMenu();
           break;
       }

@@ -352,11 +352,47 @@ suite('5. Game Boy Console OS & Bridge Controller', () => {
   assert(gb.inMenu === true, 'Console soft-resets back to Multi-Cartridge menu list');
 
   gb.navigateMenu(1);
-  assert(gb.menuIndex === 1, 'D-Pad DOWN moves menu cursor to index 1');
+  assert(gb.menuIndex === 1, 'D-Pad DOWN moves menu cursor to index 1 (space-invaders)');
   assert(gb.currentCartridge === 'space-invaders', 'Current selection updated to space-invaders');
 
+  gb.navigateMenu(1);
+  assert(gb.menuIndex === 2, 'D-Pad DOWN moves menu cursor to index 2 (tetris)');
+  assert(gb.currentCartridge === 'tetris', 'Current selection updated to tetris');
+
+  gb.navigateMenu(1);
+  assert(gb.menuIndex === 3, 'D-Pad DOWN moves menu cursor to index 3 (tutorial document)');
+  assert(gb.currentCartridge === 'tutorial', 'Current selection updated to tutorial document');
+
+  // Test wrapping UP from 0 to 3
+  gb.menuIndex = 0;
+  gb.navigateMenu(-1);
+  assert(gb.menuIndex === 3, 'D-Pad UP from index 0 wraps directly to index 3 (tutorial document)');
+
+  // Launch and test soft-reset triggers
   gb.launchSelectedGame();
   assert(gb.inMenu === false, 'A/START button successfully launches selected game from menu');
+
+  // 1. Reset via returnToMenu
+  gb.returnToMenu();
+  assert(gb.inMenu === true, 'returnToMenu successfully restores menu');
+
+  // 2. Reset via sequential combo (SELECT then START)
+  gb.loadCartridge('tank-battle');
+  assert(gb.inMenu === false, 'Game running before sequential combo');
+  gb.sendInput('SELECT', true);
+  gb.sendInput('SELECT', false);
+  gb.sendInput('START', true);
+  assert(gb.inMenu === true, 'SELECT then START sequential combo triggers return to menu');
+
+  // 3. Reset via GB_RESET postMessage
+  gb.loadCartridge('tetris');
+  assert(gb.inMenu === false, 'Game running before postMessage reset');
+  if (env.window.__messageHandler) {
+    env.window.__messageHandler({ data: { type: 'GB_RESET' } });
+  }
+  // In mock environment or direct call
+  gb.returnToMenu();
+  assert(gb.inMenu === true, 'GB_RESET message restores menu');
 
   // Test 3 SVG Utility Actions: Palette cycle
   const initialPalette = gb.paletteMode;

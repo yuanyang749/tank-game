@@ -22,7 +22,7 @@
         <div class="bezel-line-top"></div>
         <div class="bezel-line-bottom"></div>
         <div class="bezel-text">DOT MATRIX WITH STEREO SOUND</div>
-        <button id="in-game-menu-btn" class="bezel-menu-btn hidden" title="返回游戏目录 (SELECT+START)">◀ 目录</button>
+        <button id="in-game-menu-btn" class="bezel-menu-btn hidden" aria-label="返回掌机目录" title="返回游戏目录 (RESET)">◀ 复位 / 目录</button>
       </div>
 
       <div class="screen-housing">
@@ -157,7 +157,7 @@
               <span class="rubber-label">START</span>
             </div>
           </div>
-          <div class="reset-silk-screen">◀ RESET: SELECT + START ▶</div>
+          <button type="button" class="reset-silk-screen" id="gb-btn-reset" aria-label="复位键" title="复位回到游戏菜单 (RESET)">◀ RESET: SELECT + START ▶</button>
         </div>
 
         <!-- Speaker Grille Slits (Bottom Right) -->

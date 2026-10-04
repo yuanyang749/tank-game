@@ -73,12 +73,12 @@ async function runHeadlessAutomation() {
   await page.screenshot({ path: spaceShotPath });
   console.log(`✅ [3/4] 太空侵略者运行态截图: ${spaceShotPath}`);
 
-  // 4. 复位到菜单并选择俄罗斯方块 1989
-  console.log('🔄 模拟点击屏幕右上角【◄目录】徽章返回卡带选择页...');
-  await page.tap('#in-game-menu-btn');
+  // 4. 复位到菜单并选择俄罗斯方块 1989 (使用新实体复位键 #gb-btn-reset)
+  console.log('🔄 模拟点击实体复位键【RESET: SELECT + START】返回卡带选择页...');
+  await page.tap('#gb-btn-reset');
   await new Promise(r => setTimeout(r, 600));
 
-  // 模拟按下方向键选择第 3 项（俄罗斯方块 1989，当前索引为 1，按一次下到索引 2）
+  // 模拟按下方向键选择第 3 项（俄罗斯方块 1989）
   console.log('⬇️ 按下方向键选择俄罗斯方块 1989...');
   await page.tap('#dpad-down');
   await new Promise(r => setTimeout(r, 400));
@@ -100,10 +100,44 @@ async function runHeadlessAutomation() {
 
   const tetrisShotPath = path.join(screenshotsDir, 'headless_tetris.png');
   await page.screenshot({ path: tetrisShotPath });
-  console.log(`✅ [4/4] 俄罗斯方块 1989 运行态截图: ${tetrisShotPath}`);
+  console.log(`✅ [4/5] 俄罗斯方块 1989 运行态截图: ${tetrisShotPath}`);
+
+  // 5. 点击复位键回到菜单，并用方向下选择第 4 项（TERMUX 开发攻略）
+  console.log('🔄 模拟点击复位键返回菜单...');
+  await page.tap('#gb-btn-reset');
+  await new Promise(r => setTimeout(r, 600));
+
+  console.log('⬇️ 按下方向键选择第 4 项 (TERMUX 开发攻略)...');
+  await page.tap('#dpad-down');
+  await new Promise(r => setTimeout(r, 300));
+
+  const currentIdx = await page.evaluate(() => window.consoleInstance.menuIndex);
+  console.log(`📋 当前选中卡带索引: ${currentIdx} (期待: 3 - tutorial)`);
+  if (currentIdx !== 3) {
+    throw new Error(`菜单切换到文档失败，当前索引为 ${currentIdx}`);
+  }
+
+  console.log('📖 按下 A 键进入掌机电子文档...');
+  await page.tap('#gb-btn-a');
+  await new Promise(r => setTimeout(r, 1200));
+
+  const manualShotPath = path.join(screenshotsDir, 'headless_manual.png');
+  await page.screenshot({ path: manualShotPath });
+  console.log(`✅ [5/5] Termux 开发攻略文档运行态截图: ${manualShotPath}`);
+
+  // 验证在文档中再次点击复位键能否顺利回到游戏菜单
+  console.log('🔄 在文档内模拟点击实体复位键返回游戏列表...');
+  await page.tap('#gb-btn-reset');
+  await new Promise(r => setTimeout(r, 600));
+
+  const inMenuAfterReset = await page.evaluate(() => window.consoleInstance.inMenu);
+  console.log(`🕹️ 复位后是否处于菜单状态: ${inMenuAfterReset}`);
+  if (!inMenuAfterReset) {
+    throw new Error('从文档点击复位键未能回到游戏菜单！');
+  }
 
   await browser.close();
-  console.log('🎉 无头浏览器自动化流程与截图全部成功完成！');
+  console.log('🎉 无头浏览器自动化流程与所有截图验证全部成功完成！');
 
   if (pageErrors.length > 0) {
     console.error('⚠️ 页面运行产生以下错误:', pageErrors);
