@@ -11,7 +11,7 @@ class GameBoyConsole {
     this.paletteMode = 'color'; // 'color', 'dmg', 'bw'
     this.inMenu = true; // Authentic Game Boy starts at the Multi-Cartridge game list!
     this.menuIndex = 0;
-    this.games = ['tank-battle', 'space-invaders', 'tutorial'];
+    this.games = ['tank-battle', 'space-invaders', 'tetris', 'tutorial'];
     this.pressedKeys = new Set();
     
     // Core Hardware Elements
@@ -216,6 +216,8 @@ class GameBoyConsole {
       url = 'games/tank-battle/index.html?embedded=1';
     } else if (gameId === 'space-invaders') {
       url = 'games/space-invaders/index.html?embedded=1';
+    } else if (gameId === 'tetris') {
+      url = 'games/tetris/index.html?embedded=1';
     } else if (gameId === 'tutorial') {
       url = 'docs/gb-tutorial.html';
     }

@@ -506,6 +506,95 @@ suite('7. Dedicated Game Boy Developer Guide Edition', () => {
 });
 
 // =========================================================================
+suite('8. Authentic Tetris 1989 Game Boy Cartridge & Matrix Engine', () => {
+  const tetrisHtmlPath = path.join(__dirname, '../games/tetris/index.html');
+  const boardJsPath = path.join(__dirname, '../games/tetris/js/board.js');
+  const audioJsPath = path.join(__dirname, '../games/tetris/js/audio.js');
+  const gameJsPath = path.join(__dirname, '../games/tetris/js/game.js');
+  const cssPath = path.join(__dirname, '../games/tetris/css/tetris.css');
+
+  assert(fs.existsSync(tetrisHtmlPath), 'games/tetris/index.html exists');
+  assert(fs.existsSync(boardJsPath), 'games/tetris/js/board.js exists');
+  assert(fs.existsSync(audioJsPath), 'games/tetris/js/audio.js exists');
+  assert(fs.existsSync(gameJsPath), 'games/tetris/js/game.js exists');
+  assert(fs.existsSync(cssPath), 'games/tetris/css/tetris.css exists');
+
+  // Verify multi-cart index.html registration
+  const mainIndexHtml = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert(mainIndexHtml.includes('data-game="tetris"'), 'index.html contains ROM 03 Tetris 1989');
+  assert(mainIndexHtml.includes('俄罗斯方块 1989'), 'index.html lists 俄罗斯方块 1989');
+
+  // Test Tetris Board Mechanics in VM
+  const boardCode = fs.readFileSync(boardJsPath, 'utf8');
+  const sandbox = createMockEnv();
+  vm.createContext(sandbox);
+  vm.runInContext(boardCode, sandbox);
+
+  const TetrisBoard = sandbox.window.TetrisBoard;
+  assert(typeof TetrisBoard === 'function', 'TetrisBoard class loaded in VM');
+
+  const board = new TetrisBoard();
+  assert(board.cols === 10 && board.rows === 20, 'Board is standard 10x20 dimensions');
+  assert(board.grid.length === 20 && board.grid[0].length === 10, 'Grid initialized as 20x10 zero matrix');
+
+  // Test 7-Bag Randomizer
+  assert(board.currentPiece !== null, 'Spawned initial current tetromino');
+  assert(board.nextPiece !== null, 'Spawned next preview tetromino');
+  const validShapes = ['I', 'O', 'T', 'S', 'Z', 'J', 'L'];
+  assert(validShapes.includes(board.currentPiece.type), `Current piece ${board.currentPiece.type} is a valid tetromino`);
+  assert(validShapes.includes(board.nextPiece.type), `Next piece ${board.nextPiece.type} is a valid tetromino`);
+
+  // Test Horizontal Movement & Wall Bounds
+  board.currentPiece.x = 0;
+  assert(board.move(-1) === false, 'Cannot move piece beyond left wall (x < 0)');
+  board.currentPiece.x = 5;
+  assert(board.move(1) === true, 'Successfully moves right inside playfield');
+  assert(board.currentPiece.x === 6, 'X position correctly updated to 6');
+
+  // Test Rotation
+  const originalMatrix = board.currentPiece.matrix;
+  assert(board.rotate(1) === true, 'Successfully rotated piece clockwise');
+  assert(board.currentPiece.matrix !== originalMatrix, 'Piece matrix updated after rotation');
+
+  // Test Hard Drop & Ghost Calculation
+  const ghost = board.getGhostPosition();
+  assert(ghost && ghost.y >= board.currentPiece.y, 'Ghost position calculated at or below current piece');
+  
+  const initialY = board.currentPiece.y;
+  const dropDist = board.hardDrop();
+  assert(dropDist > 0, `Hard drop slammed piece down by ${dropDist} rows`);
+  assert(board.score > 0, `Hard drop points awarded (score = ${board.score})`);
+
+  // Test Line Clear & Nintendo Scoring Formula
+  // Manually fill row 19 completely
+  for (let c = 0; c < 10; c++) {
+    board.grid[19][c] = 1;
+  }
+  board.checkLines();
+  assert(board.isClearingLines === true, 'Detected filled line and initiated clear animation');
+  assert(board.clearingRows.includes(19), 'Row 19 identified for clearance');
+
+  const cleared = board.finalizeLineClear();
+  assert(cleared === 1, 'Finalized single line clear');
+  assert(board.lines === 1, 'Lines cleared counter incremented');
+  assert(board.score >= 100, `Single line awarded at least 100 points (score: ${board.score})`);
+
+  // Test Game Boy Controller Bridge in game.js
+  const gameJsCode = fs.readFileSync(gameJsPath, 'utf8');
+  assert(gameJsCode.includes("event.data.type !== 'GB_INPUT'"), 'game.js listens to GB_INPUT messages');
+  assert(gameJsCode.includes("'LEFT'") && gameJsCode.includes("'RIGHT'"), 'Handles horizontal movement');
+  assert(gameJsCode.includes("'UP'") && gameJsCode.includes("'DOWN'"), 'Handles hard drop (UP) and soft drop (DOWN)');
+  assert(gameJsCode.includes("'A'") && gameJsCode.includes("'B'"), 'Handles clockwise (A) and counter-clockwise (B) rotation');
+  assert(gameJsCode.includes("'START'") && gameJsCode.includes("'SELECT'"), 'Handles pause (START) and music toggle (SELECT)');
+
+  // Test Web Audio Chiptune Synthesizer in audio.js
+  const audioCode = fs.readFileSync(audioJsPath, 'utf8');
+  assert(audioCode.includes('melody'), 'audio.js contains Korobeiniki Type A melody');
+  assert(audioCode.includes('playMove') && audioCode.includes('playRotate'), 'audio.js has move & rotate SFX');
+  assert(audioCode.includes('playDrop') && audioCode.includes('playTetrisClear'), 'audio.js has drop & Tetris fanfare SFX');
+});
+
+// =========================================================================
 // SUMMARY
 // =========================================================================
 console.log(`\n==================================================`);

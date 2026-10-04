@@ -71,7 +71,36 @@ async function runHeadlessAutomation() {
 
   const spaceShotPath = path.join(screenshotsDir, 'headless_space.png');
   await page.screenshot({ path: spaceShotPath });
-  console.log(`✅ [3/3] 太空侵略者运行态截图: ${spaceShotPath}`);
+  console.log(`✅ [3/4] 太空侵略者运行态截图: ${spaceShotPath}`);
+
+  // 4. 复位到菜单并选择俄罗斯方块 1989
+  console.log('🔄 模拟点击屏幕右上角【◄目录】徽章返回卡带选择页...');
+  await page.tap('#in-game-menu-btn');
+  await new Promise(r => setTimeout(r, 600));
+
+  // 模拟按下方向键选择第 3 项（俄罗斯方块 1989，当前索引为 1，按一次下到索引 2）
+  console.log('⬇️ 按下方向键选择俄罗斯方块 1989...');
+  await page.tap('#dpad-down');
+  await new Promise(r => setTimeout(r, 400));
+  await page.tap('#gb-btn-a');
+  await new Promise(r => setTimeout(r, 1200));
+
+  // 模拟在标题画面按下 A 键正式启动游戏
+  console.log('🎮 模拟按下 A 键进入方块堆叠实战...');
+  await page.tap('#gb-btn-a');
+  await new Promise(r => setTimeout(r, 1000));
+
+  // 模拟方块旋转与微移
+  await page.tap('#dpad-left');
+  await new Promise(r => setTimeout(r, 200));
+  await page.tap('#gb-btn-a'); // 旋转
+  await new Promise(r => setTimeout(r, 300));
+  await page.tap('#dpad-down'); // 软降落
+  await new Promise(r => setTimeout(r, 500));
+
+  const tetrisShotPath = path.join(screenshotsDir, 'headless_tetris.png');
+  await page.screenshot({ path: tetrisShotPath });
+  console.log(`✅ [4/4] 俄罗斯方块 1989 运行态截图: ${tetrisShotPath}`);
 
   await browser.close();
   console.log('🎉 无头浏览器自动化流程与截图全部成功完成！');
