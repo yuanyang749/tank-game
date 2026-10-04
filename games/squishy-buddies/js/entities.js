@@ -172,7 +172,7 @@ class PlayerBuddy {
     // 2. Handle Inputs
     // Check if headroom is blocked by ceiling or crawlway
     let ceilingAbove = false;
-    if (grid && this.onGround) {
+    if (grid) {
       const standingHalfH = (this.radius || 10) * 0.85;
       const headRow = Math.floor((this.y - standingHalfH) / TILE_SIZE);
       const leftCol = Math.floor((this.x - this.radius * 0.7) / TILE_SIZE);
@@ -188,7 +188,20 @@ class PlayerBuddy {
       }
     }
 
-    this.isCrouched = (input.down || ceilingAbove) && this.onGround;
+    const wantsCrouch = Boolean(input.down || ceilingAbove);
+    if (wantsCrouch !== this.isCrouched) {
+      const standingHalfH = (this.radius || 10) * 0.85;
+      const crouchHalfH = (this.radius || 10) * 0.4;
+      const diff = standingHalfH - crouchHalfH;
+      if (wantsCrouch) {
+        if (this.onGround) this.y += diff;
+        this.isCrouched = true;
+      } else if (!ceilingAbove) {
+        if (this.onGround) this.y -= diff;
+        this.isCrouched = false;
+      }
+    }
+
     if (this.isCrouched) {
       this.targetSquashY = 0.38; // Pressed flat into a thin pancake
       this.vx *= 0.85; // Slower glide

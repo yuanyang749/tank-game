@@ -780,6 +780,30 @@ suite('9. Squishy Buddies 1991 Physics, 5 Characters & Bubble System', () => {
   assert(r3.grid[2][3] === 6, 'Room 3 has locked gate at Col 3 Row 2');
   assert(r3.dews.length === 3, 'Room 3 has 3 collectible dews');
   assert(r3.dews.every(d => d.x <= 180 && d.x >= 165), 'Room 3 dews are aligned along Pink sticky bubble climbing path');
+
+  // 8. Room 4 map geometry and crawlway entrance assertions
+  const r4 = env.LEVELS[3];
+  assert(r4.id === 4, 'Room 4 id is 4');
+  assert(r4.grid[2][9] === 0, 'Room 4 has open air at Col 9 Row 2 (Dew 2 is NOT inside stone)');
+  assert(r4.grid[3][9] === 1, 'Room 4 has solid floor at Col 9 Row 3 to land on');
+  assert(r4.grid[2][10] === 3 && r4.grid[2][11] === 3 && r4.grid[2][12] === 3, 'Room 4 has crawlway tunnel at cols 10-12 Row 2');
+  assert(r4.grid[1][10] === 1 && r4.grid[1][11] === 1 && r4.grid[1][12] === 1 && r4.grid[1][13] === 1, 'Room 4 has solid ceiling over crawlway and gate at Row 1 cols 10-13');
+  assert(r4.dews.length === 3, 'Room 4 has 3 collectible dews');
+  const r4Dew2 = r4.dews[1];
+  const r4Dew2Col = Math.floor(r4Dew2.x / 20);
+  const r4Dew2Row = Math.floor(r4Dew2.y / 20);
+  assert(r4.grid[r4Dew2Row][r4Dew2Col] === 0, 'Room 4 Dew 2 is located in open air tile');
+
+  // 9. Smooth crawlway traversal from ledge
+  const greenBuddy = new env.PlayerBuddy(190, 51.5);
+  greenBuddy.setType('GREEN');
+  greenBuddy.onGround = true;
+  // Hold down and right for 10 frames
+  for (let f = 0; f < 10; f++) {
+    greenBuddy.update(1/60, { down: true, right: true, left: false, up: false, a: false, b: false }, r4.grid, null);
+  }
+  assert(greenBuddy.x > 195, 'Player smoothly moves right into crawlway tunnel without getting stuck');
+  assert(greenBuddy.isCrouched === true, 'Player maintains crouched state during crawlway entry');
 });
 
 // =========================================================================
