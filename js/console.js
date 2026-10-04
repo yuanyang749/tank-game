@@ -443,7 +443,7 @@ class GameBoyConsole {
     let activeTouchId = null;
     let centerX = 0;
     let centerY = 0;
-    let currentDir = null;
+    const activeDirs = { UP: false, DOWN: false, LEFT: false, RIGHT: false };
 
     const updateCenter = () => {
       const rect = dpadContainer.getBoundingClientRect();
@@ -454,20 +454,20 @@ class GameBoyConsole {
     window.addEventListener('resize', updateCenter);
     window.addEventListener('scroll', updateCenter);
 
-    const setDir = (dir) => {
-      if (currentDir === dir) return;
-      if (currentDir) {
-        this.sendInput(currentDir, false);
-      }
-      currentDir = dir;
-      if (currentDir) {
-        this.sendInput(currentDir, true);
-      }
+    const applyDirections = (newDirs) => {
+      const dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+      dirs.forEach(dir => {
+        const shouldBeActive = Boolean(newDirs && newDirs[dir]);
+        if (activeDirs[dir] !== shouldBeActive) {
+          activeDirs[dir] = shouldBeActive;
+          this.sendInput(dir, shouldBeActive);
+        }
+      });
 
-      if (armUp) armUp.classList.toggle('active', dir === 'UP');
-      if (armDown) armDown.classList.toggle('active', dir === 'DOWN');
-      if (armLeft) armLeft.classList.toggle('active', dir === 'LEFT');
-      if (armRight) armRight.classList.toggle('active', dir === 'RIGHT');
+      if (armUp) armUp.classList.toggle('active', activeDirs.UP);
+      if (armDown) armDown.classList.toggle('active', activeDirs.DOWN);
+      if (armLeft) armLeft.classList.toggle('active', activeDirs.LEFT);
+      if (armRight) armRight.classList.toggle('active', activeDirs.RIGHT);
     };
 
     const handleCoords = (clientX, clientY) => {
@@ -476,14 +476,37 @@ class GameBoyConsole {
       const dy = clientY - centerY;
       const dist = Math.hypot(dx, dy);
       if (dist < 10) {
-        setDir(null);
+        applyDirections(null);
         return;
       }
-      if (Math.abs(dx) > Math.abs(dy)) {
-        setDir(dx > 0 ? 'RIGHT' : 'LEFT');
-      } else {
-        setDir(dy > 0 ? 'DOWN' : 'UP');
+
+      // Calculate angle in degrees: 0° is RIGHT, 90° is DOWN, -90° is UP, ±180° is LEFT
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      const dirs = { UP: false, DOWN: false, LEFT: false, RIGHT: false };
+
+      if (angle >= -22.5 && angle <= 22.5) {
+        dirs.RIGHT = true;
+      } else if (angle > 22.5 && angle < 67.5) {
+        dirs.DOWN = true;
+        dirs.RIGHT = true;
+      } else if (angle >= 67.5 && angle <= 112.5) {
+        dirs.DOWN = true;
+      } else if (angle > 112.5 && angle < 157.5) {
+        dirs.DOWN = true;
+        dirs.LEFT = true;
+      } else if (angle >= 157.5 || angle <= -157.5) {
+        dirs.LEFT = true;
+      } else if (angle > -157.5 && angle < -112.5) {
+        dirs.UP = true;
+        dirs.LEFT = true;
+      } else if (angle >= -112.5 && angle <= -67.5) {
+        dirs.UP = true;
+      } else if (angle > -67.5 && angle < -22.5) {
+        dirs.UP = true;
+        dirs.RIGHT = true;
       }
+
+      applyDirections(dirs);
     };
 
     const findDpadTouch = (touchList) => {
@@ -525,13 +548,13 @@ class GameBoyConsole {
       const touch = findDpadTouch(e.changedTouches);
       if (touch || !e.touches || e.touches.length === 0) {
         activeTouchId = null;
-        setDir(null);
+        applyDirections(null);
       }
     };
     window.addEventListener('touchend', onTouchEnd);
     window.addEventListener('touchcancel', onTouchEnd);
     window.addEventListener('mouseup', () => {
-      setDir(null);
+      applyDirections(null);
     });
 
     // Direct click/touch support on individual arms for fast discrete tapping
@@ -545,13 +568,13 @@ class GameBoyConsole {
         isTouching = true;
         const touch = e.changedTouches ? e.changedTouches[0] : null;
         if (touch) activeTouchId = touch.identifier;
-        setDir(dir);
+        applyDirections({ [dir]: true });
       };
 
       const handleRelease = (e) => {
         if (e && e.cancelable && e.type !== 'mouseup') e.preventDefault();
         activeTouchId = null;
-        setDir(null);
+        applyDirections(null);
         setTimeout(() => { isTouching = false; }, 300);
       };
 
@@ -561,11 +584,11 @@ class GameBoyConsole {
 
       armEl.addEventListener('mousedown', (e) => {
         if (isTouching) return;
-        setDir(dir);
+        applyDirections({ [dir]: true });
       });
       armEl.addEventListener('mouseup', (e) => {
         if (isTouching) return;
-        setDir(null);
+        applyDirections(null);
       });
 
       armEl.addEventListener('click', (e) => {

@@ -458,6 +458,7 @@ suite('6. Multi-Touch Concurrency & Button Isolation (B + LEFT Anti-Collision)',
   const armLeft = elements['dpad-left'];
   const armRight = elements['dpad-right'];
   const armDown = elements['dpad-down'];
+  const armUp = elements['dpad-up'];
 
   // Trigger Touch 0: Right thumb presses B button (on the right side of the screen at x=680)
   const touchB = { identifier: 101, clientX: 680, clientY: 1700 };
@@ -520,6 +521,32 @@ suite('6. Multi-Touch Concurrency & Button Isolation (B + LEFT Anti-Collision)',
     }));
   }
   assert(armLeft.classList.contains('active') === false, 'D-Pad LEFT releases cleanly when its own touch ends');
+
+  // Test 8-Way Diagonal D-Pad Input: Touch in DOWN-RIGHT sector
+  // Center is at (135, 1635). Down-Right: dx = +20, dy = +20 => clientX = 155, clientY = 1655
+  const touchDownRight = { identifier: 103, clientX: 155, clientY: 1655 };
+  listeners['gb-dpad']['touchstart'].forEach(cb => cb({
+    preventDefault: () => {},
+    changedTouches: [touchDownRight],
+    touches: [touchDownRight]
+  }));
+  assert(armDown.classList.contains('active') === true, 'Diagonal touch activates D-Pad DOWN');
+  assert(armRight.classList.contains('active') === true, 'Diagonal touch activates D-Pad RIGHT simultaneously');
+  assert(armLeft.classList.contains('active') === false, 'Diagonal touch does not activate LEFT');
+  assert(armUp.classList.contains('active') === false, 'Diagonal touch does not activate UP');
+  assert(gb.pressedKeys.has('DOWN') === true, 'DOWN key registered in Game Boy pressedKeys');
+  assert(gb.pressedKeys.has('RIGHT') === true, 'RIGHT key registered in Game Boy pressedKeys');
+
+  // Release diagonal touch
+  if (windowListeners['touchend']) {
+    windowListeners['touchend'].forEach(cb => cb({
+      preventDefault: () => {},
+      changedTouches: [touchDownRight],
+      touches: []
+    }));
+  }
+  assert(armDown.classList.contains('active') === false, 'DOWN arm deactivates after release');
+  assert(armRight.classList.contains('active') === false, 'RIGHT arm deactivates after release');
 });
 
 // =========================================================================

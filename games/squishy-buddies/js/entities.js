@@ -175,8 +175,11 @@ class PlayerBuddy {
     if (grid) {
       const standingHalfH = (this.radius || 10) * 0.85;
       const headRow = Math.floor((this.y - standingHalfH) / TILE_SIZE);
-      const leftCol = Math.floor((this.x - this.radius * 0.7) / TILE_SIZE);
-      const rightCol = Math.floor((this.x + this.radius * 0.7) / TILE_SIZE);
+      // When crouched and moving horizontally toward an obstacle, look ahead into the tunnel entrance
+      const lookahead = (this.isCrouched && input.right) ? 8 : ((this.isCrouched && input.left) ? -8 : 0);
+      const checkX = this.x + lookahead;
+      const leftCol = Math.floor((Math.min(this.x, checkX) - this.radius * 0.7) / TILE_SIZE);
+      const rightCol = Math.floor((Math.max(this.x, checkX) + this.radius * 0.7) / TILE_SIZE);
       if (headRow >= 0 && headRow < GRID_ROWS) {
         for (let c = Math.max(0, leftCol); c <= Math.min(GRID_COLS - 1, rightCol); c++) {
           const t = grid[headRow][c];
