@@ -446,3 +446,267 @@ class Particle {
     this.life -= dt;
   }
 }
+
+class SludgeProjectile {
+  constructor(x, y, vx, vy) {
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.vy = vy;
+    this.radius = 6;
+    this.alive = true;
+    this.life = 3.5;
+  }
+
+  update(dt, grid) {
+    this.life -= dt;
+    if (this.life <= 0) {
+      this.alive = false;
+      return;
+    }
+    this.vy += 220 * dt; // Gravity arc
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+
+    const col = Math.floor(this.x / TILE_SIZE);
+    const row = Math.floor(this.y / TILE_SIZE);
+    if (row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS) {
+      const t = grid[row][col];
+      if (t === T_SOLID || t === T_GATE || t === T_CRACKED) {
+        this.alive = false;
+      }
+    }
+    if (this.y > CANVAS_H - 12) this.alive = false;
+  }
+}
+
+class SludgeShockwave {
+  constructor(x, y, dir) {
+    this.x = x;
+    this.y = y;
+    this.dir = dir; // -1 (left) or 1 (right)
+    this.vx = dir * 115;
+    this.width = 14;
+    this.height = 10;
+    this.alive = true;
+    this.life = 1.5;
+  }
+
+  update(dt, grid) {
+    this.life -= dt;
+    if (this.life <= 0) {
+      this.alive = false;
+      return;
+    }
+    this.x += this.vx * dt;
+    const col = Math.floor(this.x / TILE_SIZE);
+    const row = Math.floor(this.y / TILE_SIZE);
+    if (col < 0 || col >= GRID_COLS) {
+      this.alive = false;
+      return;
+    }
+    if (row >= 0 && row < GRID_ROWS && (grid[row][col] === T_SOLID || grid[row][col] === T_GATE)) {
+      this.alive = false;
+    }
+  }
+}
+
+class SludgeBoss {
+  constructor(x, y, hp = 5) {
+    this.x = x;
+    this.y = y;
+    this.startX = x;
+    this.radius = 24;
+    this.hp = hp;
+    this.maxHp = hp;
+    this.alive = true;
+    this.facing = -1;
+    this.vx = -35;
+    this.vy = 0;
+    this.onGround = true;
+    this.state = 'PATROL'; // 'PATROL', 'CHARGE_SPIT', 'PREPARE_STOMP', 'JUMP_STOMP', 'HURT', 'DEFEATED'
+    this.stateTimer = 1.8;
+    this.hurtTimer = 0;
+    this.isEncased = false;
+    this.encasedTimer = 0;
+    this.squashX = 1.0;
+    this.squashY = 1.0;
+    this.animTimer = 0;
+    this.patrolRange = 65;
+    this.defeatedTimer = 0;
+  }
+
+  takeDamage(amount = 1) {
+    if (this.hurtTimer > 0 || !this.alive || this.state === 'DEFEATED') return false;
+    this.hp = Math.max(0, this.hp - amount);
+    this.hurtTimer = 1.1;
+    this.isEncased = false;
+    this.squashY = 0.6;
+    this.squashX = 1.4;
+
+    this.vx = this.facing * -45;
+    this.vy = -60;
+
+    if (this.hp <= 0) {
+      this.state = 'DEFEATED';
+      this.defeatedTimer = 1.8;
+      this.vx = 0;
+      this.vy = 0;
+    } else {
+      this.state = 'HURT';
+      this.stateTimer = 0.6;
+    }
+    return true;
+  }
+
+  update(dt, player, grid, audio, game) {
+    if (!this.alive) return;
+    this.animTimer += dt;
+
+    if (this.hurtTimer > 0) this.hurtTimer -= dt;
+
+    // Defeated death animation
+    if (this.state === 'DEFEATED') {
+      this.defeatedTimer -= dt;
+      this.squashX = 1.0 + Math.sin(this.animTimer * 28) * 0.22;
+      this.squashY = 1.0 + Math.cos(this.animTimer * 28) * 0.22;
+      if (this.defeatedTimer <= 0) {
+        this.alive = false;
+      }
+      return;
+    }
+
+    // Encased in Blue Float Bubble (harmless stun)
+    if (this.isEncased) {
+      this.encasedTimer -= dt;
+      this.squashX = 1.0 + Math.sin(this.animTimer * 12) * 0.08;
+      this.squashY = 1.0 - Math.sin(this.animTimer * 12) * 0.08;
+      this.vx = 0;
+      this.vy = 0;
+      if (this.encasedTimer <= 0) {
+        this.isEncased = false;
+        this.state = 'PATROL';
+        this.stateTimer = 1.5;
+        if (audio && audio.playPop) audio.playPop();
+      }
+      return;
+    }
+
+    this.stateTimer -= dt;
+
+    if (this.state === 'HURT') {
+      if (this.stateTimer <= 0) {
+        this.state = 'PATROL';
+        this.stateTimer = 1.6;
+      }
+    } else if (this.state === 'PATROL') {
+      if (Math.random() < dt * 1.5) {
+        this.facing = player.x < this.x ? -1 : 1;
+      }
+      const speed = (this.hp <= 2) ? 55 : 35;
+      this.vx = this.facing * speed;
+
+      if (Math.abs(this.x - this.startX) > this.patrolRange) {
+        this.facing = this.x > this.startX ? -1 : 1;
+        this.vx = this.facing * speed;
+      }
+
+      if (this.stateTimer <= 0) {
+        const canStomp = (this.hp <= 3);
+        if (canStomp && Math.random() < 0.45) {
+          this.state = 'PREPARE_STOMP';
+          this.stateTimer = 0.65;
+          this.vx = 0;
+          this.squashY = 0.55;
+          this.squashX = 1.35;
+        } else {
+          this.state = 'CHARGE_SPIT';
+          this.stateTimer = 0.65;
+          this.vx = 0;
+          this.squashY = 0.7;
+          this.squashX = 1.25;
+          this.facing = player.x < this.x ? -1 : 1;
+        }
+      }
+    } else if (this.state === 'CHARGE_SPIT') {
+      this.squashY = 0.7 + Math.sin(this.animTimer * 30) * 0.08;
+      this.squashX = 1.25 - Math.sin(this.animTimer * 30) * 0.08;
+      if (this.stateTimer <= 0) {
+        this.squashY = 1.35;
+        this.squashX = 0.75;
+        this.facing = player.x < this.x ? -1 : 1;
+
+        const count = (this.hp <= 2) ? 2 : 1;
+        for (let i = 0; i < count; i++) {
+          const spread = (i - (count - 1) / 2) * 30;
+          const targetX = player.x + spread;
+          const dx = targetX - this.x;
+          const spdX = Math.max(-120, Math.min(120, dx * 1.2));
+          const spdY = -120 - Math.random() * 30;
+          if (game && game.sludgeProjectiles) {
+            game.sludgeProjectiles.push(new SludgeProjectile(this.x + this.facing * 18, this.y - 6, spdX, spdY));
+          }
+        }
+        if (audio && audio.playSpit) audio.playSpit();
+
+        this.state = 'PATROL';
+        this.stateTimer = Math.max(1.4, 2.6 - (5 - this.hp) * 0.25);
+      }
+    } else if (this.state === 'PREPARE_STOMP') {
+      this.squashY = 0.55 + Math.sin(this.animTimer * 20) * 0.06;
+      this.squashX = 1.35;
+      if (this.stateTimer <= 0) {
+        this.state = 'JUMP_STOMP';
+        this.vy = -185;
+        this.squashY = 1.35;
+        this.squashX = 0.75;
+        this.onGround = false;
+        this.vx = (player.x > this.x ? 1 : -1) * 45;
+        if (audio && audio.playBossRoar) audio.playBossRoar();
+      }
+    } else if (this.state === 'JUMP_STOMP') {
+      this.vy += 320 * dt;
+      if (this.vy > 0) {
+        this.squashY = 0.85;
+      }
+    }
+
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+
+    const floorY = 220 - this.radius;
+    if (this.y >= floorY) {
+      if (this.state === 'JUMP_STOMP') {
+        this.y = floorY;
+        this.vy = 0;
+        this.onGround = true;
+        this.squashY = 0.45;
+        this.squashX = 1.45;
+        this.state = 'PATROL';
+        this.stateTimer = 1.6;
+
+        if (audio && audio.playBossStomp) audio.playBossStomp();
+        if (game) {
+          game.screenShakeTimer = 0.35;
+          game.vibrate([40, 60, 40]);
+          if (game.sludgeShockwaves) {
+            game.sludgeShockwaves.push(new SludgeShockwave(this.x - 12, floorY + this.radius - 8, -1));
+            game.sludgeShockwaves.push(new SludgeShockwave(this.x + 12, floorY + this.radius - 8, 1));
+          }
+        }
+      } else {
+        this.y = floorY;
+        this.vy = 0;
+        this.onGround = true;
+      }
+    }
+
+    this.squashX += (1.0 - this.squashX) * dt * 8;
+    this.squashY += (1.0 - this.squashY) * dt * 8;
+
+    const minX = 75;
+    const maxX = 225;
+    if (this.x < minX) { this.x = minX; this.facing = 1; }
+    if (this.x > maxX) { this.x = maxX; this.facing = -1; }
+  }
+}

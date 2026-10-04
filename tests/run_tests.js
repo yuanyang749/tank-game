@@ -41,6 +41,8 @@ const createMockEnv = () => {
     performance: { now: () => Date.now() },
     setTimeout,
     clearTimeout,
+    requestAnimationFrame: (cb) => setTimeout(cb, 16),
+    cancelAnimationFrame: (id) => clearTimeout(id),
     localStorage: {
       _data: {},
       getItem(k) { return this._data[k] || null; },
@@ -859,6 +861,95 @@ suite('9. Squishy Buddies 1991 Physics, 5 Characters & Bubble System', () => {
   jumpBuddy.jump({ down: false, a: true });
   assert(jumpBuddy.isSliding === false, 'Standard jump does not trigger slide');
   assert(jumpBuddy.vy < -200, 'Standard jump produces negative vertical launch velocity');
+
+  // =========================================================================
+  // 11. Room 5 Final Boss Showdown (暗影泥沼巨霸) & Defeat Mechanics
+  // =========================================================================
+  const r5 = env.LEVELS[4];
+  assert(r5.id === 5, 'Room 5 id is 5');
+  assert(r5.boss && r5.boss.hp === 5, 'Room 5 has dedicated Boss configured with 5 HP');
+  assert(r5.boss.x === 190 && r5.boss.y === 195, 'Boss spawned in central sunken arena');
+
+  assert(typeof env.SludgeBoss === 'function', 'SludgeBoss class defined in entities.js');
+  assert(typeof env.SludgeProjectile === 'function', 'SludgeProjectile class defined in entities.js');
+  assert(typeof env.SludgeShockwave === 'function', 'SludgeShockwave class defined in entities.js');
+
+  const boss = new env.SludgeBoss(r5.boss.x, r5.boss.y, r5.boss.hp);
+  assert(boss.radius === 24, 'Boss size is 24px radius (3x normal 8px sludge minion)');
+  assert(boss.hp === 5 && boss.maxHp === 5, 'Boss initialized with 5 HP');
+  assert(boss.alive === true, 'Boss is initially alive');
+
+  // Damage & Invulnerability window
+  const hit1 = boss.takeDamage(1);
+  assert(hit1 === true, 'Boss takes damage from first attack');
+  assert(boss.hp === 4, 'Boss HP reduced to 4');
+  assert(boss.hurtTimer > 0, 'Boss has invulnerability hurt timer after being struck');
+  const hitRapid = boss.takeDamage(1);
+  assert(hitRapid === false, 'Boss immune to damage during hurtTimer invulnerability window');
+  assert(boss.hp === 4, 'Boss HP preserved during invulnerability');
+
+  // Blue Float bubble encasing
+  boss.hurtTimer = 0;
+  boss.isEncased = true;
+  boss.encasedTimer = 3.5;
+  boss.update(1/60, { x: 50, y: 190 }, r5.grid, null, null);
+  assert(boss.vx === 0 && boss.vy === 0, 'Encased Boss is safely frozen/stunned');
+
+  // Projectile trajectory
+  const proj = new env.SludgeProjectile(boss.x, boss.y, -80, -120);
+  assert(proj.alive === true, 'SludgeProjectile created alive');
+  proj.update(0.1, r5.grid);
+  assert(proj.x < boss.x, 'Projectile moves horizontally towards target');
+  assert(proj.vy > -120, 'Gravity pulls projectile downward into arc');
+
+  // Ground shockwave
+  const shockwave = new env.SludgeShockwave(boss.x, 212, -1);
+  assert(shockwave.alive === true, 'SludgeShockwave created alive');
+  shockwave.update(0.1, r5.grid);
+  assert(shockwave.x < boss.x, 'Shockwave propagates along floor to the left');
+
+  // Full Game Instance Room 5 Boss Integration
+  loadScript(audioJs, env);
+  loadScript(gameJs, env);
+  assert(typeof env.SquishyGame === 'function', 'SquishyGame loaded');
+  const game = new env.SquishyGame();
+  game.loadLevel(4); // Load Room 5
+  assert(game.boss !== null, 'Room 5 loads active Boss instance on game');
+  assert(game.boss.hp === 5, 'Room 5 game boss has 5 HP');
+  assert(game.grid[3][12] === env.T_GATE, 'Ancient gate at row 3 col 12 is initially locked (T_GATE)');
+  assert(game.grid[4][10] === env.T_CRACKED, 'Cracked block at row 4 col 10 is initially intact (T_CRACKED)');
+
+  // Defeating Boss triggers gate unlock and cracked blocks destruction
+  game.triggerBossDefeated();
+  assert(game.grid[3][12] === env.T_AIR, 'Ancient gate opens (turns to T_AIR) on Boss defeat');
+  assert(game.grid[4][10] === env.T_AIR, 'Cracked blocks shatter into air on Boss defeat');
+  assert(game.grid[4][11] === env.T_AIR, 'Cracked block at col 11 shatters into air');
+  assert(game.dews.every(d => d.collected), 'All dews in Room 5 auto-collected on Boss defeat');
+  assert(game.screenShakeTimer > 0, 'Screen shake triggered on Boss defeat celebration');
+
+  // Combat Interactions: Aerial Stomp, Purple Explosion & Blue Bubble
+  game.loadLevel(4);
+  game.state = 'PLAYING';
+  assert(game.boss.hp === 5, 'Reset Room 5 has 5 HP boss');
+
+  // Aerial Stomp simulation
+  game.player.x = game.boss.x;
+  game.player.y = game.boss.y - 18; // Falling directly above boss
+  game.player.vy = 120; // Falling downward
+  game.update(1/60);
+  assert(game.boss.hp === 4, 'Aerial stomp decreases Boss HP by 1');
+  assert(game.player.vy < -150, 'Aerial stomp launches player upward in recoil bounce');
+
+  // Purple Chain Pop explosion damage
+  game.boss.hurtTimer = 0; // Reset invulnerability
+  game.triggerChainPop(game.boss.x, game.boss.y);
+  assert(game.boss.hp === 3, 'Purple chain pop explosion decreases Boss HP by 1');
+
+  // Blue Float bubble contact encases Boss
+  const blueBubble = new env.BubbleEntity(game.boss.x, game.boss.y, 1, 'FLOAT', env.BUDDY_TYPES.BLUE);
+  game.bubbles.push(blueBubble);
+  game.update(1/60);
+  assert(game.boss.isEncased === true, 'Blue float bubble encases/stuns Boss on contact');
 });
 
 // =========================================================================

@@ -128,6 +128,26 @@ class SquishyAudioEngine {
     });
   }
 
+  // Boss Menacing Roar
+  playBossRoar() {
+    if (!this.enabled || !this.ctx) return;
+    this.playTone(180, 'sawtooth', 0.28, 0.18, 55);
+  }
+
+  // Boss Impact Hit
+  playBossHit() {
+    if (!this.enabled || !this.ctx) return;
+    this.playTone(140, 'square', 0.15, 0.2, 40);
+    this.playPop();
+  }
+
+  // Boss Heavy Ground Stomp Boom
+  playBossStomp() {
+    if (!this.enabled || !this.ctx) return;
+    this.playTone(95, 'triangle', 0.22, 0.22, 25);
+    this.playLand();
+  }
+
   // Cheerful Bubble Pop Chiptune BGM
   startBgm() {
     if (!this.enabled || this.bgmPlaying || !this.ctx) return;

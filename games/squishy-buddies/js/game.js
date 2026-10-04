@@ -71,6 +71,16 @@ class SquishyGame {
     // Init sludges
     this.sludges = this.currentLevel.sludges.map(s => new SludgeCreep(s.x, s.y, s.range));
 
+    // Init boss if present in level
+    if (this.currentLevel.boss) {
+      this.boss = new SludgeBoss(this.currentLevel.boss.x, this.currentLevel.boss.y, this.currentLevel.boss.hp);
+    } else {
+      this.boss = null;
+    }
+    this.sludgeProjectiles = [];
+    this.sludgeShockwaves = [];
+    this.screenShakeTimer = 0;
+
     this.bubbles = [];
     this.particles = [];
     this.roomClearBannerTimer = 0;
@@ -434,9 +444,10 @@ class SquishyGame {
       d.update(dt, this.player, this.audio);
     }
 
-    // Check if all dews collected to unlock gate
+    // Check if all dews collected to unlock gate (or boss defeated if boss present)
     const remainingDews = this.dews.filter(d => !d.collected).length;
-    if (remainingDews === 0) {
+    const bossBlocking = (this.boss && this.boss.alive && this.boss.state !== 'DEFEATED');
+    if (remainingDews === 0 && !bossBlocking) {
       // Open Gate (turn T_GATE into T_AIR)
       for (let r = 0; r < GRID_ROWS; r++) {
         for (let c = 0; c < GRID_COLS; c++) {
@@ -475,6 +486,103 @@ class SquishyGame {
       }
     }
 
+    // 4b. Update Sludge Boss
+    if (this.boss && this.boss.alive) {
+      this.boss.update(dt, this.player, this.grid, this.audio, this);
+
+      // Check collision with bubbles
+      for (let b of this.bubbles) {
+        if (!b.alive) continue;
+        if (Physics.checkCircle(b.x, b.y, b.radius, this.boss.x, this.boss.y, this.boss.radius)) {
+          if (b.type === 'FLOAT') {
+            // Blue Float bubble encasing stun
+            this.boss.isEncased = true;
+            this.boss.encasedTimer = 3.5;
+            b.alive = false;
+            this.audio.playPop();
+            this.spawnPopParticles(this.boss.x, this.boss.y, '#75c8f8');
+            this.vibrate(20);
+          } else if (b.type === 'CHAIN_POP') {
+            // Purple explosive detonation on boss contact
+            b.alive = false;
+            this.audio.playPop();
+            this.spawnPopParticles(b.x, b.y, b.buddyType.color);
+            this.triggerChainPop(b.x, b.y);
+          }
+        }
+      }
+
+      // Check collision with player / Aerial Stomp
+      if (this.boss.state !== 'DEFEATED' && Physics.checkCircle(this.player.x, this.player.y, this.player.radius, this.boss.x, this.boss.y, this.boss.radius)) {
+        const isStomp = (this.player.vy > 0 && this.player.y < this.boss.y - this.boss.radius * 0.35);
+        if (isStomp) {
+          // Aerial stomp bounce
+          this.player.vy = -210;
+          this.player.squashY = 0.45;
+          this.player.squashVelY = -12;
+          this.audio.playJump();
+
+          const hit = this.boss.takeDamage(1);
+          if (hit) {
+            this.audio.playBossHit();
+            this.vibrate([35, 55]);
+            this.spawnPopParticles(this.boss.x, this.boss.y - 12, '#b060ff');
+            if (this.boss.hp <= 0) {
+              this.triggerBossDefeated();
+            }
+          }
+        } else if (!this.boss.isEncased) {
+          // Side / bottom body collision knocks player back
+          this.vibrate(30);
+          this.player.vx = (this.player.x > this.boss.x ? 1 : -1) * 140;
+          this.player.vy = -120;
+          this.audio.playPop();
+        }
+      }
+    }
+
+    // 4c. Update Boss Projectiles
+    for (let proj of this.sludgeProjectiles) {
+      proj.update(dt, this.grid);
+      if (proj.alive) {
+        // Collide with bubbles
+        for (let b of this.bubbles) {
+          if (b.alive && Physics.checkCircle(b.x, b.y, b.radius, proj.x, proj.y, proj.radius)) {
+            b.alive = false;
+            proj.alive = false;
+            this.audio.playPop();
+            this.spawnPopParticles(proj.x, proj.y, '#75c8f8');
+            break;
+          }
+        }
+        // Collide with player
+        if (proj.alive && Physics.checkCircle(this.player.x, this.player.y, this.player.radius, proj.x, proj.y, proj.radius)) {
+          proj.alive = false;
+          this.vibrate(25);
+          this.player.vx = (this.player.x > proj.x ? 1 : -1) * 100;
+          this.player.vy = -100;
+          this.audio.playPop();
+          this.spawnPopParticles(proj.x, proj.y, '#5c1c7a');
+        }
+      }
+    }
+    this.sludgeProjectiles = this.sludgeProjectiles.filter(p => p.alive);
+
+    // 4d. Update Boss Shockwaves
+    for (let sw of this.sludgeShockwaves) {
+      sw.update(dt, this.grid);
+      if (sw.alive) {
+        if (Math.abs(this.player.x - sw.x) < 14 && this.player.y >= 202) {
+          this.vibrate(25);
+          this.player.vy = -115;
+          this.player.vx = sw.dir * 80;
+          this.audio.playPop();
+          this.spawnPopParticles(sw.x, 215, '#5c1c7a');
+        }
+      }
+    }
+    this.sludgeShockwaves = this.sludgeShockwaves.filter(sw => sw.alive);
+
     // 5. Update Particles
     for (let p of this.particles) p.update(dt);
     this.particles = this.particles.filter(p => p.life > 0);
@@ -505,6 +613,19 @@ class SquishyGame {
       }
     }
 
+    // Damage boss if near explosion
+    if (this.boss && this.boss.alive && Math.hypot(this.boss.x - cx, this.boss.y - cy) < 48) {
+      const hit = this.boss.takeDamage(1);
+      if (hit) {
+        this.audio.playBossHit();
+        this.vibrate([35, 55]);
+        this.spawnPopParticles(this.boss.x, this.boss.y, '#d060ff');
+        if (this.boss.hp <= 0) {
+          this.triggerBossDefeated();
+        }
+      }
+    }
+
     // Check adjacent cracked blocks
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
@@ -520,11 +641,53 @@ class SquishyGame {
     }
   }
 
+  triggerBossDefeated() {
+    if (this.audio && this.audio.playRoomClear) this.audio.playRoomClear();
+    this.vibrate([40, 60, 80]);
+    this.screenShakeTimer = 0.55;
+
+    // Open Gate (T_GATE -> T_AIR) and shatter cracked blocks
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        if (this.grid[r][c] === T_GATE) {
+          this.grid[r][c] = T_AIR;
+          this.spawnPopParticles(c * TILE_SIZE + 10, r * TILE_SIZE + 10, '#ffd700');
+        }
+        if (this.grid[r][c] === T_CRACKED) {
+          this.grid[r][c] = T_AIR;
+          this.spawnPopParticles(c * TILE_SIZE + 10, r * TILE_SIZE + 10, '#c8b090');
+        }
+      }
+    }
+
+    // Auto collect all dews in Room 5
+    for (let d of this.dews) {
+      d.collected = true;
+    }
+
+    // Big fireworks across the room
+    for (let i = 0; i < 20; i++) {
+      const rx = 100 + Math.random() * 140;
+      const ry = 80 + Math.random() * 120;
+      const color = ['#ffd454', '#75c8f8', '#ff8cb8', '#68e290', '#c284f8'][i % 5];
+      this.spawnPopParticles(rx, ry, color);
+    }
+  }
+
   /* ================= Canvas Graphics & Rendering ================= */
 
   render() {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
+
+    // Apply Screen Shake if active
+    ctx.save();
+    if (this.screenShakeTimer > 0) {
+      const intensity = Math.min(5, this.screenShakeTimer * 10);
+      const sx = (Math.random() - 0.5) * intensity;
+      const sy = (Math.random() - 0.5) * intensity;
+      ctx.translate(sx, sy);
+    }
 
     // 1. Soft Pastel Sky Background (Retro Daybreak)
     const bgGradient = ctx.createLinearGradient(0, 0, 0, this.height);
@@ -552,9 +715,21 @@ class SquishyGame {
       if (!d.collected) this.drawDewDrop(ctx, d);
     }
 
-    // 5. Render Sludge Creeps
+    // 5. Render Sludge Creeps & Boss
     for (let s of this.sludges) {
       if (s.alive) this.drawSludge(ctx, s);
+    }
+
+    if (this.boss && (this.boss.alive || this.boss.defeatedTimer > 0)) {
+      this.drawSludgeBoss(ctx, this.boss);
+    }
+
+    for (let proj of this.sludgeProjectiles) {
+      this.drawSludgeProjectile(ctx, proj);
+    }
+
+    for (let sw of this.sludgeShockwaves) {
+      this.drawSludgeShockwave(ctx, sw);
     }
 
     // 6. Render Trailing Mochi Parade (Followers)
@@ -570,6 +745,9 @@ class SquishyGame {
       ctx.arc(p.x, p.y, p.radius * (p.life / p.maxLife), 0, Math.PI * 2);
       ctx.fill();
     }
+
+    // End Screen Shake transformation before rendering HUD
+    ctx.restore();
 
     // 9. Floating Micro HUD
     this.renderMicroHud(ctx);
@@ -836,7 +1014,179 @@ class SquishyGame {
     ctx.restore();
   }
 
+  drawSludgeBoss(ctx, boss) {
+    ctx.save();
+    ctx.translate(boss.x, boss.y);
+
+    // Ground shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(0, boss.radius - 2, boss.radius * 1.05 * boss.squashX, 6 * boss.squashY, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Blue Bubble encasing (harmless stun visual)
+    if (boss.isEncased) {
+      ctx.fillStyle = 'rgba(117, 200, 248, 0.45)';
+      ctx.beginPath();
+      ctx.arc(0, 0, boss.radius + 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#75c8f8';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+      // Highlight shine
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-boss.radius * 0.4, -boss.radius * 0.4, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Flashing when hurt or defeated
+    const isFlashing = (boss.hurtTimer > 0 || boss.state === 'DEFEATED') && (Math.floor(boss.animTimer * 20) % 2 === 0);
+    const bodyColor = isFlashing ? '#ffffff' : (boss.hp <= 2 ? '#2d0e36' : '#220e28');
+    const spikeColor = isFlashing ? '#ff2040' : (boss.hp <= 2 ? '#751890' : '#481560');
+
+    // Pulsing animated spikes
+    ctx.fillStyle = spikeColor;
+    const spikeCount = 6;
+    for (let s = 0; s < spikeCount; s++) {
+      const ang = (s / (spikeCount - 1)) * Math.PI + Math.PI;
+      const spikeR = (boss.radius + 6) + Math.sin(boss.animTimer * 8 + s) * 4;
+      const sx = Math.cos(ang) * spikeR * boss.squashX;
+      const sy = Math.sin(ang) * (spikeR * 0.75) * boss.squashY;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 5 * boss.squashX, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Giant Sludge Monster Blob
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, boss.radius * boss.squashX, (boss.radius * 0.85) * boss.squashY, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = spikeColor;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Glowing red menacing eyes
+    const eyeOffsetX = boss.facing * 9;
+    const eyeY = -4 * boss.squashY;
+    const eyeColor = isFlashing ? '#ff0033' : (boss.hp <= 2 ? '#ff0022' : '#ff2244');
+    ctx.fillStyle = eyeColor;
+    ctx.beginPath();
+    ctx.arc(eyeOffsetX - 5, eyeY, 3.5, 0, Math.PI * 2);
+    ctx.arc(eyeOffsetX + 5, eyeY, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eye pupils (angry glare towards player)
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(eyeOffsetX - 5 + boss.facing * 1.2, eyeY, 1.2, 0, Math.PI * 2);
+    ctx.arc(eyeOffsetX + 5 + boss.facing * 1.2, eyeY, 1.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Charging mouth glow
+    if (boss.state === 'CHARGE_SPIT') {
+      ctx.fillStyle = 'rgba(255, 30, 80, 0.7)';
+      ctx.beginPath();
+      ctx.ellipse(boss.facing * 14, 6 * boss.squashY, 5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  drawSludgeProjectile(ctx, proj) {
+    ctx.save();
+    ctx.fillStyle = '#3a104c';
+    ctx.beginPath();
+    ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#9b30ff';
+    ctx.beginPath();
+    ctx.arc(proj.x - 1, proj.y - 1, proj.radius * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#c060ff';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawSludgeShockwave(ctx, sw) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(80, 20, 110, 0.85)';
+    ctx.beginPath();
+    ctx.ellipse(sw.x, sw.y, sw.width / 2, sw.height / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#c050ff';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
   renderMicroHud(ctx) {
+    if (this.boss) {
+      // Room 5 Boss Battle HUD
+      // 1. Left: Active Character (compact)
+      ctx.fillStyle = 'rgba(15, 20, 32, 0.88)';
+      ctx.fillRect(6, 6, 68, 22);
+      ctx.strokeStyle = '#3e4868';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(6, 6, 68, 22);
+
+      ctx.fillStyle = this.player.type.color;
+      ctx.beginPath();
+      ctx.arc(16, 17, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 9px monospace';
+      ctx.fillText(`${this.player.type.name.split(' ')[0]}`, 26, 20);
+
+      // 2. Center: Boss HP Bar
+      const bossHudX = 80;
+      const bossHudW = 160;
+      ctx.fillStyle = 'rgba(15, 20, 32, 0.92)';
+      ctx.fillRect(bossHudX, 6, bossHudW, 22);
+      ctx.strokeStyle = this.boss.hp <= 2 ? '#ff2244' : '#ffd700';
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(bossHudX, 6, bossHudW, 22);
+
+      ctx.fillStyle = this.boss.hp <= 2 ? '#ff6070' : '#ffd700';
+      ctx.font = 'bold 8.5px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('👾暗影巨霸', bossHudX + 6, 20);
+
+      // HP Hearts
+      const heartsX = bossHudX + 58;
+      for (let i = 0; i < this.boss.maxHp; i++) {
+        const hx = heartsX + i * 19;
+        const isFilled = i < this.boss.hp;
+        if (isFilled) {
+          ctx.fillStyle = this.boss.hp <= 2 ? '#ff1133' : '#ff2255';
+          ctx.font = 'bold 11px monospace';
+          ctx.fillText('♥', hx, 20);
+        } else {
+          ctx.fillStyle = '#4f5568';
+          ctx.font = '11px monospace';
+          ctx.fillText('♡', hx, 20);
+        }
+      }
+
+      // 3. Right: Dews Counter
+      const dewsLeft = this.dews.filter(d => !d.collected).length;
+      const dewsTotal = this.dews.length;
+      ctx.fillStyle = 'rgba(15, 20, 32, 0.88)';
+      ctx.fillRect(this.width - 68, 6, 62, 22);
+      ctx.strokeStyle = '#3e4868';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(this.width - 68, 6, 62, 22);
+
+      ctx.fillStyle = '#00f0ff';
+      ctx.font = 'bold 9px monospace';
+      ctx.fillText(`💧${dewsTotal - dewsLeft}/${dewsTotal}`, this.width - 60, 20);
+      return;
+    }
+
     // 1. Left Avatar & Dew Counter
     ctx.fillStyle = 'rgba(15, 20, 32, 0.82)';
     ctx.fillRect(6, 6, 105, 22);
