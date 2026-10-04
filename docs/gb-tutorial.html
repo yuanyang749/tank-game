@@ -441,7 +441,7 @@ if (overlap > 0) {
     <p>MT 管理器作为 Android 上的逆向神器，最新版内置了 Model Context Protocol (MCP) 服务！</p>
     <div class="callout tip">
       <div class="callout-title">⚡ 同机回环直连的绝对优势</div>
-      智能体运行在 Termux，MT 管理器运行在同一台手机，通过 <code>http://127.0.0.1:8765/sse</code> 本地回环直连，延迟低于 1ms，无公网泄露风险！
+      智能体运行在 Termux，MT 管理器运行在同一台手机，通过 <code>http://127.0.0.1:8787/mcp</code> 本地回环直连，延迟低于 1ms，无公网泄露风险！
     </div>
 
     <h3>5.2 49 项逆向工具赋能六大场景</h3>
@@ -452,11 +452,16 @@ if (overlap > 0) {
       <li><strong>自动化打补丁</strong>：内存机器指令 Patch、替换资源与重新打包签名。</li>
     </ul>
 
-    <h3>5.3 配置模板</h3>
+    <h3>5.3 配置模板与 Token 鉴权说明</h3>
+    <p>在 MT 管理器中开启 MCP 服务后，建议开启安全认证以防止本地恶意应用越权访问。将界面显示的端口（如 <code>8787</code>）与 Token 填入全局配置：</p>
     <pre><code>{
   "mcpServers": {
     "mt-manager": {
-      "url": "http://127.0.0.1:8765/sse"
+      "url": "http://127.0.0.1:8787/mcp",
+      "//_comment": "若在 MT 管理器开启了认证（推荐），需配置 headers",
+      "headers": {
+        "Authorization": "Bearer 您的MT_MCP_TOKEN"
+      }
     }
   }
 }</code></pre>
