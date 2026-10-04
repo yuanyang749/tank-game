@@ -64,12 +64,16 @@ const Physics = {
 
   // Resolve tile collisions for a moving entity with width, height, vx, vy
   resolveTileMove(entity, grid, dt) {
-    // 1. Horizontal movement & collision
-    entity.x += entity.vx * dt;
     const halfW = (entity.radius || 10) * (entity.isCrouched ? 1.3 : 0.85);
     const halfH = (entity.radius || 10) * (entity.isCrouched ? 0.4 : 0.85);
 
-    // Check bounds
+    const oldX = entity.x;
+    const oldY = entity.y;
+
+    // 1. Horizontal movement & collision
+    entity.x += entity.vx * dt;
+
+    // Screen horizontal bounds
     if (entity.x - halfW < 0) {
       entity.x = halfW;
       entity.vx = 0;
@@ -78,21 +82,23 @@ const Physics = {
       entity.vx = 0;
     }
 
-    // Tile check left and right
-    const minCol = Math.floor((entity.x - halfW) / TILE_SIZE);
-    const maxCol = Math.floor((entity.x + halfW) / TILE_SIZE);
-    const minRow = Math.floor((entity.y - halfH) / TILE_SIZE);
-    const maxRow = Math.floor((entity.y + halfH) / TILE_SIZE);
+    // Horizontal tile collision:
+    // Strictly check body height, insetting by 2px from top and 3px from bottom
+    // so the floor tile beneath the player is NEVER treated as a horizontal wall!
+    const hMinCol = Math.floor((entity.x - halfW) / TILE_SIZE);
+    const hMaxCol = Math.floor((entity.x + halfW) / TILE_SIZE);
+    const hMinRow = Math.floor((entity.y - halfH + 2) / TILE_SIZE);
+    const hMaxRow = Math.floor((entity.y + halfH - 3) / TILE_SIZE);
 
-    for (let r = Math.max(0, minRow); r <= Math.min(GRID_ROWS - 1, maxRow); r++) {
-      for (let c = Math.max(0, minCol); c <= Math.min(GRID_COLS - 1, maxCol); c++) {
+    for (let r = Math.max(0, hMinRow); r <= Math.min(GRID_ROWS - 1, hMaxRow); r++) {
+      for (let c = Math.max(0, hMinCol); c <= Math.min(GRID_COLS - 1, hMaxCol); c++) {
         const t = grid[r][c];
         if (t === T_SOLID || t === T_GATE || t === T_CRACKED || (t === T_CRAWLWAY && !entity.isCrouched)) {
           if (entity.vx > 0) {
-            entity.x = c * TILE_SIZE - halfW - 0.05;
+            entity.x = c * TILE_SIZE - halfW - 0.01;
             entity.vx = 0;
           } else if (entity.vx < 0) {
-            entity.x = (c + 1) * TILE_SIZE + halfW + 0.05;
+            entity.x = (c + 1) * TILE_SIZE + halfW + 0.01;
             entity.vx = 0;
           }
         }
@@ -103,10 +109,11 @@ const Physics = {
     entity.vy += (entity.gravity || 580) * dt;
     entity.y += entity.vy * dt;
 
-    // Check ceiling & floor tiles
+    // Vertical tile collision:
+    // Inset horizontally by 3px so vertical side walls are not treated as floors or ceilings!
     entity.onGround = false;
-    const vMinCol = Math.floor((entity.x - halfW + 2) / TILE_SIZE);
-    const vMaxCol = Math.floor((entity.x + halfW - 2) / TILE_SIZE);
+    const vMinCol = Math.floor((entity.x - halfW + 3) / TILE_SIZE);
+    const vMaxCol = Math.floor((entity.x + halfW - 3) / TILE_SIZE);
     const vMinRow = Math.floor((entity.y - halfH) / TILE_SIZE);
     const vMaxRow = Math.floor((entity.y + halfH) / TILE_SIZE);
 
@@ -114,20 +121,20 @@ const Physics = {
       for (let c = Math.max(0, vMinCol); c <= Math.min(GRID_COLS - 1, vMaxCol); c++) {
         const t = grid[r][c];
         if (t === T_SOLID || t === T_GATE || t === T_CRACKED || (t === T_CRAWLWAY && !entity.isCrouched)) {
-          if (entity.vy > 0) {
-            // Landing on top of tile
+          if (entity.vy > 0 && oldY + halfH <= r * TILE_SIZE + 8) {
+            // Landing on top of tile (feet were above tile top)
             entity.y = r * TILE_SIZE - halfH;
             entity.vy = 0;
             entity.onGround = true;
-          } else if (entity.vy < 0) {
-            // Hitting ceiling
+          } else if (entity.vy < 0 && oldY - halfH >= (r + 1) * TILE_SIZE - 8) {
+            // Hitting ceiling (head was below tile bottom)
             entity.y = (r + 1) * TILE_SIZE + halfH;
             entity.vy = 0;
           }
         } else if (t === T_SPIKE) {
           // Hazard detection
           if (Physics.checkAABB(
-            entity.x - halfW, entity.y - halfH, halfW * 2, halfH * 2,
+            entity.x - halfW + 2, entity.y - halfH + 2, (halfW - 2) * 2, (halfH - 2) * 2,
             c * TILE_SIZE + 2, r * TILE_SIZE + 6, TILE_SIZE - 4, TILE_SIZE - 6
           )) {
             entity.onHazard = true;
