@@ -716,6 +716,53 @@ suite('9. Squishy Buddies 1991 Physics, 5 Characters & Bubble System', () => {
   assert(gameJsCode.includes("'SELECT'"), 'game.js handles SELECT key to switch leader buddy');
   assert(gameJsCode.includes("'B'"), 'game.js handles B key to spit bubble');
   assert(gameJsCode.includes("'A'"), 'game.js handles A key to jump');
+
+  // Corner anti-trap physics regression tests
+  const cornerGrid = Array(12).fill(0).map(() => Array(16).fill(0));
+  for (let r = 0; r < 12; r++) { cornerGrid[r][0] = 1; cornerGrid[r][15] = 1; }
+  for (let c = 0; c < 16; c++) { cornerGrid[0][c] = 1; cornerGrid[11][c] = 1; }
+
+  // 1. Bottom-left corner crouch & move right
+  const cornerPlayer = new env.PlayerBuddy(31.06, 208.95);
+  cornerPlayer.isCrouched = true;
+  cornerPlayer.vx = 50;
+  env.Physics.resolveTileMove(cornerPlayer, cornerGrid, 1/60);
+  assert(cornerPlayer.x > 31.06 && cornerPlayer.x < 100, 'Crouching in corner and moving right does not trap player in wall');
+
+  // 2. Bottom-left corner jump
+  cornerPlayer.isCrouched = false;
+  cornerPlayer.x = 31.06;
+  cornerPlayer.y = 208.95;
+  cornerPlayer.vy = -260;
+  cornerPlayer.onGround = false;
+  cornerPlayer.vx = -105; // pressing into left wall while jumping
+  env.Physics.resolveTileMove(cornerPlayer, cornerGrid, 1/60);
+  assert(cornerPlayer.vy < 0 && cornerPlayer.y < 208.95, 'Jumping against corner wall ascends cleanly without false ceiling trigger');
+
+  // 3. Bottom-right corner crouch & move left
+  const rightCornerPlayer = new env.PlayerBuddy(288.94, 208.95);
+  rightCornerPlayer.isCrouched = true;
+  rightCornerPlayer.vx = -50;
+  env.Physics.resolveTileMove(rightCornerPlayer, cornerGrid, 1/60);
+  assert(rightCornerPlayer.x < 288.94 && rightCornerPlayer.x > 200, 'Crouching in right corner and moving left does not trap player in wall');
+
+  // 4. Character switch in corner (Purple -> Yellow de-penetration)
+  const switchPlayer = new env.PlayerBuddy(27.23, 208.95);
+  switchPlayer.setType('PURPLE');
+  switchPlayer.setType('YELLOW'); // expand radius from 8.5 to 13
+  switchPlayer.vx = 0;
+  env.Physics.resolveTileMove(switchPlayer, cornerGrid, 1/60);
+  assert(switchPlayer.x >= 31.05, 'Switching to larger buddy in corner de-penetrates safely without embedding');
+
+  // 5. Crawlway headroom protection (stays crouched under low ceiling)
+  const crawlGrid = Array(12).fill(0).map(() => Array(16).fill(0));
+  crawlGrid[2][10] = 3; // T_CRAWLWAY
+  crawlGrid[3][10] = 1; // Floor
+  const crawlPlayer = new env.PlayerBuddy(210, 56);
+  crawlPlayer.onGround = true;
+  crawlPlayer.isCrouched = true;
+  crawlPlayer.update(1/60, { down: false, left: false, right: false, up: false, a: false, b: false }, crawlGrid, null);
+  assert(crawlPlayer.isCrouched === true, 'Player automatically stays crouched while inside crawlway even if down key is released');
 });
 
 // =========================================================================

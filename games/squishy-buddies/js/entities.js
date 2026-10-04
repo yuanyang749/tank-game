@@ -113,10 +113,15 @@ class PlayerBuddy {
   }
 
   setType(key) {
+    const oldRadius = this.radius || 10;
     this.typeKey = key;
     this.type = BUDDY_TYPES[key];
     this.radius = this.type.radius;
     this.gravity = this.type.gravity;
+    // Ground alignment when radius changes so character feet stay planted on floor
+    if (this.onGround && this.radius > oldRadius) {
+      this.y -= (this.radius - oldRadius) * (this.isCrouched ? 0.4 : 0.85);
+    }
     // Pop switch spring
     this.squashY = 0.65;
     this.squashVelY = 14;
@@ -165,7 +170,25 @@ class PlayerBuddy {
     }
 
     // 2. Handle Inputs
-    this.isCrouched = input.down && this.onGround;
+    // Check if headroom is blocked by ceiling or crawlway
+    let ceilingAbove = false;
+    if (grid && this.onGround) {
+      const standingHalfH = (this.radius || 10) * 0.85;
+      const headRow = Math.floor((this.y - standingHalfH) / TILE_SIZE);
+      const leftCol = Math.floor((this.x - this.radius * 0.7) / TILE_SIZE);
+      const rightCol = Math.floor((this.x + this.radius * 0.7) / TILE_SIZE);
+      if (headRow >= 0 && headRow < GRID_ROWS) {
+        for (let c = Math.max(0, leftCol); c <= Math.min(GRID_COLS - 1, rightCol); c++) {
+          const t = grid[headRow][c];
+          if (t === T_SOLID || t === T_CRAWLWAY || t === T_GATE || t === T_CRACKED) {
+            ceilingAbove = true;
+            break;
+          }
+        }
+      }
+    }
+
+    this.isCrouched = (input.down || ceilingAbove) && this.onGround;
     if (this.isCrouched) {
       this.targetSquashY = 0.38; // Pressed flat into a thin pancake
       this.vx *= 0.85; // Slower glide

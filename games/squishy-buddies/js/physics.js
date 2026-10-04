@@ -70,10 +70,10 @@ const Physics = {
     const oldX = entity.x;
     const oldY = entity.y;
 
-    // 1. Horizontal movement & collision
+    // 1. Horizontal movement
     entity.x += entity.vx * dt;
 
-    // Screen horizontal bounds
+    // Initial screen bounds clamp
     if (entity.x - halfW < 0) {
       entity.x = halfW;
       entity.vx = 0;
@@ -82,27 +82,67 @@ const Physics = {
       entity.vx = 0;
     }
 
-    // Horizontal tile collision:
-    // Strictly check body height, insetting by 2px from top and 3px from bottom
-    // so the floor tile beneath the player is NEVER treated as a horizontal wall!
-    const hMinCol = Math.floor((entity.x - halfW) / TILE_SIZE);
-    const hMaxCol = Math.floor((entity.x + halfW) / TILE_SIZE);
-    const hMinRow = Math.floor((entity.y - halfH + 2) / TILE_SIZE);
-    const hMaxRow = Math.floor((entity.y + halfH - 3) / TILE_SIZE);
+    // Horizontal collision detection box:
+    // Dynamic top & bottom insets so standing floor or ceiling is never misidentified as a wall
+    const yInsetTop = Math.min(3, halfH * 0.25);
+    const yInsetBottom = Math.min(4, halfH * 0.35);
+    const hMinCol = Math.floor((Math.min(oldX, entity.x) - halfW) / TILE_SIZE);
+    const hMaxCol = Math.floor((Math.max(oldX, entity.x) + halfW) / TILE_SIZE);
+    const hMinRow = Math.floor((entity.y - halfH + yInsetTop) / TILE_SIZE);
+    const hMaxRow = Math.floor((entity.y + halfH - yInsetBottom) / TILE_SIZE);
 
     for (let r = Math.max(0, hMinRow); r <= Math.min(GRID_ROWS - 1, hMaxRow); r++) {
       for (let c = Math.max(0, hMinCol); c <= Math.min(GRID_COLS - 1, hMaxCol); c++) {
         const t = grid[r][c];
-        if (t === T_SOLID || t === T_GATE || t === T_CRACKED || (t === T_CRAWLWAY && !entity.isCrouched)) {
-          if (entity.vx > 0) {
-            entity.x = c * TILE_SIZE - halfW - 0.01;
+        const isSolid = t === T_SOLID || t === T_GATE || t === T_CRACKED || (t === T_CRAWLWAY && !entity.isCrouched);
+        if (isSolid) {
+          const tileLeft = c * TILE_SIZE;
+          const tileRight = (c + 1) * TILE_SIZE;
+
+          // Moving RIGHT: Only collide with obstacles ahead to the right
+          if (entity.vx > 0 && oldX + halfW <= tileLeft + 6 && entity.x + halfW >= tileLeft) {
+            entity.x = tileLeft - halfW - 0.01;
             entity.vx = 0;
-          } else if (entity.vx < 0) {
-            entity.x = (c + 1) * TILE_SIZE + halfW + 0.01;
+          }
+          // Moving LEFT: Only collide with obstacles ahead to the left
+          else if (entity.vx < 0 && oldX - halfW >= tileRight - 6 && entity.x - halfW <= tileRight) {
+            entity.x = tileRight + halfW + 0.01;
             entity.vx = 0;
           }
         }
       }
+    }
+
+    // Passive horizontal separation / de-penetration from walls in corners
+    // (Prevents getting stuck after crouching, uncrouching, switching characters, or spring stretching)
+    for (let r = Math.max(0, hMinRow); r <= Math.min(GRID_ROWS - 1, hMaxRow); r++) {
+      for (let c = Math.max(0, hMinCol); c <= Math.min(GRID_COLS - 1, hMaxCol); c++) {
+        const t = grid[r][c];
+        const isSolid = t === T_SOLID || t === T_GATE || t === T_CRACKED || (t === T_CRAWLWAY && !entity.isCrouched);
+        if (isSolid) {
+          const tileLeft = c * TILE_SIZE;
+          const tileRight = (c + 1) * TILE_SIZE;
+          // Wall to the left: push right out of wall
+          if (tileRight <= entity.x && entity.x - halfW < tileRight) {
+            entity.x = tileRight + halfW + 0.01;
+            if (entity.vx < 0) entity.vx = 0;
+          }
+          // Wall to the right: push left out of wall
+          else if (tileLeft >= entity.x && entity.x + halfW > tileLeft) {
+            entity.x = tileLeft - halfW - 0.01;
+            if (entity.vx > 0) entity.vx = 0;
+          }
+        }
+      }
+    }
+
+    // Final screen horizontal bounds clamp
+    if (entity.x - halfW < 0) {
+      entity.x = halfW;
+      if (entity.vx < 0) entity.vx = 0;
+    } else if (entity.x + halfW > CANVAS_W) {
+      entity.x = CANVAS_W - halfW;
+      if (entity.vx > 0) entity.vx = 0;
     }
 
     // 2. Vertical movement & gravity
@@ -110,25 +150,31 @@ const Physics = {
     entity.y += entity.vy * dt;
 
     // Vertical tile collision:
-    // Inset horizontally by 3px so vertical side walls are not treated as floors or ceilings!
+    // Inset horizontally so vertical side walls are not treated as floors or ceilings
     entity.onGround = false;
-    const vMinCol = Math.floor((entity.x - halfW + 3) / TILE_SIZE);
-    const vMaxCol = Math.floor((entity.x + halfW - 3) / TILE_SIZE);
-    const vMinRow = Math.floor((entity.y - halfH) / TILE_SIZE);
-    const vMaxRow = Math.floor((entity.y + halfH) / TILE_SIZE);
+    const xInset = Math.min(3.5, halfW * 0.3);
+    const vMinCol = Math.floor((entity.x - halfW + xInset) / TILE_SIZE);
+    const vMaxCol = Math.floor((entity.x + halfW - xInset) / TILE_SIZE);
+    const vMinRow = Math.floor((Math.min(oldY, entity.y) - halfH) / TILE_SIZE);
+    const vMaxRow = Math.floor((Math.max(oldY, entity.y) + halfH) / TILE_SIZE);
 
     for (let r = Math.max(0, vMinRow); r <= Math.min(GRID_ROWS - 1, vMaxRow); r++) {
       for (let c = Math.max(0, vMinCol); c <= Math.min(GRID_COLS - 1, vMaxCol); c++) {
         const t = grid[r][c];
-        if (t === T_SOLID || t === T_GATE || t === T_CRACKED || (t === T_CRAWLWAY && !entity.isCrouched)) {
-          if (entity.vy > 0 && oldY + halfH <= r * TILE_SIZE + 8) {
-            // Landing on top of tile (feet were above tile top)
-            entity.y = r * TILE_SIZE - halfH;
+        const isSolid = t === T_SOLID || t === T_GATE || t === T_CRACKED || (t === T_CRAWLWAY && !entity.isCrouched);
+        if (isSolid) {
+          const tileTop = r * TILE_SIZE;
+          const tileBottom = (r + 1) * TILE_SIZE;
+
+          // Landing on top of tile (feet were above tile top)
+          if (entity.vy > 0 && oldY + halfH <= tileTop + 8 && entity.y + halfH >= tileTop) {
+            entity.y = tileTop - halfH;
             entity.vy = 0;
             entity.onGround = true;
-          } else if (entity.vy < 0 && oldY - halfH >= (r + 1) * TILE_SIZE - 8) {
-            // Hitting ceiling (head was below tile bottom)
-            entity.y = (r + 1) * TILE_SIZE + halfH;
+          }
+          // Hitting ceiling (head was below tile bottom)
+          else if (entity.vy < 0 && oldY - halfH >= tileBottom - 8 && entity.y - halfH <= tileBottom) {
+            entity.y = tileBottom + halfH;
             entity.vy = 0;
           }
         } else if (t === T_SPIKE) {
