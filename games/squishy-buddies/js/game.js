@@ -39,6 +39,8 @@ class SquishyGame {
     this.lastTime = 0;
     this.stateTimer = 0;
     this.roomClearBannerTimer = 0;
+    this.storySlideIndex = 0;
+    this.storyTimer = 0;
 
     this.initControls();
     this.initGameBoyBridge();
@@ -74,12 +76,42 @@ class SquishyGame {
     this.roomClearBannerTimer = 0;
   }
 
+  startStory() {
+    this.audio.init();
+    this.audio.playSwitch();
+    this.state = 'STORY';
+    this.storySlideIndex = 0;
+    this.storyTimer = 0;
+    this.vibrate(12);
+  }
+
+  nextStorySlide() {
+    if (this.storySlideIndex < 3) {
+      this.storySlideIndex++;
+      this.storyTimer = 0;
+      this.audio.playSwitch();
+      this.vibrate(10);
+    } else {
+      // Final slide: Press A to officially begin!
+      this.startGame();
+    }
+  }
+
+  prevStorySlide() {
+    if (this.storySlideIndex > 0) {
+      this.storySlideIndex--;
+      this.storyTimer = 0;
+      this.audio.playSwitch();
+      this.vibrate(10);
+    }
+  }
+
   startGame() {
     this.audio.init();
     this.audio.startBgm();
     this.loadLevel(0);
     this.state = 'PLAYING';
-    this.vibrate(20);
+    this.vibrate([15, 30, 20]);
   }
 
   togglePause() {
@@ -106,7 +138,26 @@ class SquishyGame {
 
       if (this.state === 'TITLE') {
         if (pressed && (key === 'A' || key === 'START')) {
-          this.startGame();
+          this.startStory();
+        }
+        return;
+      }
+
+      if (this.state === 'STORY') {
+        if (pressed) {
+          if (key === 'A') {
+            this.nextStorySlide();
+          } else if (key === 'B') {
+            this.prevStorySlide();
+          } else if (key === 'START') {
+            if (this.storySlideIndex < 3) {
+              this.storySlideIndex = 3;
+              this.storyTimer = 0;
+              this.audio.playSwitch();
+            } else {
+              this.startGame();
+            }
+          }
         }
         return;
       }
@@ -164,12 +215,34 @@ class SquishyGame {
   }
 
   initControls() {
+    // Canvas click / tap support for direct mobile interaction
+    this.canvas.addEventListener('click', () => {
+      this.audio.init();
+      if (this.state === 'TITLE') {
+        this.startStory();
+      } else if (this.state === 'STORY') {
+        this.nextStorySlide();
+      } else if (this.state === 'VICTORY') {
+        this.startGame();
+      }
+    });
+
     // Keyboard support for standalone mode
     window.addEventListener('keydown', (e) => {
       this.audio.init();
       if (this.state === 'TITLE' && (e.code === 'KeyZ' || e.code === 'Space' || e.code === 'Enter')) {
-        this.startGame();
+        this.startStory();
         return;
+      }
+      if (this.state === 'STORY') {
+        if (e.code === 'KeyZ' || e.code === 'Space' || e.code === 'Enter') {
+          this.nextStorySlide();
+          return;
+        }
+        if (e.code === 'KeyX' || e.code === 'Backspace') {
+          this.prevStorySlide();
+          return;
+        }
       }
       switch (e.code) {
         case 'ArrowLeft': case 'KeyA': this.input.left = true; break;
@@ -195,7 +268,8 @@ class SquishyGame {
           }
           break;
         case 'Enter':
-          this.togglePause();
+          if (this.state === 'STORY') this.nextStorySlide();
+          else this.togglePause();
           break;
       }
     });
@@ -226,11 +300,14 @@ class SquishyGame {
     bindBtn('btn-down', () => this.input.down = true, () => this.input.down = false);
     bindBtn('btn-up', () => this.input.up = true, () => this.input.up = false);
     bindBtn('btn-jump', () => {
-      if (this.state === 'PLAYING') this.player.jump();
+      if (this.state === 'TITLE') this.startStory();
+      else if (this.state === 'STORY') this.nextStorySlide();
+      else if (this.state === 'PLAYING') this.player.jump();
       this.input.a = true;
     }, () => this.input.a = false);
     bindBtn('btn-spit', () => {
-      if (this.state === 'PLAYING') {
+      if (this.state === 'STORY') this.prevStorySlide();
+      else if (this.state === 'PLAYING') {
         const b = this.player.spitBubble();
         if (b) this.bubbles.push(b);
       }
@@ -243,7 +320,15 @@ class SquishyGame {
         this.spawnSwitchSparkles();
       }
     }, () => {});
-    bindBtn('btn-pause', () => this.togglePause(), () => {});
+    bindBtn('btn-pause', () => {
+      if (this.state === 'TITLE') this.startStory();
+      else if (this.state === 'STORY') {
+        if (this.storySlideIndex < 3) this.storySlideIndex = 3;
+        else this.startGame();
+      } else {
+        this.togglePause();
+      }
+    }, () => {});
     bindBtn('btn-sound', () => {
       const en = this.audio.toggleSound();
       const el = document.getElementById('btn-sound');
@@ -266,6 +351,10 @@ class SquishyGame {
   /* ================= Update Logic ================= */
 
   update(dt) {
+    if (this.state === 'STORY') {
+      this.storyTimer += dt;
+      return;
+    }
     if (this.state !== 'PLAYING') return;
 
     // 1. Update Player
@@ -478,6 +567,7 @@ class SquishyGame {
 
     // 10. Overlays
     if (this.state === 'TITLE') this.renderTitleOverlay(ctx);
+    else if (this.state === 'STORY') this.renderStoryOverlay(ctx);
     else if (this.state === 'PAUSED') this.renderPauseOverlay(ctx);
     else if (this.state === 'VICTORY') this.renderVictoryOverlay(ctx);
 
@@ -797,12 +887,383 @@ class SquishyGame {
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 12px monospace';
-    ctx.fillText('👉 按 A 或 点击屏幕开始 👈', this.width / 2, 160);
+    ctx.fillText('👉 按 A 键 观看故事与开始 👈', this.width / 2, 160);
 
     ctx.fillStyle = '#8f9cb8';
     ctx.font = '9px monospace';
-    ctx.fillText('十字键:滚动  A:跳跃  B:吐泡泡  SEL:切人', this.width / 2, 185);
+    ctx.fillText('十字键:滚动  A:跳跃/确认  B:吐泡泡  SEL:切人', this.width / 2, 185);
     ctx.textAlign = 'left';
+  }
+
+  /* ================= Story Cutscene & Gameplay Guide Overlays ================= */
+
+  renderStoryOverlay(ctx) {
+    const t = this.storyTimer;
+    const slide = this.storySlideIndex;
+
+    // Full screen background for story
+    ctx.fillStyle = '#0f1424';
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    // Subtle scanline pattern
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+    for (let y = 0; y < this.height; y += 3) {
+      ctx.fillRect(0, y, this.width, 1);
+    }
+
+    if (slide === 0) {
+      this.renderStoryAct1(ctx, t);
+    } else if (slide === 1) {
+      this.renderStoryAct2(ctx, t);
+    } else if (slide === 2) {
+      this.renderStoryAct3(ctx, t);
+    } else if (slide === 3) {
+      this.renderGameplayGuide(ctx, t);
+    }
+  }
+
+  // Act 1: Peaceful Haven (彩虹泉林)
+  renderStoryAct1(ctx, t) {
+    // Top Act Ribbon
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+    ctx.fillRect(70, 7, 180, 18);
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(70, 7, 180, 18);
+
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('✦ 第一幕 · 彩虹泉林 [ 1/3 ] ✦', this.width / 2, 20);
+
+    // Background Rainbow Arcs
+    const colors = [
+      'rgba(255,100,130,0.25)',
+      'rgba(255,180,60,0.25)',
+      'rgba(255,230,60,0.25)',
+      'rgba(60,220,130,0.25)',
+      'rgba(60,180,255,0.25)',
+      'rgba(180,100,255,0.25)'
+    ];
+    colors.forEach((col, i) => {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(160, 136, 75 + i * 5, Math.PI, 0);
+      ctx.stroke();
+    });
+
+    // Central Rainbow Fountain
+    ctx.fillStyle = '#2a3550';
+    ctx.fillRect(144, 116, 32, 14);
+    ctx.fillStyle = '#485880';
+    ctx.fillRect(142, 114, 36, 4);
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(158, 104, 4, 12);
+    // Water droplets jetting up
+    for (let k = 0; k < 3; k++) {
+      const dropY = 100 - Math.abs(Math.sin(t * 5 + k * 1.5)) * 14;
+      const dropX = 160 + (k - 1) * 8;
+      ctx.fillStyle = '#00f0ff';
+      ctx.beginPath();
+      ctx.arc(dropX, dropY, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 5 Buddies happily bouncing in a row
+    const startX = 60;
+    const spacing = 50;
+    BUDDY_KEYS.forEach((key, i) => {
+      const bx = startX + i * spacing;
+      const bounce = Math.abs(Math.sin(t * 3.5 + i * 1.3)) * 6;
+      const sqY = 1.0 + Math.sin(t * 3.5 + i * 1.3) * 0.15;
+      const sqX = 1 / Math.sqrt(sqY);
+      const isBlink = Math.sin(t * 2.5 + i) > 0.94;
+      this.drawDropletBuddy(ctx, bx, 126 - bounce, BUDDY_TYPES[key], sqX, sqY, 1, isBlink);
+    });
+
+    // Story Narrative Box
+    this.drawStoryBox(ctx, [
+      '很久很久以前，在彩虹之森深处……',
+      '生活着5只无忧无虑的水滴精灵【软乎乎】。',
+      '它们没有手脚，却拥有如果冻般弹滑的身体与神奇泡泡！'
+    ], '[START] 速读指南', '👉 按 [A] 键 继续 ▶');
+  }
+
+  // Act 2: Sludge Incursion (暗影泥浆入侵)
+  renderStoryAct2(ctx, t) {
+    // Top Act Ribbon
+    ctx.fillStyle = 'rgba(255, 60, 90, 0.15)';
+    ctx.fillRect(70, 7, 180, 18);
+    ctx.strokeStyle = '#ff3366';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(70, 7, 180, 18);
+
+    ctx.fillStyle = '#ff5577';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('✦ 第二幕 · 暗影突袭 [ 2/3 ] ✦', this.width / 2, 20);
+
+    // Ominous lightning flash
+    if (Math.sin(t * 3) > 0.94) {
+      ctx.fillStyle = 'rgba(180, 40, 90, 0.12)';
+      ctx.fillRect(0, 0, this.width, 140);
+    }
+
+    // Sludge Monster on Right
+    const sludgeX = 240;
+    const sludgeY = 114;
+    ctx.fillStyle = '#220d30';
+    ctx.beginPath();
+    ctx.ellipse(sludgeX, sludgeY + 4, 30, 16, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Pulsing spikes
+    ctx.fillStyle = '#481560';
+    for (let s = 0; s < 5; s++) {
+      const ang = (s / 5) * Math.PI + Math.PI;
+      const spikeR = 24 + Math.sin(t * 6 + s) * 5;
+      const sx = sludgeX + Math.cos(ang) * spikeR;
+      const sy = sludgeY + Math.sin(ang) * (spikeR * 0.7);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Glowing red menacing eyes
+    ctx.fillStyle = '#ff1133';
+    ctx.beginPath();
+    ctx.arc(sludgeX - 10, sludgeY - 4, 3.5, 0, Math.PI * 2);
+    ctx.arc(sludgeX + 5, sludgeY - 4, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Locked Ancient Gate in Center
+    ctx.fillStyle = '#442220';
+    ctx.fillRect(146, 75, 8, 48);
+    ctx.fillRect(174, 75, 8, 48);
+    ctx.fillRect(142, 70, 48, 8);
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 8px monospace';
+    ctx.fillText('⛩️封印', 164, 98);
+
+    // Floating Stolen Dew Drops trapped in purple bubbles
+    for (let d = 0; d < 3; d++) {
+      const dewX = 188 + d * 18 + Math.sin(t * 3 + d) * 4;
+      const dewY = 55 + d * 18 + Math.cos(t * 3 + d) * 4;
+      ctx.fillStyle = 'rgba(160, 60, 240, 0.4)';
+      ctx.beginPath();
+      ctx.arc(dewX, dewY, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#b060ff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = '#00f0ff';
+      ctx.beginPath();
+      ctx.arc(dewX, dewY, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 5 Buddies shivering on the Left
+    const startX = 35;
+    const spacing = 22;
+    BUDDY_KEYS.forEach((key, i) => {
+      const shiv = Math.sin(t * 32 + i * 2) * 1.5;
+      const bx = startX + i * spacing + shiv;
+      this.drawDropletBuddy(ctx, bx, 126, BUDDY_TYPES[key], 1.15, 0.75, 1, false);
+      // Small tear drop popping
+      if (Math.sin(t * 4 + i) > 0.5) {
+        ctx.fillStyle = '#00f0ff';
+        ctx.beginPath();
+        ctx.arc(bx + 6, 114, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+
+    // Story Narrative Box
+    this.drawStoryBox(ctx, [
+      '突如其来！贪婪的【暗影泥浆怪】掠夺了泉林！',
+      '守护生机的【彩虹露珠】被抢夺封印，古代泉门紧闭……',
+      '泉水干涸，森林正失去斑斓色彩，陷入了巨大的危机！'
+    ], '[B] 上一页', '👉 按 [A] 键 继续 ▶');
+  }
+
+  // Act 3: Fellowship Assembles (全员集结出征)
+  renderStoryAct3(ctx, t) {
+    // Top Act Ribbon
+    ctx.fillStyle = 'rgba(0, 255, 200, 0.12)';
+    ctx.fillRect(70, 7, 180, 18);
+    ctx.strokeStyle = '#00ffcc';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(70, 7, 180, 18);
+
+    ctx.fillStyle = '#00ffcc';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('✦ 第三幕 · 全员集结 [ 3/3 ] ✦', this.width / 2, 20);
+
+    // Radiant Dawn Rays
+    for (let r = 0; r < 7; r++) {
+      const rayX = 30 + r * 45 + Math.sin(t + r) * 10;
+      ctx.strokeStyle = 'rgba(255, 235, 160, 0.08)';
+      ctx.lineWidth = 14;
+      ctx.beginPath();
+      ctx.moveTo(160, 0);
+      ctx.lineTo(rayX, 140);
+      ctx.stroke();
+    }
+
+    // 5 Buddies in a Bold Heroic Lineup
+    const startX = 40;
+    const spacing = 60;
+    BUDDY_KEYS.forEach((key, i) => {
+      const bx = startX + i * spacing;
+      const bType = BUDDY_TYPES[key];
+      // Heroic breathing
+      const sqY = 1.05 + Math.sin(t * 3 + i * 0.8) * 0.08;
+      const sqX = 1 / Math.sqrt(sqY);
+      this.drawDropletBuddy(ctx, bx, 126, bType, sqX, sqY, 1, false);
+
+      // Signature Elemental Bubble hovering & pulsing overhead
+      const bubY = 90 + Math.sin(t * 3 + i * 1.5) * 4;
+      ctx.fillStyle = bType.color;
+      ctx.beginPath();
+      ctx.arc(bx, bubY, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = bType.highlight;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Bubble highlight shine
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(bx - 3, bubY - 3, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Story Narrative Box
+    this.drawStoryBox(ctx, [
+      '“家园由我们守护！”软乎乎五兄弟毅然集结出发！',
+      '没有手脚又何妨？翻滚、压扁、弹跳，活用五大元素泡泡，',
+      '誓要寻回全部彩虹露珠，解开古代泉门，驱散暗影！'
+    ], '[B] 上一页', '👉 按 [A] 键 查看操作指南 ▶');
+  }
+
+  // Universal Story Dialogue Box
+  drawStoryBox(ctx, lines, leftHint, rightHint) {
+    const boxX = 10;
+    const boxY = 144;
+    const boxW = 300;
+    const boxH = 86;
+
+    ctx.fillStyle = 'rgba(12, 16, 28, 0.95)';
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+    // Text Lines
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 9.5px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(lines[0], boxX + 10, boxY + 20);
+    ctx.fillText(lines[1], boxX + 10, boxY + 36);
+    ctx.fillText(lines[2], boxX + 10, boxY + 52);
+
+    // Bottom Navigation Hint Bar
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.fillRect(boxX + 2, boxY + 64, boxW - 4, 20);
+
+    ctx.fillStyle = '#8f9cb8';
+    ctx.font = '9px monospace';
+    ctx.fillText(leftHint, boxX + 10, boxY + 77);
+
+    // Pulsing right prompt
+    const pulse = 0.7 + 0.3 * Math.sin(this.storyTimer * 6);
+    ctx.fillStyle = `rgba(0, 255, 200, ${pulse})`;
+    ctx.font = 'bold 9.5px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(rightHint, boxX + boxW - 10, boxY + 77);
+  }
+
+  // Final Slide: Key Gameplay Handbook (核心玩法指南)
+  renderGameplayGuide(ctx, t) {
+    // Top Title Banner
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+    ctx.fillRect(35, 5, 250, 18);
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(35, 5, 250, 18);
+
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('✦ 软乎乎大冒险 · 核心玩法指南 ✦', this.width / 2, 18);
+
+    // 4 Clean Gameplay Feature Cards
+    const drawCard = (x, y, w, h, borderColor, title, desc1, desc2) => {
+      ctx.fillStyle = 'rgba(16, 22, 38, 0.92)';
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, w, h);
+
+      ctx.fillStyle = borderColor;
+      ctx.font = 'bold 9.5px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(title, x + 8, y + 13);
+
+      ctx.fillStyle = '#d0dcf4';
+      ctx.font = '8.5px monospace';
+      ctx.fillText(desc1, x + 8, y + 25);
+      if (desc2) {
+        ctx.fillStyle = '#ffd700';
+        ctx.font = '8px monospace';
+        ctx.fillText(desc2, x + 8, y + 36);
+      }
+    };
+
+    // Card 1: 滚动与压扁钻缝
+    drawCard(8, 27, 304, 38, '#00ffcc',
+      '◀ ▶ 滚动移动  |  ▼ 压扁身体钻缝',
+      '按左右键翻滚前行；按住【下键】压扁身体匍匐钻缝！',
+      '💡 技巧：遇到1格矮洞必须压扁才能通过，净空不足自动保持趴姿'
+    );
+
+    // Card 2: 跳跃与踩泡二段跳
+    drawCard(8, 69, 304, 38, '#ffe040',
+      '【A 键】弹性跳跃  |  空中踩泡二段跳',
+      '果冻弹力起跳；在空中下落踩在气泡顶端可借力再次高跳！',
+      '💡 技巧：踩在绿萌萌的翡翠弹力泡上，可触发超强蓄力火箭跳！'
+    );
+
+    // Card 3: 吐属性泡泡与随时换人
+    drawCard(8, 111, 304, 46, '#ff80b0',
+      '【B 键】吐属性泡泡  |  【SELECT】随时切换队长',
+      '🟡大黄:固化跳台 🔵蓝波:升空气囊 🌸粉嘟:爬墙粘梯',
+      '🟢绿萌:强力蹦床 🟣紫灵:爆破碎石  根据机关随时按SEL轮换！'
+    );
+
+    // Card 4: 通关目标
+    drawCard(8, 161, 304, 30, '#ffd700',
+      '终极目标：收集全部 💧彩虹露珠，解封泉门通关！',
+      '收集齐关卡内所有露珠后，紧闭的石门自动打开，跳入泉水过关！'
+    );
+
+    // Bottom Pulsing Call to Action
+    const btnPulse = 0.75 + 0.25 * Math.sin(t * 6);
+    ctx.fillStyle = `rgba(0, 255, 180, ${0.15 * btnPulse})`;
+    ctx.fillRect(35, 198, 250, 26);
+    ctx.strokeStyle = `rgba(0, 255, 180, ${btnPulse})`;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(35, 198, 250, 26);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('👉 按 [A] 键 正式开始冒险 👈', this.width / 2, 215);
+
+    ctx.fillStyle = '#8f9cb8';
+    ctx.font = '8px monospace';
+    ctx.fillText('( 或点击屏幕任何位置开始 )', this.width / 2, 234);
   }
 
   renderPauseOverlay(ctx) {

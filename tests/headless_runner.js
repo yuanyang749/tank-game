@@ -121,8 +121,30 @@ async function runHeadlessAutomation() {
   await page.tap('#gb-btn-a');
   await new Promise(r => setTimeout(r, 1200));
 
-  // 模拟在标题画面按下 A 键正式启动游戏
-  console.log('🎮 模拟按下 A 键开始彩虹泉冒险...');
+  // 模拟在标题画面按下 A 键进入故事演出
+  console.log('📖 模拟按下 A 键开启故事演出第一幕...');
+  await page.tap('#gb-btn-a');
+  await new Promise(r => setTimeout(r, 800));
+
+  const squishyStoryShot = path.join(screenshotsDir, 'headless_squishy_story.png');
+  await page.screenshot({ path: squishyStoryShot });
+  console.log(`✅ [5a] 软乎乎故事演出截图: ${squishyStoryShot}`);
+
+  // 翻页查看第二幕、第三幕并进入核心操作指南
+  console.log('📖 按 A 键翻阅故事幕，进入核心玩法指南...');
+  await page.tap('#gb-btn-a'); // Act 2
+  await new Promise(r => setTimeout(r, 400));
+  await page.tap('#gb-btn-a'); // Act 3
+  await new Promise(r => setTimeout(r, 400));
+  await page.tap('#gb-btn-a'); // Slide 3: 核心玩法指南
+  await new Promise(r => setTimeout(r, 800));
+
+  const squishyGuideShot = path.join(screenshotsDir, 'headless_squishy_guide.png');
+  await page.screenshot({ path: squishyGuideShot });
+  console.log(`✅ [5b] 软乎乎核心玩法指南截图: ${squishyGuideShot}`);
+
+  // 在核心玩法指南页面点击 A 键正式开始彩虹泉冒险
+  console.log('🎮 在玩法指南页面按 A 键正式开始彩虹泉关卡...');
   await page.tap('#gb-btn-a');
   await new Promise(r => setTimeout(r, 1000));
 
@@ -141,7 +163,7 @@ async function runHeadlessAutomation() {
 
   const squishyShotPath = path.join(screenshotsDir, 'headless_squishy.png');
   await page.screenshot({ path: squishyShotPath });
-  console.log(`✅ [5/6] 软乎乎大冒险 1991 运行态截图: ${squishyShotPath}`);
+  console.log(`✅ [5c] 软乎乎大冒险 1991 实战运行态截图: ${squishyShotPath}`);
 
   // 6. 点击复位键回到菜单，并用方向下选择第 5 项（TERMUX 开发攻略）
   console.log('🔄 模拟点击复位键返回菜单...');

@@ -763,6 +763,13 @@ suite('9. Squishy Buddies 1991 Physics, 5 Characters & Bubble System', () => {
   crawlPlayer.isCrouched = true;
   crawlPlayer.update(1/60, { down: false, left: false, right: false, up: false, a: false, b: false }, crawlGrid, null);
   assert(crawlPlayer.isCrouched === true, 'Player automatically stays crouched while inside crawlway even if down key is released');
+
+  // 6. Story Presentation & Key Gameplay Guide assertions
+  assert(gameJsCode.includes("renderStoryOverlay"), 'game.js includes story cutscene renderer');
+  assert(gameJsCode.includes("renderGameplayGuide"), 'game.js includes key gameplay guide renderer');
+  assert(gameJsCode.includes("startStory"), 'game.js provides startStory method');
+  assert(gameJsCode.includes("nextStorySlide"), 'game.js provides nextStorySlide method');
+  assert(gameJsCode.includes("👉 按 [A] 键 正式开始冒险 👈"), 'gameplay guide displays [A] key start adventure prompt');
 });
 
 // =========================================================================
