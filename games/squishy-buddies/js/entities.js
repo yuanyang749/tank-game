@@ -578,6 +578,10 @@ class SludgeBoss {
       if (this.y < floorY) {
         this.vy += GRAVITY * dt;
         this.y += this.vy * dt;
+        if (this.y < ceilingY) {
+          this.y = ceilingY;
+          if (this.vy < 0) this.vy = 0;
+        }
         if (this.y >= floorY) {
           this.y = floorY;
           this.vy = 0;

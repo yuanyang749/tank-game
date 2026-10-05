@@ -498,6 +498,8 @@ class SquishyGame {
             // Blue Float bubble encasing stun
             this.boss.isEncased = true;
             this.boss.encasedTimer = 3.5;
+            this.boss.vx = 0;
+            this.boss.vy = 0;
             b.alive = false;
             this.audio.playPop();
             this.spawnPopParticles(this.boss.x, this.boss.y, '#75c8f8');
