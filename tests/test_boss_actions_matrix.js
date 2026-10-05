@@ -392,13 +392,7 @@ async function runHeadlessVisualSuite() {
 
     const shotPath = path.join(__dirname, '../screenshots/boss_all_actions_audit.png');
     await page.screenshot({ path: shotPath });
-    console.log(`📸 已保存全动作综合实操截屏至: ${shotPath}`);
-
-    const dlPath = '/data/data/com.termux/files/home/storage/downloads/boss_all_actions_audit.png';
-    try {
-      fs.copyFileSync(shotPath, dlPath);
-      console.log(`💾 已同步至下载目录: ${dlPath}`);
-    } catch (e) {}
+    console.log(`📸 已保存全动作综合实操截屏至内部目录: ${shotPath}`);
 
     if (errors.length > 0) {
       throw new Error(`浏览器产生页面异常: ${errors.join('; ')}`);
