@@ -950,6 +950,47 @@ suite('9. Squishy Buddies 1991 Physics, 5 Characters & Bubble System', () => {
   game.bubbles.push(blueBubble);
   game.update(1/60);
   assert(game.boss.isEncased === true, 'Blue float bubble encases/stuns Boss on contact');
+
+  // Verify Boss Jump Stomp Trajectory stays strictly within screen bounds
+  game.loadLevel(4);
+  game.state = 'PLAYING';
+  game.boss.state = 'PREPARE_STOMP';
+  game.boss.stateTimer = 0.01;
+  game.update(0.02); // transitions into JUMP_STOMP with vy = -220
+  assert(game.boss.state === 'JUMP_STOMP', 'Boss entered JUMP_STOMP');
+  assert(game.boss.vy < 0, 'Boss launched upward into air');
+
+  let minY = game.boss.y;
+  let maxY = game.boss.y;
+  for (let i = 0; i < 90; i++) { // simulate 1.5 seconds
+    game.update(1/60);
+    minY = Math.min(minY, game.boss.y);
+    maxY = Math.max(maxY, game.boss.y);
+  }
+  assert(minY >= 130, `Boss jump apex (minY=${minY.toFixed(1)}) is well within screen, safely below HUD (ceiling=52)`);
+  assert(maxY <= 196.1, `Boss does not penetrate below floor (maxY=${maxY.toFixed(1)})`);
+  assert(game.boss.y === 196, 'Boss landed cleanly back onto floor (y=196)');
+  assert(game.boss.onGround === true, 'Boss onGround is true after landing');
+  assert(game.boss.state === 'PATROL', 'Boss returned to PATROL after stomp landing');
+  assert(game.sludgeShockwaves.length >= 2, 'Boss landing created ground shockwaves');
+
+  // Verify Mid-Air Hit does not cause Boss to float off-screen
+  game.loadLevel(4);
+  game.state = 'PLAYING';
+  game.boss.state = 'PREPARE_STOMP';
+  game.boss.stateTimer = 0.01;
+  game.update(0.02); // in JUMP_STOMP
+  game.update(0.25); // in mid-air
+  const midAirY = game.boss.y;
+  assert(midAirY < 190, 'Boss is currently in mid-air');
+  game.boss.takeDamage(1); // hit during jump
+  assert(game.boss.state === 'HURT', 'Boss transitioned to HURT on mid-air hit');
+  // Update through HURT state: gravity must pull Boss down to floor
+  for (let i = 0; i < 60; i++) {
+    game.update(1/60);
+  }
+  assert(game.boss.y === 196, 'Boss fell and landed on floor during/after HURT state');
+  assert(game.boss.onGround === true, 'Boss onGround confirmed on floor');
 });
 
 // =========================================================================

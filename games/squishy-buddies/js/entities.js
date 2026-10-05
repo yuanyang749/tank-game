@@ -545,13 +545,14 @@ class SludgeBoss {
     this.squashX = 1.4;
 
     this.vx = this.facing * -45;
-    this.vy = -60;
+    this.vy = -50;
+    this.onGround = false;
 
     if (this.hp <= 0) {
       this.state = 'DEFEATED';
       this.defeatedTimer = 1.8;
       this.vx = 0;
-      this.vy = 0;
+      this.vy = -40;
     } else {
       this.state = 'HURT';
       this.stateTimer = 0.6;
@@ -565,11 +566,23 @@ class SludgeBoss {
 
     if (this.hurtTimer > 0) this.hurtTimer -= dt;
 
-    // Defeated death animation
+    const floorY = 220 - this.radius;
+    const ceilingY = 28 + this.radius; // Buffer below Room 5 ceiling blocks and top HUD
+    const GRAVITY = 450;
+
+    // Defeated death animation with gravity fall
     if (this.state === 'DEFEATED') {
       this.defeatedTimer -= dt;
       this.squashX = 1.0 + Math.sin(this.animTimer * 28) * 0.22;
       this.squashY = 1.0 + Math.cos(this.animTimer * 28) * 0.22;
+      if (this.y < floorY) {
+        this.vy += GRAVITY * dt;
+        this.y += this.vy * dt;
+        if (this.y >= floorY) {
+          this.y = floorY;
+          this.vy = 0;
+        }
+      }
       if (this.defeatedTimer <= 0) {
         this.alive = false;
       }
@@ -587,6 +600,7 @@ class SludgeBoss {
         this.isEncased = false;
         this.state = 'PATROL';
         this.stateTimer = 1.5;
+        this.onGround = false;
         if (audio && audio.playPop) audio.playPop();
       }
       return;
@@ -595,7 +609,7 @@ class SludgeBoss {
     this.stateTimer -= dt;
 
     if (this.state === 'HURT') {
-      if (this.stateTimer <= 0) {
+      if (this.stateTimer <= 0 && this.onGround) {
         this.state = 'PATROL';
         this.stateTimer = 1.6;
       }
@@ -655,31 +669,48 @@ class SludgeBoss {
     } else if (this.state === 'PREPARE_STOMP') {
       this.squashY = 0.55 + Math.sin(this.animTimer * 20) * 0.06;
       this.squashX = 1.35;
+      this.vx = 0;
       if (this.stateTimer <= 0) {
         this.state = 'JUMP_STOMP';
-        this.vy = -185;
+        // Controlled arcade leap velocity: apex stays safely at y≈142, well below HUD and ceiling
+        this.vy = -220;
         this.squashY = 1.35;
         this.squashX = 0.75;
         this.onGround = false;
         this.vx = (player.x > this.x ? 1 : -1) * 45;
         if (audio && audio.playBossRoar) audio.playBossRoar();
       }
-    } else if (this.state === 'JUMP_STOMP') {
-      this.vy += 320 * dt;
-      if (this.vy > 0) {
+    }
+
+    // Universal gravity whenever in air
+    if (!this.onGround || this.y < floorY) {
+      this.vy += GRAVITY * dt;
+      if (this.vy > 0 && this.state === 'JUMP_STOMP') {
         this.squashY = 0.85;
       }
+    } else {
+      this.vy = 0;
     }
 
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
-    const floorY = 220 - this.radius;
-    if (this.y >= floorY) {
-      if (this.state === 'JUMP_STOMP') {
-        this.y = floorY;
+    // Strict ceiling boundary clamp - prevents ever leaving screen
+    if (this.y < ceilingY) {
+      this.y = ceilingY;
+      if (this.vy < 0) {
         this.vy = 0;
-        this.onGround = true;
+      }
+    }
+
+    // Floor collision & landing logic
+    if (this.y >= floorY) {
+      this.y = floorY;
+      this.vy = 0;
+      const wasInAir = !this.onGround;
+      this.onGround = true;
+
+      if (this.state === 'JUMP_STOMP' && wasInAir) {
         this.squashY = 0.45;
         this.squashX = 1.45;
         this.state = 'PATROL';
@@ -694,11 +725,9 @@ class SludgeBoss {
             game.sludgeShockwaves.push(new SludgeShockwave(this.x + 12, floorY + this.radius - 8, 1));
           }
         }
-      } else {
-        this.y = floorY;
-        this.vy = 0;
-        this.onGround = true;
       }
+    } else {
+      this.onGround = false;
     }
 
     this.squashX += (1.0 - this.squashX) * dt * 8;
