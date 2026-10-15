@@ -274,10 +274,11 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <li><a href="#第-3-章移动端真机自动化与视觉排障方案全景对比">第 3 章：移动端真机自动化与视觉排障方案全景对比</a></li>
 <li><a href="#31-三大主流自动化方案深度剖析与横向评测">3.1 三大主流自动化方案深度剖析与横向评测</a></li>
 <li><a href="#32-系统闭环架构拓扑解析">3.2 系统闭环架构拓扑解析</a></li>
-<li><a href="#4-gameboy">第 4 章：实战案例深度剖析 —— 纯手机研发 Game Boy 经典掌机与多合一游戏合集系统</a></li>
-<li><a href="#41-移动优先的人体工学设计实践">4.1 移动优先的人体工学设计实践</a></li>
-<li><a href="#42-游戏界面视觉验收与运行图鉴">4.2 游戏界面视觉验收与运行图鉴</a></li>
-<li><a href="#43-智能体自主排障坦克重叠死锁物理缺陷与向量解耦算法">4.3 智能体自主排障：坦克“重叠死锁”物理缺陷与向量解耦算法</a></li>
+<li><a href="#4-gameboy">第 4 章：实战案例精粹 —— 掌机多卡带系统重构与原创《软乎乎大冒险》</a></li>
+<li><a href="#41">4.1 移动优先设计与 Game Boy 多卡带解耦架构</a></li>
+<li><a href="#42">4.2 极客排障精粹：移动端物理死锁与多指触控陷阱根治</a></li>
+<li><a href="#43">4.3 经典卡带复刻：《太空侵略者 1978》与《俄罗斯方块 1989》</a></li>
+<li><a href="#44">4.4 重磅原创压轴：《软乎乎大冒险 1991》—— 从 0 到 1 的自制 IP、软体物理与史诗 Boss 战</a></li>
 <li><a href="#第-5-章进阶实战拓展--联动-mt-管理器-mcp-服务打造掌上逆向与工程工作台">第 5 章：进阶实战拓展 —— 联动 MT 管理器 MCP 服务打造“掌上逆向与工程工作台”</a></li>
 <li><a href="#51-什么是-mt-管理器-mcp-服务">5.1 什么是 MT 管理器 MCP 服务</a></li>
 <li><a href="#52-本地同机回环直连的降维优势">5.2 本地同机回环直连的降维优势</a></li>
@@ -554,85 +555,81 @@ rish<span class="w"> </span>-c<span class="w"> </span>input<span class="w"> </sp
 <li><strong>闭环反馈</strong>：截图经由智能体视觉模型理解后，如发现样式错位或逻辑异常，智能体直接原地修改代码并触发重载，形成无人值守的自动化打磨流程。</li>
 </ol>
 <hr />
-<h2 id="4-gameboy">第 4 章：实战案例深度剖析 —— 纯手机研发 Game Boy 经典掌机与多合一游戏合集系统</h2>
-<p>为了验证这套技术栈的实战能力，我们在完全不触碰任何 PC、不使用任何外部音频资源的前提下，全自主从零开发了一套手机专属的 <strong>Game Boy (DMG-01) 经典掌机与多合一游戏卡带系统</strong>。该系统不仅首发内置了《像素坦克大战 1990》、《太空侵略者 1978》两款经典复古游戏与掌机微屏专属开发攻略，更具备高度解耦的微前端卡带插槽架构，便于后续持续扩展更多经典游戏卡带。</p>
-<h3 id="41">4.1 移动优先的人体工学设计实践</h3>
-<p>以往很多 Web 小游戏直接照搬红白机键盘操作（<code>WASD</code> 移动、<code>J/K</code> 开火），在手机端完全无法正常游玩。我们在开发中贯彻了<strong>“移动优先 (Mobile-First)”</strong>的人体工学标准：</p>
+<h2 id="4-gameboy">第 4 章：实战案例精粹 —— 掌机多卡带系统重构与原创《软乎乎大冒险》</h2>
+<p>为了验证移动端自主智能体的生产力上限，我们在完全不触碰 PC、不使用任何外部音频资源的前提下，全自主从零开发了一套手机专属的 <strong>Game Boy (DMG-01) 经典掌机与多合一游戏卡带系统</strong>。系统从最基础的单体坦克原型，演进为支持多款经典与原创游戏的微前端沙盒体系。</p>
+<h3 id="41">4.1 移动优先设计与 Game Boy 多卡带解耦架构</h3>
+<p>以往移动端 Web 游戏往往直接生搬硬套 PC 键盘（<code>WASD</code> 移动、<code>J/K</code> 开火），触控体验极其糟糕。智能体确立了<strong>“移动优先（Mobile-First）”</strong>的四大设计基石：</p>
 <ol>
-<li><strong>触摸响应式十字方向盘 (Sliding D-Pad)</strong>：<br />
-   - 摒弃老旧的固定离散按钮，采用<strong>滑动矢量判定算法</strong>。<br />
-   - 玩家拇指在方向盘区域内按下后，无需抬起即可自由顺滑地向上下左右四个方向划动切换坦克行进姿态。</li>
-<li><strong>双主动作按键布局</strong>：<br />
-   - <strong>A 键（单发精准点射）</strong>：适合巷战微操；<br />
-   - <strong>B 键（高频连发 Turbo Fire）</strong>：长按即按照节流周期自动连射，缓解长时间游戏的手指疲劳。</li>
-<li><strong>触觉震动反馈 (Haptic Engine)</strong>：<br />
-   - 调用 Web 规范 <code>navigator.vibrate([15])</code>，在坦克开炮、撞墙、击毁敌方时提供细腻的微震动，带来实体掌机般的扎实手感。</li>
-<li><strong>Web Audio 纯数学音效合成器</strong>：<br />
-   - 不依赖任何 MP3/WAV 外部音频文件，完全利用 <code>AudioContext</code> 实时生成：<ul>
-<li>方波 (<code>square</code>)：合成经典的 8-bit 发射子弹与得分蜂鸣声；</li>
-<li>白噪声缓冲区 (<code>createBufferSource</code> + 随机白噪声)：通过低通滤波器 (<code>lowpass</code>) 合成轰隆隆的爆炸声波。</li>
-</ul>
-</li>
+<li><strong>矢量滑动十字盘 (Sliding D-Pad)</strong>：基于滑动矢量判定算法，拇指按下后无需抬起，平滑划动即可即时切换上下左右走位；</li>
+<li><strong>人体工学动作双键</strong>：A 键精准单发微操，B 键长按高频连发（Turbo Fire）；</li>
+<li><strong>物理触觉震动反馈 (Haptic Engine)</strong>：调用 <code>navigator.vibrate([15])</code>，开火、撞击、爆炸时激发细腻实体震感；</li>
+<li><strong>Web Audio 纯数学音效合成器</strong>：零依赖外部 MP3/WAV，完全利用 <code>AudioContext</code> 振荡器（方波、三角波、低通白噪声）动态合成 8-bit 复古芯片音效。</li>
 </ol>
-<hr />
-<h3 id="42">4.2 游戏界面视觉验收与运行图鉴</h3>
-<p>以下为自动化视觉校准过程中生成的实际真机运行画面：</p>
-<h4 id="_3">经典掌机复古外框与标题界面</h4>
-<p>游戏启动后，呈现原汁原味的 1990 经典开始界面，上方为液晶 HUD 状态栏（关卡、生命、得分、剩余敌机），下方为掌机操控面板：</p>
-<p><img alt="坦克大战开始界面" src="images/tank_title_screen.png" /></p>
-<h4 id="_4">真实战场激战与连发轰炸</h4>
-<p>在真机运行状态下，坦克开火、敌方红白战车突进、砖墙破碎、水流与基地鹰雕全部采用像素 Canvas 2D 实时绘制：</p>
-<p><img alt="坦克大战战斗画面" src="images/tank_gameplay_action.png" /></p>
-<hr />
-<h3 id="43">4.3 智能体自主排障：坦克“重叠死锁”物理缺陷与向量解耦算法</h3>
-<p>在首发版本的测试中，用户在实战中遇到了一个经典游戏物理缺陷：<strong>“两个坦克一旦在狭窄路口碰撞重叠后，就会卡在一起，彼此谁也无法移动”</strong>。</p>
-<p>智能体在不借助人工干预的情况下，自主定位了问题根源并重构了物理算法：</p>
-<p><img alt="坦克重叠死锁分析与修复算法原理" src="images/tank_collision_fix.png" /></p>
-<h4 id="1-bug-root-cause">1. 缺陷根源复盘 (Bug Root Cause)</h4>
+<p>在此基础上，智能体将单体代码重构为模块化掌机架构：</p>
+<p><img alt="Game Boy 经典掌机多卡带系统" src="images/gameboy_menu.png" /></p>
 <ul>
-<li><strong>原始逻辑</strong>：代码中判定下一步位置如果会与另一辆坦克发生包围盒相交（AABB 碰撞），就直接将移动增量置为 0（<code>return false</code>）。</li>
-<li><strong>死锁触发</strong>：当两辆坦克由垂直方向同时转向汇入同一道路，或两辆敌机刷新生成时产生哪怕 1 像素的交叠，此时坦克 A 检测到前方有坦克 B，无法前进；反过来坦克 B 检测到前方有坦克 A，也无法前进。由于两者的实际位移均为 0，重叠状态永远无法解除，陷入永久互锁！</li>
+<li><strong>宿主机壳与沙盒解耦</strong>：外层 <code>index.html</code> 负责 Game Boy DMG-01 复古外壳质感、实体按键触控管理、以及经典调色盘（DMG 橄榄绿、Pocket 黑白、Vivid 原彩）实时切换；</li>
+<li><strong>卡带微前端协议</strong>：各游戏收纳于 <code>games/&lt;游戏名&gt;/</code>，通过统一的 <code>GB_INPUT</code>（HTML5 postMessage）标准协议接收宿主硬件按键输入；</li>
+<li><strong>微屏专属说明书</strong>：专门设计了适配掌机 320x240 小屏的专属卡带攻略说明书（<code>docs/gb-tutorial.html</code>），支持物理十字键和按键直接翻页。</li>
 </ul>
-<h4 id="2-soft-depenetration">2. 解耦算法重构：动态反弹向量 + 优先权分离 (Soft Depenetration)</h4>
-<p>智能体对 <code>index.html</code> 中的物理碰撞引擎进行了数学重构：</p>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 向量解耦与软推挤分离算法实现片段</span>
-<span class="kd">function</span><span class="w"> </span><span class="nx">checkTankTankCollision</span><span class="p">(</span><span class="nx">tankA</span><span class="p">,</span><span class="w"> </span><span class="nx">tankB</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">overlapX</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="nx">tankA</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">tankA</span><span class="p">.</span><span class="nx">size</span><span class="p">,</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">size</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span>
-<span class="w">                   </span><span class="nb">Math</span><span class="p">.</span><span class="nx">max</span><span class="p">(</span><span class="nx">tankA</span><span class="p">.</span><span class="nx">x</span><span class="p">,</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">x</span><span class="p">);</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">overlapY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="nx">tankA</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">tankA</span><span class="p">.</span><span class="nx">size</span><span class="p">,</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">size</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span>
-<span class="w">                   </span><span class="nb">Math</span><span class="p">.</span><span class="nx">max</span><span class="p">(</span><span class="nx">tankA</span><span class="p">.</span><span class="nx">y</span><span class="p">,</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">y</span><span class="p">);</span>
-
-<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">overlapX</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">overlapY</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="c1">// 发现已经处于渗透/重叠状态</span>
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">pushDist</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2</span><span class="p">;</span><span class="w"> </span><span class="c1">// 微小分离脉冲</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">overlapX</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">overlapY</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="c1">// X 轴为最小渗透轴，沿 X 轴向两侧温和推开</span>
-<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">tankA</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="nx">tankA</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">max</span><span class="p">(</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="nx">tankA</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">pushDist</span><span class="p">);</span>
-<span class="w">        </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="nx">MAP_WIDTH</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">size</span><span class="p">,</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">pushDist</span><span class="p">);</span>
-<span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="nx">tankA</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="nx">MAP_WIDTH</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">tankA</span><span class="p">.</span><span class="nx">size</span><span class="p">,</span><span class="w"> </span><span class="nx">tankA</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">pushDist</span><span class="p">);</span>
-<span class="w">        </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">max</span><span class="p">(</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">x</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">pushDist</span><span class="p">);</span>
-<span class="w">      </span><span class="p">}</span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="c1">// Y 轴为最小渗透轴，沿 Y 轴向两侧温和推开</span>
-<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">tankA</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">y</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="nx">tankA</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">max</span><span class="p">(</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="nx">tankA</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">pushDist</span><span class="p">);</span>
-<span class="w">        </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="nx">MAP_HEIGHT</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">size</span><span class="p">,</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">pushDist</span><span class="p">);</span>
-<span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="nx">tankA</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="nx">MAP_HEIGHT</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">tankA</span><span class="p">.</span><span class="nx">size</span><span class="p">,</span><span class="w"> </span><span class="nx">tankA</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">pushDist</span><span class="p">);</span>
-<span class="w">        </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">max</span><span class="p">(</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">y</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">pushDist</span><span class="p">);</span>
-<span class="w">      </span><span class="p">}</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="w">    </span><span class="c1">// 触碰后敌方 AI 自动激发 90 度紧急转弯脱困</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">tankB</span><span class="p">.</span><span class="nx">isEnemy</span><span class="p">)</span><span class="w"> </span><span class="nx">tankB</span><span class="p">.</span><span class="nx">pickNewDirection</span><span class="p">();</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
-<span class="p">}</span>
-</code></pre></div>
-
-<p>通过引入<strong>最小渗透轴计算</strong>和<strong>双向对称微脉冲（Soft Depenetration）</strong>，重叠的两辆坦克在下一帧物理循环中会被自动平滑弹开，AI 顺势触发转向决策，死锁问题得到根治，战场对决重回流畅丝滑！</p>
+<hr />
+<h3 id="42">4.2 极客排障精粹：移动端物理死锁与多指触控陷阱根治</h3>
+<p>在纯手机端开发过程中，智能体完全自主攻克了两个极其典型的移动端深水区 Bug：</p>
+<h4>1. 坦克“重叠死锁”物理缺陷根治</h4>
+<ul>
+<li><strong>缺陷现象</strong>：两辆坦克在狭小路口相撞交叠后，传统 AABB 碰撞检测因下一步碰撞将位移置为 0，导致两辆坦克永远处于交叠状态，谁也动弹不得。</li>
+<li><strong>解法要点</strong>：智能体引入<strong>动态反弹向量 + 最小渗透轴双向微脉冲（Soft Depenetration）</strong>算法，在下一帧物理循环中沿重叠最小轴平滑推开两车，AI 顺势触发 90° 紧急转向脱困，死锁彻底解决。</li>
+</ul>
+<p><img alt="坦克重叠死锁分析与修复算法原理" src="images/tank_collision_fix.png" /></p>
+<h4>2. 多指触控（Multi-Touch）标识混淆致命缺陷</h4>
+<ul>
+<li><strong>缺陷现象</strong>：在掌机操纵中，右手先按住 B 键开火，左手滑动十字键“向左”移动时，机体反而误向“右”移动。</li>
+<li><strong>缺陷根因</strong>：传统代码直接取 <code>e.touches[0]</code>，但移动端规范中该数组仅代表手指触屏的时间先后，右手先按下时 <code>touches[0]</code> 代表右手坐标（x ≈ 680），十字键据此计算偏移产生严重正向误判！</li>
+<li><strong>解法要点</strong>：改用 <strong>基于 <code>touch.identifier</code> 的物理触控生命周期隔离</strong>。十字键与每个功能键在 <code>touchstart</code> 时严格绑定专属指纹 ID，滑动与抬起只响应各自专属触摸点，彻底杜绝多指互相干扰。</li>
+</ul>
+<hr />
+<h3 id="43">4.3 经典卡带复刻：《太空侵略者 1978》与《俄罗斯方块 1989》</h3>
+<p>作为 Game Boy 合集系统的 ROM 02 和 ROM 03，智能体在手机端复刻了两个时代的殿堂级经典：</p>
+<ul>
+<li><strong>《太空侵略者 1978》</strong>：</li>
+<li><strong>步进低音加速引擎</strong>：经典四音符 Bass Marching 进行曲与存活外星人群体动态绑定，步进周期从 0.73s 随剩余数量指数飙升至 0.16s，带来极致压迫感；</li>
+<li><strong>掩体点阵弹坑侵蚀物理</strong>：四座绿装掩体具备真实画布像素级物理破坏，子弹击中时通过 <code>destination-out</code> 动态灼烧出带飞溅碎屑的真实弹坑，子弹可在残破坑洼中穿梭。</li>
+<li><strong>《俄罗斯方块 1989》</strong>：</li>
+<li><strong>标准 7-Bag 随机袋算法</strong>：采用 Fisher-Yates 洗牌算法，7 种经典方块打包打乱，彻底杜绝连续单一方块致死的竞技死局；</li>
+<li><strong>DAS 顺滑位移与纯方波《Korobeiniki》</strong>：实现 180ms 延迟/50ms 连发的长按平滑移动与幽灵落点虚线；纯数学实时振荡合成俄罗斯民谣《货郎》（Korobeiniki）A 型旋律与 TETRIS 四行全消胜利铜管和弦。</li>
+</ul>
+<p><img alt="经典掌机运行实录" src="images/gameboy_space_invaders.png" /></p>
+<hr />
+<h3 id="44">4.4 重磅原创压轴：《软乎乎大冒险 1991》—— 从 0 到 1 的自制 IP、软体物理与史诗 Boss 战</h3>
+<blockquote>
+<p><strong>为什么说这是全篇的最高潮？</strong>
+移植老游戏只能证明智能体具备代码“临摹与修复”能力；而真正定义生产力跃迁的，是<strong>智能体完全在手机端自主策划、自制原创 IP、从零搭建复杂物理引擎、设计多关卡谜题并完成工业级自动化验收</strong>的《软乎乎大冒险 1991》（收录为合集系统的 <strong>ROM 04</strong>）。</p>
+</blockquote>
+<p><img alt="软乎乎小水滴主角战队设定" src="images/squishy_ip_roster.png" /></p>
+<h4>4.4.1 原创 IP 形象与“萌物跟随”世界观</h4>
+<ul>
+<li><strong>角色设定</strong>：以晶莹剔透的水滴为原型，设计了拥有不同性格色彩的原创软萌战队（黄金队长黄圆圆、粉噗噗、蓝泡泡等）；</li>
+<li><strong>萌物跟随系统（Mochi Follower Train）</strong>：在地牢中找到被困同伴后，小水滴们会形成一条“贪吃蛇式”弹性跟随列车，每个跟班具备物理惯性摇晃与解救欢呼动作。</li>
+</ul>
+<h4>4.4.2 独创的果冻软体物理与微操动作</h4>
+<p>智能体没有沿用传统的方块刚体碰撞，而是为软体生物定制了三套独创力学系统：
+1. <strong>Squash &amp; Stretch 果冻弹性变形</strong>：角色起跳、高速下落、着陆以及撞墙时，身体网格动态拉伸与压扁（宽与高在 0.7~1.3 之间呼吸震颤），呈现极富弹性的软萌手感；
+2. <strong>黏性气泡上升机制（Sticky Bubble Ascent）</strong>：按 B 键吹出半透明气泡，主角可稳稳立于气泡顶部，借助流体浮力平稳升入高空隐秘密室；
+3. <strong>DOWN + A 软体匍匐滑行（Squishy Slide）</strong>：面对仅 1 格高的极低岩石缝隙，下蹲配合动作键可压扁身体贴地滑行穿梭。</p>
+<h4>4.4.3 五大微谜题地牢与史诗暗影巨霸（Shadow Sludge Boss）</h4>
+<p>游戏设计了层层递进的 5 大主题房间。在前 4 关完成解密、气泡浮空解救同伴后，第 5 关迎来史诗级的 Boss 决战：</p>
+<p><img alt="暗影巨霸 Boss 战真机运行与测试状态" src="images/squishy_boss_battle.png" /></p>
+<ul>
+<li><strong>三阶段狂暴状态机</strong>：拥有 5 颗心生命值显示的大型暗影泥浆怪（Shadow Sludge），具备巡逻走位、狂暴红眼、高空泰山压顶狂砸、落地激发双向震地冲击波等复杂行为树；</li>
+<li><strong>多层次战斗博弈</strong>：玩家直接踩踏无效，必须先用气泡将 Boss 暂时困住使其硬直破防，再配合跳跃撞击造成伤害，战斗节奏张弛有度。</li>
+</ul>
+<h4>4.4.4 端到端 49 项全自动化验收矩阵</h4>
+<p>为了保证在纯手机端开发的原创游戏具备极高品质，智能体编写了专用的自动化端到端测试套件（<code>tests/test_boss_actions_matrix.js</code>）。</p>
+<p>依托 Termux 本地 Headless Chromium 自动化架构，智能体在<strong>锁屏/后台静默状态下</strong>自动运行了包含 49 个断言的测试矩阵：
+* 验证 Boss 跳跃抛物线轨迹在全重力下绝不飞出屏幕；
+* 验证震地冲击波的衰减半径与角色受击硬直；
+* 验证气泡碰撞破防判定、受伤无敌闪烁帧与胜利通关画面。</p>
+<p>从一个创意点子，到原创美术与物理算法，再到全自动测试验收与掌机卡带集成 —— 全程在一部随身手机上闭环完成，这正是新一代移动自主智能体带来的质变！</p>
 <hr />
 <h2 id="5-mt-mcp">第 5 章：进阶实战拓展 —— 联动 MT 管理器 MCP 服务打造“掌上逆向与工程工作台”</h2>
 <p>如果说前面章节介绍的 <strong>Termux + Shizuku</strong> 组合让智能体拥有了“运行本地服务与真机自动化操控”的能力，那么联动最新版 <strong>MT 管理器的 MCP 服务</strong>，则直接为智能体装上了<strong>“分析、修改、重构 Android APK 字节码与原生 SO 库”</strong>的手术刀。</p>
