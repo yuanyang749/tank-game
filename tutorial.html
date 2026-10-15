@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
   <meta name="theme-color" content="#0d1117">
-  <title>我在手机上用 Agent CLI 搞开发：Termux 环境调优、Shizuku 提权与纯自制游戏实战</title>
+  <title>Android 本地运行 Antigravity 智能体全攻略：Termux 环境调优、Shizuku 提权与免电脑真机自动化闭环实战</title>
   <style>
     :root {
       --bg: #0d1117;
@@ -246,9 +246,10 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </head>
 <body>
   <div class="container">
-<h1>我在手机上用 Agent CLI 搞开发：Termux 环境调优、Shizuku 提权与纯自制游戏实战</h1>
+<h1>Android 本地运行 Antigravity 智能体全攻略：Termux 环境调优、Shizuku 提权与免电脑真机自动化闭环实战</h1>
 <blockquote>
 <p><strong>作者</strong>：一个习惯在手机上折腾的独立开发者<br />
+<strong>核心主旨</strong>：工作方式的范式变革 —— 从“工位电脑搬砖”到“口袋里的自主智能体”<br />
 <strong>核心环境</strong>：Android 14+ / AArch64 原生 Termux 沙盒 + Antigravity CLI<br />
 <strong>核心实战</strong>：从 0 到 1 纯原创自制复古掌机动作解谜游戏《软乎乎大冒险 1991》（Squishy Buddies）<br />
 <strong>配套资源</strong>：完整源码与自动化测试套件已开源，真机测试截图位于 <code>images/</code> 目录</p>
@@ -256,8 +257,8 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <hr />
 <h2>目录</h2>
 <ul>
-<li><a href="#前言我的移动端开发实验--口袋里的自主智能体">前言：我的移动端开发实验 —— 口袋里的自主智能体</a></li>
-<li><a href="#第-1-章我的基石环境搭建termux-与-agent-cli-避坑指南">第 1 章：我的基石环境搭建：Termux 与 Agent CLI 避坑指南</a></li>
+<li><a href="#前言工作方式的范式变革--从工位打工人到口袋里的指挥官">前言：工作方式的范式变革 —— 从“工位打工人”到“口袋里的指挥官”</a></li>
+<li><a href="#第-1-章我的基石环境搭建termux-与-antigravity-cli-避坑指南">第 1 章：我的基石环境搭建：Termux 与 Antigravity CLI 避坑指南</a></li>
 <li><a href="#11-依赖安装与-aarch64-环境配置">1.1 依赖安装与 AArch64 环境配置</a></li>
 <li><a href="#12-我总结的-termux-黄金避坑四准则">1.2 我总结的 Termux 黄金“避坑四准则”</a></li>
 <li><a href="#13-antigravity-cli-安装与解放双手的免审批配置">1.3 Antigravity CLI 安装与解放双手的免审批配置</a></li>
@@ -270,13 +271,13 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <li><a href="#第-3-章移动端开发闭环为什么我用双模自动化代替人工点屏幕">第 3 章：移动端开发闭环：为什么我用“双模自动化”代替人工点屏幕</a></li>
 <li><a href="#31-挂机与真机我的两大自动化协同模式">3.1 挂机与真机：我的两大自动化协同模式</a></li>
 <li><a href="#32-闭环拓扑解析智能体自写自测自愈">3.2 闭环拓扑解析：智能体自写自测自愈</a></li>
-<li><a href="#第-4-章实战案例复盘--我是如何用-agent-cli-搓出原创游戏软乎乎大冒险的">第 4 章：实战案例复盘 —— 我是如何用 Agent CLI 搓出原创游戏《软乎乎大冒险》的</a></li>
+<li><a href="#第-4-章实战案例复盘--我是如何用-antigravity-cli-搓出原创游戏软乎乎大冒险的">第 4 章：实战案例复盘 —— 我是如何用 Antigravity CLI 搓出原创游戏《软乎乎大冒险》的</a></li>
 <li><a href="#41-需求立项为什么不做老游戏移植而死磕纯原创自制">4.1 需求立项：为什么不做老游戏移植，而死磕“纯原创自制”？</a></li>
 <li><a href="#42-移动优先交互为手机屏幕量身定制的人体工学控制">4.2 移动优先交互：为手机屏幕量身定制的人体工学控制</a></li>
 <li><a href="#43-独创软体物理力学果冻弹性气泡浮力与跟随列车">4.3 独创软体物理力学：果冻弹性、气泡浮力与跟随列车</a></li>
 <li><a href="#44-移动端特有深水区排障攻克多指触控标识混淆陷阱">4.4 移动端特有深水区排障：攻克多指触控标识混淆陷阱</a></li>
 <li><a href="#45-史诗-boss-战行为树与-headless-49-项全自动化验收">4.5 史诗 Boss 战行为树与 Headless 49 项全自动化验收</a></li>
-<li><a href="#第-5-章进阶拓展我把-mt-管理器作为-mcp-挂载到了手机-agent-上">第 5 章：进阶拓展：我把 MT 管理器作为 MCP 挂载到了手机 Agent 上</a></li>
+<li><a href="#第-5-章进阶实战拓展--联动-mt-管理器-mcp-服务打造掌上逆向与工程工作台">第 5 章：进阶实战拓展 —— 联动 MT 管理器 MCP 服务打造“掌上逆向与工程工作台”</a></li>
 <li><a href="#51-什么是-mt-管理器-mcp-服务">5.1 什么是 MT 管理器 MCP 服务</a></li>
 <li><a href="#52-本地同机直连的降维优势">5.2 本地同机直连的降维优势</a></li>
 <li><a href="#53-我的全局-mcp-配置实操">5.3 我的全局 MCP 配置实操</a></li>
@@ -285,53 +286,57 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <li><a href="#第-6-章我的生产力心法与自查-checklist">第 6 章：我的生产力心法与自查 Checklist</a></li>
 </ul>
 <hr />
-<h2>前言：我的移动端开发实验 —— 口袋里的自主智能体</h2>
-<p>很多人常问我：“手机屏幕这么小、又没有键盘鼠标，在手机上敲代码难道不是受罪吗？”</p>
-<p>确实，如果还是按照老旧的 PC 习惯，试图在手机上开一个微缩版的 VS Code 去一个字母一个字母地按虚拟键盘，那无疑是灾难。但如果换一种思路：<strong>我们为什么不让手机上的 AI Agent 当主力程序员，而我们自己只做架构师与指挥官呢？</strong></p>
-<p>现在的旗舰手机（高通骁龙 8 系、天玑 9000 系）普遍配备了 12GB~24GB 甚至更大的高速 LPDDR5X 内存，单核与多核算力足以匹敌几年前的轻薄笔记本。最关键的是，<strong>Android 系统底层基于 Linux，通过 Termux 可以提供极其强大的原生 AArch64 用户态环境</strong>。</p>
-<p>在过去这段时间里，我彻底收起了笔记本，做了一场完全基于手机的极限开发实验：
-我把 Google DeepMind 的新一代自主智能体 <strong>Antigravity CLI</strong> 部署在手机本地，通过系统提权和无头自动化测试，构建了一套完整的口袋级软件工程闭环：</p>
-<pre><code>[ 我在聊天窗口下达自然语言指令 ]
-                │
-                ▼
-   ┌───────────────────────────┐
-   │  Antigravity 本地智能体   │ (运行在手机 Termux 内部)
-   └─────────────┬─────────────┘
-                 │
-       ┌─────────┴─────────┐
-       ▼                   ▼
- [ 代码编写与本地编译 ]  [ 提权调用 Shizuku / rish ]
-       │                   │
-       ▼                   ▼
- [ 本地轻量 Web 守护 ]   [ 真机屏幕抓取与触控模拟 ]
-       │                   │
-       └─────────┬─────────┘
-                 │
-                 ▼
-      ┌─────────────────────┐
-      │  Android 宿主浏览器  │ (Chrome 实时呈现与真机闭环)
-      └─────────────────────┘
-</code></pre>
-<p>在这篇文章中，我将毫无保留地分享我的整套配置方法、踩坑心得，并以一个我完全用手机指挥 Agent 从 0 到 1 搓出来的原创游戏《软乎乎大冒险 1991》为例，带你亲眼见证现代 AI Agent 是如何在移动端实现自主研发闭环的。</p>
+<h2>前言：工作方式的范式变革 —— 从“工位打工人”到“口袋里的指挥官”</h2>
+<p>很多人常问我：“手机屏幕这么小、又没有实体键盘鼠标，在手机上写代码难道不是自讨苦吃吗？”</p>
+<p>这个问题直击了传统软件工程的惯性思维 —— <strong>大家默认“写代码”就必须把人死死锚定在工位、办公椅和厚重的 PC 电脑前</strong>。每天坐在屏幕前数小时，手动敲击每一行语法、肉眼排查每一个错位、不断在 IDE、终端与浏览器窗口之间反复横跳，本质上仍是一种“体力密集型”的重复劳动。</p>
+<p>但<strong>工作方式的根本性变革，正在悄然发生</strong>：</p>
+<ol>
+<li><strong>从“语法打工人”到“架构指挥官”的角色重塑</strong>：现在的旗舰手机普遍配备了 12GB~24GB 甚至更强的高速 LPDDR5X 内存，单核与多核算力媲美轻薄笔记本，更拥有完整的 Linux 用户态环境（Termux AArch64）。既然手机硬件已经过剩，<strong>我们为什么不让手机上的 Antigravity CLI 充当全天候待命的主力程序员，而我们自己只做顶层架构师与战略决策者？</strong></li>
+<li><strong>随身携带的自主研发中心</strong>：利用 Antigravity CLI 的免审批自主流水线，配合 Shizuku 穿透沙盒提权与本地无头浏览器（Headless Chromium），我的开发工作流彻底被解放了 —— 通勤电梯里、咖啡厅靠窗位、甚至在户外散步时，我只需在聊天界面下达几句自然语言指令，智能体便在手机本地静默完成编写、编译、测试与纠错。锁屏放回口袋，几分钟后掏出手机，一个经过工业级断言验证的阶段性成果就已经赫然就绪。</li>
+</ol>
+<div class="codehilite"><pre><span></span><code><span class="k">[ 我在手机聊天窗口下达自然语言战略决策 ]</span>
+<span class="w">                    </span><span class="na">│</span>
+<span class="w">                    </span><span class="na">▼</span>
+<span class="w">       </span><span class="na">┌───────────────────────────┐</span>
+<span class="w">       </span><span class="na">│     Antigravity CLI       │ (手机 Termux 内部的自主主力程序员)</span>
+<span class="w">       </span><span class="na">└─────────────┬─────────────┘</span>
+<span class="w">                     </span><span class="na">│</span>
+<span class="w">           </span><span class="na">┌─────────┴─────────┐</span>
+<span class="w">           </span><span class="na">▼                   ▼</span>
+<span class="w">     </span><span class="k">[ 智能代码编写与本地编译 ] [ 提权调用 Shizuku / rish ]</span>
+<span class="w">           </span><span class="na">│                   │</span>
+<span class="w">           </span><span class="na">▼                   ▼</span>
+<span class="w">     </span><span class="k">[ 本地轻量 Web 守护 ]     [ 无头浏览器后台静默自动化验收 ]</span>
+<span class="w">           </span><span class="na">│                   │</span>
+<span class="w">           </span><span class="na">└─────────┬─────────┘</span>
+<span class="w">                     </span><span class="na">│</span>
+<span class="w">                     </span><span class="na">▼</span>
+<span class="w">          </span><span class="na">┌─────────────────────┐</span>
+<span class="w">          </span><span class="na">│  Android 宿主浏览器  │ (阶段性成果直达、真机触感核验)</span>
+<span class="w">          </span><span class="na">└─────────────────────┘</span>
+</code></pre></div>
+
+<p>在这篇文章中，我将毫无保留地分享我的整套调优链路、踩坑实录，并以一个我完全用手机指挥 Antigravity CLI 从 0 到 1 搓出来的原创游戏《软乎乎大冒险 1991》为例，带你亲眼见证这种<strong>颠覆传统工位绑定的移动端全新工作方式</strong>。</p>
 <hr />
-<h2>第 1 章：我的基石环境搭建：Termux 与 Agent CLI 避坑指南</h2>
+<h2>第 1 章：我的基石环境搭建：Termux 与 Antigravity CLI 避坑指南</h2>
 <h3>1.1 依赖安装与 AArch64 环境配置</h3>
 <p>在手机上安装最新版 Termux：
 - <strong>GitHub 官方发布下载地址</strong>：<a href="https://github.com/termux/termux-app/releases">https://github.com/termux/termux-app/releases</a><br />
 <em>（选择下载 <code>termux-app_v..._arm64-v8a.apk</code> 或 <code>universal</code> 版本；</em><em>切勿使用 Google Play 商店版本</em><em>，其因 Android 政策限制已停止维护）</em>。</p>
 <p>进入终端后，首先升级软件源并安装核心开发套件：</p>
-<pre><code class="language-bash"># 1. 换国内优质源（可选）并升级基础依赖
-pkg update -y &amp;&amp; pkg upgrade -y
+<div class="codehilite"><pre><span></span><code><span class="c1"># 1. 换国内优质源（可选）并升级基础依赖</span>
+pkg<span class="w"> </span>update<span class="w"> </span>-y<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>pkg<span class="w"> </span>upgrade<span class="w"> </span>-y
 
-# 2. 安装 Node.js LTS、Python、Git、Curl 与编译依赖
-pkg install -y nodejs-lts python git curl build-essential
+<span class="c1"># 2. 安装 Node.js LTS、Python、Git、Curl 与编译依赖</span>
+pkg<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>nodejs-lts<span class="w"> </span>python<span class="w"> </span>git<span class="w"> </span>curl<span class="w"> </span>build-essential
 
-# 3. 安装用于图像生成与视觉校准的 Pillow 库 (Termux 预编译包)
-pkg install -y python-pillow
+<span class="c1"># 3. 安装用于图像生成与视觉校准的 Pillow 库 (Termux 预编译包)</span>
+pkg<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>python-pillow
 
-# 4. 申请存储权限（使 Termux 能访问手机内部存储 /sdcard）
+<span class="c1"># 4. 申请存储权限（使 Termux 能访问手机内部存储 /sdcard）</span>
 termux-setup-storage
-</code></pre>
+</code></pre></div>
+
 <hr />
 <hr />
 <h3>1.2 我总结的 Termux 黄金“避坑四准则”</h3>
@@ -375,15 +380,16 @@ termux-setup-storage
 <hr />
 <h3>1.3 Antigravity CLI 安装与解放双手的免审批配置</h3>
 <p>Antigravity CLI 是我指挥整个系统的 Agent 大脑中枢。在 Termux 中执行官方一键安装脚本：</p>
-<pre><code class="language-bash"># 1. 一键安装 Antigravity CLI
-curl -fsSL antigravity.google/cli/install.sh | bash
+<div class="codehilite"><pre><span></span><code><span class="c1"># 1. 一键安装 Antigravity CLI</span>
+curl<span class="w"> </span>-fsSL<span class="w"> </span>antigravity.google/cli/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash
 
-# 2. 关键避坑：将安装目录追加至 PATH（Termux 默认未包含 ~/.local/bin）
-echo 'export PATH=&quot;$HOME/.local/bin:$PATH&quot;' &gt;&gt; ~/.bashrc &amp;&amp; source ~/.bashrc
+<span class="c1"># 2. 关键避坑：将安装目录追加至 PATH（Termux 默认未包含 ~/.local/bin）</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s1">'export PATH="$HOME/.local/bin:$PATH"'</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>~/.bashrc<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">source</span><span class="w"> </span>~/.bashrc
 
-# 3. 验证并启动智能体
+<span class="c1"># 3. 验证并启动智能体</span>
 agy
-</code></pre>
+</code></pre></div>
+
 <blockquote>
 <p>⚠️ <strong>避坑提示（No command agy found）</strong>：<br />
 安装程序默认将可执行文件放于 <code>~/.local/bin/agy</code>。若未执行第 2 步，直接输入 <code>agy</code> 会报找不到命令错误。写入 <code>~/.bashrc</code> 刷新后即可全局使用（若未立即生效，重启一次 Termux 即可）。</p>
@@ -391,10 +397,11 @@ agy
 <h4>开启自主决策免审批（解放双手的核心配置）</h4>
 <p>在手机端搞高频开发，如果智能体每修改一个文件、执行一条常规命令都要跳出弹窗让我点击确认，开发节奏会被严重割裂，人会极其疲惫。因此我的核心配置就是<strong>开启免审批自主权限</strong>：</p>
 <p>配置文件路径：<a href="file:///data/data/com.termux/files/home/.gemini/antigravity-cli/settings.json"><code>~/.gemini/antigravity-cli/settings.json</code></a></p>
-<pre><code class="language-json">{
-  &quot;toolPermission&quot;: &quot;always-proceed&quot;
-}
-</code></pre>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"toolPermission"</span><span class="p">:</span><span class="w"> </span><span class="s2">"always-proceed"</span>
+<span class="p">}</span>
+</code></pre></div>
+
 <blockquote>
 <p><strong>💡 我的大模型选型建议（自动跟随，永不过时）</strong>：<br />
 - <strong>默认最佳实践（自动平滑升级）</strong>：在配置文件中<strong>无需配置 <code>model</code> 字段</strong>。Antigravity 会自动由云端调度中心分配当前最新、最强大的官方推荐主力大模型。未来大模型代际升级时，<strong>无需修改任何配置文件</strong>，就能无缝享受新模型的智力跃升。
@@ -408,25 +415,26 @@ agy
 <h3>1.4 给智能体注入灵魂：我的 <code>GEMINI.md</code> 全局记忆法</h3>
 <p>为了让智能体每次被我唤起时，都能时刻清醒地知道自己身处<strong>“安卓手机 Termux 运行载体”</strong>，而不是幻想自己在一台 Linux 服务器上，我建立了一份全局记忆规范文件。</p>
 <p>全局规则文件统一保存在：<code>~/.gemini/config/GEMINI.md</code></p>
-<pre><code class="language-markdown"># 全局用户偏好与开发记忆 (Global Preferences &amp; Memory)
+<div class="codehilite"><pre><span></span><code><span class="gh"># 全局用户偏好与开发记忆 (Global Preferences &amp; Memory)</span>
 
-## 1. 核心运行载体：Android 手机系统的 Termux 终端
-&gt; **最高执行原则**：智能体时刻明确自身运行在安卓手机终端 (Termux on Android)，严禁代入标准 PC/Linux 桌面服务器习惯，严格遵守以下操作规范：
-- 严禁使用 sudo 命令：Termux 默认无 sudo。系统级操作优先调用已配置好的 Shizuku 提权工具 `rish`（具备 shell 用户和 ext_data_rw 权限）。
-- 严禁依赖 systemd / systemctl：后台服务一律使用 nohup 或轻量任务守护。
-- 严禁使用 PC 桌面级音频/声卡工具：音频交互优先使用浏览器 Web Audio API 代码合成。
-- 严禁调用 PC 桌面 GUI 窗口：可视化交互一律构建为 Web 本地服务，唤起宿主浏览器必须使用 `termux-open-url`。
-- 包管理工具规范：安装依赖一律使用 `pkg install`。
+<span class="gu">## 1. 核心运行载体：Android 手机系统的 Termux 终端</span>
+<span class="k">&gt; </span><span class="ge">**最高执行原则**：智能体时刻明确自身运行在安卓手机终端 (Termux on Android)，严禁代入标准 PC/Linux 桌面服务器习惯，严格遵守以下操作规范：</span>
+<span class="k">-</span><span class="w"> </span>严禁使用 sudo 命令：Termux 默认无 sudo。系统级操作优先调用已配置好的 Shizuku 提权工具 <span class="sb">`rish`</span>（具备 shell 用户和 ext_data_rw 权限）。
+<span class="k">-</span><span class="w"> </span>严禁依赖 systemd / systemctl：后台服务一律使用 nohup 或轻量任务守护。
+<span class="k">-</span><span class="w"> </span>严禁使用 PC 桌面级音频/声卡工具：音频交互优先使用浏览器 Web Audio API 代码合成。
+<span class="k">-</span><span class="w"> </span>严禁调用 PC 桌面 GUI 窗口：可视化交互一律构建为 Web 本地服务，唤起宿主浏览器必须使用 <span class="sb">`termux-open-url`</span>。
+<span class="k">-</span><span class="w"> </span>包管理工具规范：安装依赖一律使用 <span class="sb">`pkg install`</span>。
 
-## 2. 交互与设计原则（移动端第一）
-- 移动端绝对优先：所有前端页面、Web 演示或小游戏，默认只考虑移动端触屏交互，无需适配 PC 键盘鼠标。
-- 触屏友好交互：提供触摸滑动式虚拟摇杆、大号按键、连发支持、防误触与震动反馈（Haptic Feedback）。
-- 语言偏好：中文交流，结构清晰。
+<span class="gu">## 2. 交互与设计原则（移动端第一）</span>
+<span class="k">-</span><span class="w"> </span>移动端绝对优先：所有前端页面、Web 演示或小游戏，默认只考虑移动端触屏交互，无需适配 PC 键盘鼠标。
+<span class="k">-</span><span class="w"> </span>触屏友好交互：提供触摸滑动式虚拟摇杆、大号按键、连发支持、防误触与震动反馈（Haptic Feedback）。
+<span class="k">-</span><span class="w"> </span>语言偏好：中文交流，结构清晰。
 
-## 3. 项目与文件管理规范
-- 开发主目录：统一存放在 `~/projects/&lt;项目名&gt;`。
-- 成果交付：生成的单文件、产物或报告，按需同步一份到 `/storage/emulated/0/Download/tank-game-tutorial/` 或 `~/storage/downloads/`。
-</code></pre>
+<span class="gu">## 3. 项目与文件管理规范</span>
+<span class="k">-</span><span class="w"> </span>开发主目录：统一存放在 <span class="sb">`~/projects/&lt;项目名&gt;`</span>。
+<span class="k">-</span><span class="w"> </span>成果交付：生成的单文件、产物或报告，按需同步一份到 <span class="sb">`/storage/emulated/0/Download/tank-game-tutorial/`</span> 或 <span class="sb">`~/storage/downloads/`</span>。
+</code></pre></div>
+
 <p>有了这份全局记忆，智能体绝不会再去写 PC 端 <code>Ctrl+C</code>、<code>WASD</code> 键盘监听这种废代码，而是直奔移动端全屏布局与触控手势。</p>
 <hr />
 <h2>第 2 章：我是如何突破沙盒瓶颈的：Shizuku (<code>rish</code>) 系统级提权全指南</h2>
@@ -448,46 +456,52 @@ agy
 <hr />
 <h3>2.3 部署 <code>rish</code> 工具链与我踩平的 Android 14 内存权限深坑</h3>
 <p>在 Shizuku 启动成功后，需要将 <code>rish</code> 二进制文件与 DEX 运行库挂载到 Termux 环境中：</p>
-<pre><code class="language-bash"># 1. 在 Shizuku App 中点击“使用终端应用”，导出 rish 文件到 Downloads
-# 随后在 Termux 中将其拷贝到系统可执行目录
-cp ~/storage/downloads/shizuku/rish $PREFIX/bin/rish
-cp ~/storage/downloads/shizuku/rish_shizuku.dex $PREFIX/bin/rish_shizuku.dex
+<div class="codehilite"><pre><span></span><code><span class="c1"># 1. 在 Shizuku App 中点击“使用终端应用”，导出 rish 文件到 Downloads</span>
+<span class="c1"># 随后在 Termux 中将其拷贝到系统可执行目录</span>
+cp<span class="w"> </span>~/storage/downloads/shizuku/rish<span class="w"> </span><span class="nv">$PREFIX</span>/bin/rish
+cp<span class="w"> </span>~/storage/downloads/shizuku/rish_shizuku.dex<span class="w"> </span><span class="nv">$PREFIX</span>/bin/rish_shizuku.dex
 
-# 2. 赋予执行权限
-chmod +x $PREFIX/bin/rish
-</code></pre>
+<span class="c1"># 2. 赋予执行权限</span>
+chmod<span class="w"> </span>+x<span class="w"> </span><span class="nv">$PREFIX</span>/bin/rish
+</code></pre></div>
+
 <h4>关键坑点 1：配置正确的调用者包名</h4>
 <p>打开 <code>$PREFIX/bin/rish</code>，必须找到 <code>PKG</code> 变量并显式指定为 Termux 的包名：</p>
-<pre><code class="language-bash"># 编辑 $PREFIX/bin/rish 的第 17 行左右
-PKG=&quot;com.termux&quot;
-</code></pre>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 编辑 $PREFIX/bin/rish 的第 17 行左右</span>
+<span class="nv">PKG</span><span class="o">=</span><span class="s2">"com.termux"</span>
+</code></pre></div>
+
 <h4>关键坑点 2：Android 14+ W^X 内存安全保护（致命错误修复）</h4>
 <p>在 Android 14 及以上系统中，若 <code>rish_shizuku.dex</code> 具备可写权限，Android 底层的 <code>app_process</code> 会因安全策略触发 <code>Failure to load dex: file is writable</code> 致命崩溃。</p>
 <p><strong>必做修复</strong>：将 dex 文件的写权限全部剥离，设置为只读：</p>
-<pre><code class="language-bash">chmod 400 $PREFIX/bin/rish_shizuku.dex
-</code></pre>
+<div class="codehilite"><pre><span></span><code>chmod<span class="w"> </span><span class="m">400</span><span class="w"> </span><span class="nv">$PREFIX</span>/bin/rish_shizuku.dex
+</code></pre></div>
+
 <hr />
 <h3>2.4 系统级控制验证：截屏、点击与按键模拟</h3>
 <p>完成上述配置后，我在 Termux 终端直接测试提权状态：</p>
-<pre><code class="language-bash"># 验证 shell 提权是否成功
-rish -c id
-</code></pre>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 验证 shell 提权是否成功</span>
+rish<span class="w"> </span>-c<span class="w"> </span>id
+</code></pre></div>
+
 <p><strong>成功输出示例</strong>：</p>
-<pre><code>uid=2000(shell) gid=2000(shell) groups=2000(shell),1004(input),1007(log),1015(sdcard_rw),1028(sdcard_r),3003(inet),3011(ext_data_rw)
-</code></pre>
+<div class="codehilite"><pre><span></span><code>uid=2000(shell) gid=2000(shell) groups=2000(shell),1004(input),1007(log),1015(sdcard_rw),1028(sdcard_r),3003(inet),3011(ext_data_rw)
+</code></pre></div>
+
 <p>看到 <code>uid=2000(shell)</code> 与 <code>ext_data_rw</code> 权限，说明提权大功告成！现在智能体已经拥有了操控整部手机的系统级能力：</p>
-<pre><code class="language-bash"># 截取真机当前屏幕并保存至相册
-rish -c screencap -p /sdcard/Download/current_screen.png
+<div class="codehilite"><pre><span></span><code><span class="c1"># 截取真机当前屏幕并保存至相册</span>
+rish<span class="w"> </span>-c<span class="w"> </span>screencap<span class="w"> </span>-p<span class="w"> </span>/sdcard/Download/current_screen.png
 
-# 模拟在屏幕坐标 (540, 1200) 点击一下
-rish -c input tap 540 1200
+<span class="c1"># 模拟在屏幕坐标 (540, 1200) 点击一下</span>
+rish<span class="w"> </span>-c<span class="w"> </span>input<span class="w"> </span>tap<span class="w"> </span><span class="m">540</span><span class="w"> </span><span class="m">1200</span>
 
-# 模拟从下往上滑动（上滑手势）
-rish -c input swipe 540 1600 540 800 200
+<span class="c1"># 模拟从下往上滑动（上滑手势）</span>
+rish<span class="w"> </span>-c<span class="w"> </span>input<span class="w"> </span>swipe<span class="w"> </span><span class="m">540</span><span class="w"> </span><span class="m">1600</span><span class="w"> </span><span class="m">540</span><span class="w"> </span><span class="m">800</span><span class="w"> </span><span class="m">200</span>
 
-# 发送物理按键事件（如返回键KEYCODE_BACK=4，HOME键=3）
-rish -c input keyevent 4
-</code></pre>
+<span class="c1"># 发送物理按键事件（如返回键KEYCODE_BACK=4，HOME键=3）</span>
+rish<span class="w"> </span>-c<span class="w"> </span>input<span class="w"> </span>keyevent<span class="w"> </span><span class="m">4</span>
+</code></pre></div>
+
 <hr />
 <h2>第 3 章：移动端开发闭环：为什么我用“双模自动化”代替人工点屏幕</h2>
 <p>在手机上让智能体写代码，最怕的就是陷入“改完代码 ➔ 我手动切到浏览器刷新 ➔ 眯着眼睛找错 ➔ 再切回终端给 AI 描述问题”的低效泥潭。</p>
@@ -549,8 +563,8 @@ rish -c input keyevent 4
 <li><strong>闭环自愈</strong>：截图经由智能体视觉模型理解后，如发现样式错位或逻辑异常，智能体直接原地修改代码并触发重载，形成无人值守的自动化打磨流程。</li>
 </ol>
 <hr />
-<h2>第 4 章：实战案例复盘 —— 我是如何用 Agent CLI 搓出原创游戏《软乎乎大冒险》的</h2>
-<p>为了真正验证移动端自主智能体的生产力上限，我决定进行一项极限挑战：<strong>在完全不触碰 PC、不借助任何现成素材与外部音频的前提下，只用自然语言指挥手机里的 Agent CLI，从零纯自制一款完整的掌机动作解谜游戏 ——《软乎乎大冒险 1991》（Squishy Buddies）。</strong></p>
+<h2>第 4 章：实战案例复盘 —— 我是如何用 Antigravity CLI 搓出原创游戏《软乎乎大冒险》的</h2>
+<p>为了真正验证移动端自主智能体的生产力上限，我决定进行一项极限挑战：<strong>在完全不触碰 PC、不借助任何现成素材与外部音频的前提下，只用自然语言指挥手机里的 Antigravity CLI，从零纯自制一款完整的掌机动作解谜游戏 ——《软乎乎大冒险 1991》（Squishy Buddies）。</strong></p>
 <h3>4.1 需求立项：为什么不做老游戏移植，而死磕“纯原创自制”？</h3>
 <p>在技术验证阶段，很多人可能会选择让 AI 去照搬复刻一个贪吃蛇或打砖块。但我深知，那类开源现成代码满天飞的项目，根本无法检验智能体的真正智力与系统工程能力 —— AI 很可能只是在“背代码”。</p>
 <p>我要的是<strong>真正的原创工程（Original Project）</strong>。我向智能体下达了严苛的立项要求：
@@ -601,7 +615,7 @@ rish -c input keyevent 4
 * 验证 Boss 跳跃抛物线轨迹在全重力下绝不飞出屏幕；
 * 验证震地冲击波的衰减半径与角色受击硬直；
 * 验证气泡碰撞破防判定、受伤无敌闪烁帧与胜利通关画面。</p>
-<p>从一个创意点子，到原创角色美术与物理算法，再到全自动测试验收 —— 全程在一台随身手机上闭环完成。这彻底验证了：<strong>只要工具链得当，移动端 Agent CLI 完全可以承担起严肃复杂的独立软件研发任务！</strong></p>
+<p>从一个创意点子，到原创角色美术与物理算法，再到全自动测试验收 —— 全程在一台随身手机上闭环完成。这彻底验证了：<strong>只要工具链得当，移动端 Antigravity CLI 完全可以承担起严肃复杂的独立软件研发任务！</strong></p>
 <hr />
 <h2>第 5 章：进阶实战拓展 —— 联动 MT 管理器 MCP 服务打造“掌上逆向与工程工作台”</h2>
 <p>如果说前面章节介绍的 <strong>Termux + Shizuku</strong> 组合让智能体拥有了“运行本地服务与真机自动化操控”的能力，那么联动最新版 <strong>MT 管理器的 MCP 服务</strong>，则直接为智能体装上了<strong>“分析、修改、重构 Android APK 字节码与原生 SO 库”</strong>的手术刀。</p>
@@ -637,26 +651,28 @@ rish -c input keyevent 4
 <h4>1. 编辑全局 MCP 配置文件</h4>
 <p>配置文件路径：<a href="file:///data/data/com.termux/files/home/.gemini/config/mcp_config.json"><code>~/.gemini/config/mcp_config.json</code></a></p>
 <p>将 MT 管理器中显示的端口（例如 <code>8787</code>）和 Token 写入配置文件：</p>
-<pre><code class="language-json">{
-  &quot;mcpServers&quot;: {
-    &quot;mt-manager&quot;: {
-      &quot;url&quot;: &quot;http://127.0.0.1:8787/mcp&quot;,
-      &quot;//_comment&quot;: &quot;若在 MT 管理器中开启了安全 Token 认证（推荐），需在此配置 Bearer Token&quot;,
-      &quot;headers&quot;: {
-        &quot;Authorization&quot;: &quot;Bearer 您的MT_MCP_TOKEN&quot;
-      }
-    }
-  }
-}
-</code></pre>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"mcpServers"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"mt-manager"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"url"</span><span class="p">:</span><span class="w"> </span><span class="s2">"http://127.0.0.1:8787/mcp"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"//_comment"</span><span class="p">:</span><span class="w"> </span><span class="s2">"若在 MT 管理器中开启了安全 Token 认证（推荐），需在此配置 Bearer Token"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"headers"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">"Authorization"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Bearer 您的MT_MCP_TOKEN"</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
 <blockquote>
 <p>💡 <strong>Token 认证机制说明</strong>：<br />
 在 MT 管理器侧边栏开启“MCP 服务”时，建议勾选“启用身份验证”。开启后，界面会生成一个专属安全 Token（例如 <code>mtmcp_xxxxxx</code>）。在全局配置中通过 <code>headers</code> 附带 <code>Authorization: Bearer &lt;Token&gt;</code> 即可通过校验。若在本地临时测试且未开启身份认证，则可省略 <code>headers</code> 字典，仅保留 <code>url</code>。</p>
 </blockquote>
 <h4>2. 工作区与安全目录规范</h4>
 <p>MT 管理器的 MCP 服务内置了严格的文件访问沙盒策略（可通过 <code>mt_file_access_policy</code> 查询）。其授权的主工作区路径为：</p>
-<pre><code>/storage/emulated/0/MT2/mcp/
-</code></pre>
+<div class="codehilite"><pre><span></span><code>/storage/emulated/0/MT2/mcp/
+</code></pre></div>
+
 <p>（在 Termux 终端中对应路径为 <code>~/storage/shared/MT2/mcp/</code>）。</p>
 <blockquote>
 <p><strong>最佳实践</strong>：所有待分析、待修改或待重签名的 APK 文件，建议统一放置在该目录下，智能体即可免受 Android 存储权限拦截，直接拥有完备的读写、解包与构建权限。</p>
