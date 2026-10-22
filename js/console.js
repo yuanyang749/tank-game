@@ -39,6 +39,16 @@ class GameBoyConsole {
 
     // Boot up with authentic Game Boy chime
     this.playBootChime();
+
+    // Auto-launch cartridge if ?game=<id> is provided in URL
+    const reqGame = (typeof URLSearchParams !== 'undefined' && window.location && window.location.search)
+      ? new URLSearchParams(window.location.search).get('game')
+      : null;
+    if (reqGame && this.games.includes(reqGame)) {
+      this.menuIndex = this.games.indexOf(reqGame);
+      this.updateMenuSelection();
+      this.loadCartridge(reqGame);
+    }
   }
 
   /* ================= 8-Bit Web Audio Engine ================= */

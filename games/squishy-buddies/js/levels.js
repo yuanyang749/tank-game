@@ -153,6 +153,6 @@ const LEVELS = [
       { x: 235, y: 60 }
     ],
     sludges: [],
-    boss: { x: 190, y: 195, hp: 5 }
+    boss: { x: 190, y: 195, hp: 10 }
   }
 ];

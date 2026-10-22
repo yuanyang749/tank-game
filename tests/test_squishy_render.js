@@ -95,6 +95,7 @@ suite('3. Every screen renders without errors', () => {
   run('Room 5 boss defeated fade-out', () => { g.loadLevel(4); g.triggerBossDefeated(); g.boss.takeDamage(99); });
   run('PAUSED overlay', () => { g.state = 'PAUSED'; });
   run('VICTORY overlay', () => { g.state = 'VICTORY'; });
+  run('GAME_OVER overlay', () => { g.state = 'GAME_OVER'; g.lives = 0; });
   run('Room clear toast', () => { g.loadLevel(1); g.state = 'PLAYING'; g.roomClearBannerTimer = 1.5; });
   assert(stats.nonFinite === 0, 'no NaN / Infinity ever reached a canvas call');
 });

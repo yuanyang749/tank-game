@@ -573,7 +573,7 @@ class SludgeShockwave {
 }
 
 class SludgeBoss {
-  constructor(x, y, hp = 5) {
+  constructor(x, y, hp = 10) {
     this.x = x;
     this.y = y;
     this.startX = x;
@@ -691,7 +691,7 @@ class SludgeBoss {
       }
 
       if (this.stateTimer <= 0) {
-        const canStomp = (this.hp <= 3);
+        const canStomp = (this.hp <= Math.ceil(this.maxHp * 0.6));
         if (canStomp && Math.random() < 0.45) {
           this.state = 'PREPARE_STOMP';
           this.stateTimer = 0.65;
@@ -729,7 +729,7 @@ class SludgeBoss {
         if (audio && audio.playSpit) audio.playSpit();
 
         this.state = 'PATROL';
-        this.stateTimer = Math.max(1.4, 2.6 - (5 - this.hp) * 0.25);
+        this.stateTimer = Math.max(1.4, 2.6 - (this.maxHp - this.hp) * 0.14);
       }
     } else if (this.state === 'PREPARE_STOMP') {
       this.squashY = 0.55 + Math.sin(this.animTimer * 20) * 0.06;

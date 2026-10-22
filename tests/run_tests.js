@@ -874,7 +874,7 @@ suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
   // =========================================================================
   const r5 = env.LEVELS[4];
   assert(r5.id === 5, 'Room 5 id is 5');
-  assert(r5.boss && r5.boss.hp === 5, 'Room 5 has dedicated Boss configured with 5 HP');
+  assert(r5.boss && r5.boss.hp === 10, 'Room 5 has dedicated Boss configured with 10 HP');
   assert(r5.boss.x === 190 && r5.boss.y === 195, 'Boss spawned in central sunken arena');
 
   assert(typeof env.SludgeBoss === 'function', 'SludgeBoss class defined in entities.js');
@@ -883,17 +883,17 @@ suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
 
   const boss = new env.SludgeBoss(r5.boss.x, r5.boss.y, r5.boss.hp);
   assert(boss.radius === 24, 'Boss size is 24px radius (3x normal 8px sludge minion)');
-  assert(boss.hp === 5 && boss.maxHp === 5, 'Boss initialized with 5 HP');
+  assert(boss.hp === 10 && boss.maxHp === 10, 'Boss initialized with 10 HP');
   assert(boss.alive === true, 'Boss is initially alive');
 
   // Damage & Invulnerability window
   const hit1 = boss.takeDamage(1);
   assert(hit1 === true, 'Boss takes damage from first attack');
-  assert(boss.hp === 4, 'Boss HP reduced to 4');
+  assert(boss.hp === 9, 'Boss HP reduced to 9');
   assert(boss.hurtTimer > 0, 'Boss has invulnerability hurt timer after being struck');
   const hitRapid = boss.takeDamage(1);
   assert(hitRapid === false, 'Boss immune to damage during hurtTimer invulnerability window');
-  assert(boss.hp === 4, 'Boss HP preserved during invulnerability');
+  assert(boss.hp === 9, 'Boss HP preserved during invulnerability');
 
   // Blue Float bubble encasing
   boss.hurtTimer = 0;
@@ -915,14 +915,15 @@ suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
   shockwave.update(0.1, r5.grid);
   assert(shockwave.x < boss.x, 'Shockwave propagates along floor to the left');
 
-  // Full Game Instance Room 5 Boss Integration
+  // Full Game Instance Room 5 Boss Integration & 5-Life Player System
   loadScript(audioJs, env);
   loadScript(gameJs, env);
   assert(typeof env.SquishyGame === 'function', 'SquishyGame loaded');
   const game = new env.SquishyGame();
+  assert(game.maxLives === 5 && game.lives === 5, 'Player initialized with 5 lives (maxLives = 5)');
   game.loadLevel(4); // Load Room 5
   assert(game.boss !== null, 'Room 5 loads active Boss instance on game');
-  assert(game.boss.hp === 5, 'Room 5 game boss has 5 HP');
+  assert(game.boss.hp === 10, 'Room 5 game boss has 10 HP');
   assert(game.grid[3][12] === env.T_GATE, 'Ancient gate at row 3 col 12 is initially locked (T_GATE)');
   assert(game.grid[4][10] === env.T_CRACKED, 'Cracked block at row 4 col 10 is initially intact (T_CRACKED)');
 
@@ -937,20 +938,36 @@ suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
   // Combat Interactions: Aerial Stomp, Purple Explosion & Blue Bubble
   game.loadLevel(4);
   game.state = 'PLAYING';
-  assert(game.boss.hp === 5, 'Reset Room 5 has 5 HP boss');
+  assert(game.boss.hp === 10, 'Reset Room 5 has 10 HP boss');
 
   // Aerial Stomp simulation
   game.player.x = game.boss.x;
   game.player.y = game.boss.y - 18; // Falling directly above boss
   game.player.vy = 120; // Falling downward
   game.update(1/60);
-  assert(game.boss.hp === 4, 'Aerial stomp decreases Boss HP by 1');
+  assert(game.boss.hp === 9, 'Aerial stomp decreases Boss HP by 1 (10 -> 9)');
   assert(game.player.vy < -150, 'Aerial stomp launches player upward in recoil bounce');
 
   // Purple Chain Pop explosion damage
   game.boss.hurtTimer = 0; // Reset invulnerability
   game.triggerChainPop(game.boss.x, game.boss.y);
-  assert(game.boss.hp === 3, 'Purple chain pop explosion decreases Boss HP by 1');
+  assert(game.boss.hp === 8, 'Purple chain pop explosion decreases Boss HP by 1 (9 -> 8)');
+
+  // Player 5-Life Deduction & Death Restart from Room 1
+  game.lives = 5;
+  game.invincibleTimer = 0;
+  for (let hitIdx = 1; hitIdx <= 5; hitIdx++) {
+    game.invincibleTimer = 0;
+    game.damagePlayer(false, -100, -100);
+    assert(game.lives === 5 - hitIdx, `Player life deducted to ${5 - hitIdx} on hit #${hitIdx}`);
+  }
+  assert(game.state === 'GAME_OVER', 'Losing all 5 lives triggers GAME_OVER state');
+  game.startGame();
+  assert(game.state === 'PLAYING' && game.levelIndex === 0 && game.lives === 5, 'Restarting after death resets to Room 1 (levelIndex=0) with 5 full lives');
+
+  // Restore Room 5 for remaining Boss tests
+  game.loadLevel(4);
+  game.state = 'PLAYING';
 
   // Blue Float bubble contact encases Boss
   const blueBubble = new env.BubbleEntity(game.boss.x, game.boss.y, 1, 'FLOAT', env.BUDDY_TYPES.BLUE);

@@ -22,7 +22,10 @@ class SquishyGame {
     this.hapticsEnabled = 'vibrate' in navigator;
 
     // Game state
-    this.state = 'TITLE'; // 'TITLE', 'PLAYING', 'PAUSED', 'ROOM_CLEAR', 'VICTORY'
+    this.state = 'TITLE'; // 'TITLE', 'PLAYING', 'PAUSED', 'ROOM_CLEAR', 'VICTORY', 'GAME_OVER'
+    this.maxLives = 5;
+    this.lives = 5;
+    this.invincibleTimer = 0;
     this.levelIndex = 0;
     this.currentLevel = null;
     this.grid = null;
@@ -90,6 +93,38 @@ class SquishyGame {
     this.particles = [];
     this.fx = [];
     this.roomClearBannerTimer = 0;
+    this.invincibleTimer = 0;
+  }
+
+  damagePlayer(respawnAtStart = false, knockVx = 0, knockVy = -120) {
+    if (this.state !== 'PLAYING') return;
+
+    if (respawnAtStart) {
+      this.player.x = this.currentLevel.playerStart.x;
+      this.player.y = this.currentLevel.playerStart.y;
+      this.player.vx = 0;
+      this.player.vy = 0;
+      this.player.onHazard = false;
+    } else {
+      this.player.vx = knockVx;
+      this.player.vy = knockVy;
+    }
+
+    if (this.invincibleTimer > 0) return;
+
+    this.lives = Math.max(0, this.lives - 1);
+    this.invincibleTimer = 1.4;
+    this.screenShakeTimer = Math.max(this.screenShakeTimer || 0, 0.22);
+    this.vibrate([40, 30, 50]);
+    if (this.audio && this.audio.playPop) this.audio.playPop();
+    this.spawnPopParticles(this.player.x, this.player.y, '#FF4D6D');
+
+    if (this.lives <= 0) {
+      this.state = 'GAME_OVER';
+      this.invincibleTimer = 0;
+      if (this.audio && this.audio.stopBgm) this.audio.stopBgm();
+      this.vibrate([60, 40, 80, 40, 120]);
+    }
   }
 
   startStory() {
@@ -125,6 +160,8 @@ class SquishyGame {
   startGame() {
     this.audio.init();
     this.audio.startBgm();
+    this.lives = this.maxLives;
+    this.invincibleTimer = 0;
     this.loadLevel(0);
     this.state = 'PLAYING';
     this.vibrate([15, 30, 20]);
@@ -178,7 +215,7 @@ class SquishyGame {
         return;
       }
 
-      if (this.state === 'VICTORY') {
+      if (this.state === 'VICTORY' || this.state === 'GAME_OVER') {
         if (pressed && (key === 'A' || key === 'START')) {
           this.startGame();
         }
@@ -238,7 +275,7 @@ class SquishyGame {
         this.startStory();
       } else if (this.state === 'STORY') {
         this.nextStorySlide();
-      } else if (this.state === 'VICTORY') {
+      } else if (this.state === 'VICTORY' || this.state === 'GAME_OVER') {
         this.startGame();
       }
     });
@@ -251,6 +288,10 @@ class SquishyGame {
       this.audio.init();
       if (this.state === 'TITLE' && (e.code === 'KeyZ' || e.code === 'Space' || e.code === 'Enter')) {
         this.startStory();
+        return;
+      }
+      if ((this.state === 'VICTORY' || this.state === 'GAME_OVER') && (e.code === 'KeyZ' || e.code === 'Space' || e.code === 'Enter')) {
+        this.startGame();
         return;
       }
       if (this.state === 'STORY') {
@@ -321,6 +362,7 @@ class SquishyGame {
     bindBtn('btn-jump', () => {
       if (this.state === 'TITLE') this.startStory();
       else if (this.state === 'STORY') this.nextStorySlide();
+      else if (this.state === 'VICTORY' || this.state === 'GAME_OVER') this.startGame();
       else if (this.state === 'PLAYING') this.player.jump(this.input);
       this.input.a = true;
     }, () => this.input.a = false);
@@ -344,6 +386,8 @@ class SquishyGame {
       else if (this.state === 'STORY') {
         if (this.storySlideIndex < 3) this.storySlideIndex = 3;
         else this.startGame();
+      } else if (this.state === 'VICTORY' || this.state === 'GAME_OVER') {
+        this.startGame();
       } else {
         this.togglePause();
       }
@@ -466,8 +510,9 @@ class SquishyGame {
     }
     if (this.state !== 'PLAYING') return;
 
-    // Screen shake used to latch on forever once triggered - let it decay
+    // Screen shake & invincibility timers decay
     if (this.screenShakeTimer > 0) this.screenShakeTimer = Math.max(0, this.screenShakeTimer - dt);
+    if (this.invincibleTimer > 0) this.invincibleTimer = Math.max(0, this.invincibleTimer - dt);
 
     // 1. Update Player
     this.player.update(dt, this.input, this.grid, this.audio);
@@ -484,14 +529,8 @@ class SquishyGame {
 
     // Hazard respawn check
     if (this.player.onHazard || this.player.y > CANVAS_H - 8) {
-      this.vibrate([40, 30, 40]);
-      this.audio.playPop();
-      this.spawnPopParticles(this.player.x, this.player.y, this.player.type.color);
-      this.player.x = this.currentLevel.playerStart.x;
-      this.player.y = this.currentLevel.playerStart.y;
-      this.player.vx = 0;
-      this.player.vy = 0;
-      this.player.onHazard = false;
+      this.damagePlayer(true, 0, 0);
+      if (this.state !== 'PLAYING') return;
     }
 
     // 2. Update Bubbles
@@ -580,10 +619,8 @@ class SquishyGame {
       if (s.alive && !s.isEncased) {
         // Check collision with player
         if (Physics.checkCircle(this.player.x, this.player.y, this.player.radius, s.x, s.y, s.radius)) {
-          this.vibrate(30);
-          this.player.vx = (this.player.x > s.x ? 1 : -1) * 120;
-          this.player.vy = -120;
-          this.audio.playPop();
+          this.damagePlayer(false, (this.player.x > s.x ? 1 : -1) * 120, -120);
+          if (this.state !== 'PLAYING') return;
         }
 
         // Check collision with Blue Float bubbles (Encase enemy!)
@@ -649,11 +686,9 @@ class SquishyGame {
             }
           }
         } else if (!this.boss.isEncased) {
-          // Side / bottom body collision knocks player back
-          this.vibrate(30);
-          this.player.vx = (this.player.x > this.boss.x ? 1 : -1) * 140;
-          this.player.vy = -120;
-          this.audio.playPop();
+          // Side / bottom body collision knocks player back & deducts 1 life
+          this.damagePlayer(false, (this.player.x > this.boss.x ? 1 : -1) * 140, -120);
+          if (this.state !== 'PLAYING') return;
         }
       }
     }
@@ -675,11 +710,9 @@ class SquishyGame {
         // Collide with player
         if (proj.alive && Physics.checkCircle(this.player.x, this.player.y, this.player.radius, proj.x, proj.y, proj.radius)) {
           proj.alive = false;
-          this.vibrate(25);
-          this.player.vx = (this.player.x > proj.x ? 1 : -1) * 100;
-          this.player.vy = -100;
-          this.audio.playPop();
           this.spawnPopParticles(proj.x, proj.y, '#5c1c7a');
+          this.damagePlayer(false, (this.player.x > proj.x ? 1 : -1) * 100, -100);
+          if (this.state !== 'PLAYING') return;
         }
       }
     }
@@ -690,11 +723,9 @@ class SquishyGame {
       sw.update(dt, this.grid);
       if (sw.alive) {
         if (Math.abs(this.player.x - sw.x) < 14 && this.player.y >= 202) {
-          this.vibrate(25);
-          this.player.vy = -115;
-          this.player.vx = sw.dir * 80;
-          this.audio.playPop();
           this.spawnPopParticles(sw.x, 215, '#5c1c7a');
+          this.damagePlayer(false, sw.dir * 80, -115);
+          if (this.state !== 'PLAYING') return;
         }
       }
     }
@@ -944,6 +975,7 @@ class SquishyGame {
     else if (this.state === 'STORY') this.renderStoryOverlay(ctx);
     else if (this.state === 'PAUSED') this.renderPauseOverlay(ctx);
     else if (this.state === 'VICTORY') this.renderVictoryOverlay(ctx);
+    else if (this.state === 'GAME_OVER') this.renderGameOverOverlay(ctx);
 
     // Room clear toast
     if (this.state === 'PLAYING' && this.roomClearBannerTimer > 0) {
@@ -1022,7 +1054,10 @@ class SquishyGame {
     const pop = p.switchT == null ? 1 : SquishyFX.outBack(SquishyFX.clamp(p.switchT / 0.28), 2.2);
     const size = SquishyFX.ACTIVE_S * (0.72 + 0.28 * pop);
 
-    this.drawDropletBuddy(ctx, p.x, p.y, p.type, sx, sy, p.facing, false, 1.0, {
+    // Blinking transparency during post-hit invincibility frames
+    const hurtBlink = (this.invincibleTimer > 0 && Math.floor(t * 16) % 2 === 0) ? 0.38 : 1.0;
+
+    this.drawDropletBuddy(ctx, p.x, p.y, p.type, sx, sy, p.facing, false, hurtBlink, {
       feet, rot, eyes, mouth, s: size
     });
   }
@@ -1133,6 +1168,30 @@ class SquishyGame {
       const w = Math.sin(t * 8);
       FX.drawBubble(ctx, boss.x, cy, R + 9, { tint: '#75C8F8', sx: 1 + w * 0.03, sy: 1 - w * 0.03, t });
     }
+
+    // Floating 10-segment micro armor bar right above the Boss in the arena
+    if (boss.alive && boss.state !== 'DEFEATED') {
+      const barW = 54, barH = 4.5;
+      const bx = boss.x - barW / 2;
+      const by = Math.max(24, cy - R - 11);
+      FX.rr(ctx, bx - 1.5, by - 1.5, barW + 3, barH + 3, 2.5);
+      ctx.fillStyle = 'rgba(18, 8, 28, 0.85)';
+      ctx.fill();
+      ctx.lineWidth = 0.8;
+      ctx.strokeStyle = boss.hp <= 3 ? '#FF3B5C' : '#B98CFF';
+      ctx.stroke();
+
+      const totalCells = boss.maxHp || 10;
+      const cellGap = 1;
+      const cellW = (barW - (totalCells - 1) * cellGap) / totalCells;
+      for (let i = 0; i < totalCells; i++) {
+        const cx = bx + i * (cellW + cellGap);
+        ctx.fillStyle = i < boss.hp
+          ? (boss.hp <= 3 ? '#FF3B5C' : '#C864FF')
+          : 'rgba(70, 50, 95, 0.45)';
+        ctx.fillRect(cx, by, cellW, barH);
+      }
+    }
     ctx.restore();
   }
 
@@ -1149,7 +1208,6 @@ class SquishyGame {
     const FX = SquishyFX;
     const t = this.fxTime || 0;
     const p = this.player;
-    const name = p.type.name.split(' ')[0];
     const dewsLeft = this.dews.filter(d => !d.collected).length;
     const dewsTotal = this.dews.length;
     const dewCount = `${dewsTotal - dewsLeft}/${dewsTotal}`;
@@ -1157,66 +1215,125 @@ class SquishyGame {
 
     const buddyIcon = (x) => FX.drawBuddy(ctx, x, 15.2, 3.7, p.type, { eyes: p.isBlinking ? 'closed' : 'open' });
 
+    // 1. Left Panel (x=4, w=68): Collected Water Droplets ("水滴 0/3")
+    FX.panel(ctx, 4, PY, 68, PH, { r: 5, border: this.boss ? '#6A5A8A' : undefined });
+    FX.dropIcon(ctx, 13, 10, 5);
+    FX.text(ctx, '水滴', 21, TY, { size: 8.5, color: '#FFFFFF' });
+    FX.text(ctx, dewCount, 43, TY, { size: 8.5, color: '#7FF0FF' });
+
+    // 2. Center Panel (x=75, w=98): Active Buddy Mini-Icon + Player 5 Hearts (❤️❤️❤️❤️❤️)
+    FX.panel(ctx, 75, PY, 98, PH, { r: 5, border: this.boss ? '#6A5A8A' : undefined });
+    buddyIcon(84);
+    const lowLife = this.lives <= 1;
+    for (let i = 0; i < this.maxLives; i++) {
+      const hx = 98 + i * 15;
+      const filled = i < this.lives;
+      const pulse = filled && lowLife ? 1 + 0.14 * Math.sin(t * 12) : 1;
+      ctx.save();
+      ctx.translate(hx, 10);
+      ctx.scale(pulse * 0.78, pulse * 0.78);
+      FX.heart(ctx, 0, 0, 5.2);
+      if (filled) {
+        const g = ctx.createLinearGradient(0, -5, 0, 4);
+        g.addColorStop(0, '#FF7A9A');
+        g.addColorStop(1, '#FF2255');
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.lineWidth = 0.9;
+        ctx.strokeStyle = '#3A0814';
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,.75)';
+        ctx.beginPath();
+        ctx.ellipse(-2.2, -2.3, 0.95, 0.55, -0.6, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = 'rgba(70, 58, 82, 0.45)';
+        ctx.fill();
+        ctx.lineWidth = 0.85;
+        ctx.strokeStyle = 'rgba(130, 110, 150, 0.55)';
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 3. Right Panel (x=176, w=140): Boss 10-Segment Armor HP Bar (Room 5) OR Room Badge (Rooms 1-4)
     if (this.boss) {
-      // Room 5 Boss Battle HUD
-      // 1. Left: Active Character (compact)
-      FX.panel(ctx, 4, PY, 62, PH, { r: 5, border: '#6A5A8A' });
-      buddyIcon(13);
-      FX.text(ctx, name, 21, TY, { size: 8.5 });
+      const bx = 176, bw = 140;
+      const rageHud = this.boss.hp <= 3;
+      FX.panel(ctx, bx, PY, bw, PH, {
+        r: 5,
+        lw: 1.4,
+        border: rageHud ? '#FF2244' : '#FFD454',
+        top: 'rgba(40,24,60,.95)',
+        bottom: 'rgba(20,10,32,.95)'
+      });
 
-      // 2. Center: Boss HP Bar
-      const bx = 70, bw = 170;
-      const rageHud = this.boss.hp <= 2;
-      FX.panel(ctx, bx, PY, bw, PH, { r: 5, lw: 1.4, border: rageHud ? '#FF2244' : '#FFD454', top: 'rgba(40,24,60,.95)', bottom: 'rgba(20,10,32,.95)' });
-      // tiny boss face
-      const bgr = ctx.createRadialGradient(bx + 8, 8, 0.5, bx + 10, 10, 5);
-      bgr.addColorStop(0, '#6A3A9A'); bgr.addColorStop(1, '#1A0B27');
-      ctx.fillStyle = bgr; ctx.beginPath(); ctx.arc(bx + 10, 10, 4.6, 0, Math.PI * 2); ctx.fill();
-      ctx.lineWidth = 0.8; ctx.strokeStyle = '#0A0510'; ctx.stroke();
+      // Tiny Boss emblem
+      const bgr = ctx.createRadialGradient(bx + 7, 8, 0.5, bx + 9, 10, 4.8);
+      bgr.addColorStop(0, '#7A42B0');
+      bgr.addColorStop(1, '#1A0B27');
+      ctx.fillStyle = bgr;
+      ctx.beginPath();
+      ctx.arc(bx + 9, 10, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 0.8;
+      ctx.strokeStyle = '#0A0510';
+      ctx.stroke();
       ctx.fillStyle = '#FF3B4E';
-      ctx.beginPath(); ctx.arc(bx + 8.5, 9.4, 1, 0, Math.PI * 2); ctx.arc(bx + 11.5, 9.4, 1, 0, Math.PI * 2); ctx.fill();
-      FX.text(ctx, '暗影巨霸', bx + 18, TY, { size: 8, color: rageHud ? '#FF8A98' : '#FFD454' });
+      ctx.beginPath();
+      ctx.arc(bx + 7.6, 9.5, 0.95, 0, Math.PI * 2);
+      ctx.arc(bx + 10.4, 9.5, 0.95, 0, Math.PI * 2);
+      ctx.fill();
 
-      // HP Hearts (vector)
-      const heartsX = bx + 74;
-      for (let i = 0; i < this.boss.maxHp; i++) {
-        const hx = heartsX + i * 17;
+      FX.text(ctx, '巨霸', bx + 15, TY, { size: 8, color: rageHud ? '#FF8A98' : '#FFD454' });
+
+      // 10-Segment Purple/Crimson Boss Armor Gauge
+      const totalCells = this.boss.maxHp || 10;
+      const segStartX = bx + 35;
+      const segW = 5.4;
+      const segGap = 1.4;
+      const segY = 6.2;
+      const segH = 7.6;
+
+      for (let i = 0; i < totalCells; i++) {
+        const sx = segStartX + i * (segW + segGap);
         const filled = i < this.boss.hp;
-        const pulse = filled && rageHud ? 1 + 0.12 * Math.sin(t * 12 + i) : 1;
-        ctx.save();
-        ctx.translate(hx, 10);
-        ctx.scale(pulse * 0.82, pulse * 0.82);
-        FX.heart(ctx, 0, 0, 5.4);
+        FX.rr(ctx, sx, segY, segW, segH, 1.4);
         if (filled) {
-          const g = ctx.createLinearGradient(0, -5, 0, 4);
-          g.addColorStop(0, '#FF7A9A'); g.addColorStop(1, rageHud ? '#E0102E' : '#FF2255');
-          ctx.fillStyle = g; ctx.fill();
-          ctx.lineWidth = 0.9; ctx.strokeStyle = '#3A0814'; ctx.stroke();
-          ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.ellipse(-2.3, -2.4, 1, 0.6, -0.6, 0, Math.PI * 2); ctx.fill();
+          const sg = ctx.createLinearGradient(0, segY, 0, segY + segH);
+          if (rageHud) {
+            sg.addColorStop(0, '#FF7A9A');
+            sg.addColorStop(1, '#E01035');
+          } else {
+            sg.addColorStop(0, '#DF88FF');
+            sg.addColorStop(1, '#8A22D8');
+          }
+          ctx.fillStyle = sg;
+          ctx.fill();
+          ctx.lineWidth = 0.7;
+          ctx.strokeStyle = '#240838';
+          ctx.stroke();
         } else {
-          ctx.fillStyle = 'rgba(80,70,100,.5)'; ctx.fill();
-          ctx.lineWidth = 0.9; ctx.strokeStyle = '#5A4A78'; ctx.stroke();
+          ctx.fillStyle = 'rgba(65, 50, 88, 0.45)';
+          ctx.fill();
+          ctx.lineWidth = 0.6;
+          ctx.strokeStyle = '#4B3968';
+          ctx.stroke();
         }
-        ctx.restore();
       }
 
-      // 3. Right: Dews Counter
-      FX.panel(ctx, this.width - 62, PY, 58, PH, { r: 5, border: '#6A5A8A' });
-      FX.dropIcon(ctx, this.width - 51, 10, 5);
-      FX.text(ctx, dewCount, this.width - 43, TY, { size: 8.5, color: '#7FF0FF' });
+      // Numeric Boss HP readout (e.g. "10/10")
+      FX.text(ctx, `${this.boss.hp}/${totalCells}`, bx + bw - 4, TY, {
+        size: 7.5,
+        color: rageHud ? '#FF8A98' : '#E5C6FF',
+        align: 'right'
+      });
       return;
     }
 
-    // 1. Left Avatar & Dew Counter
-    FX.panel(ctx, 4, PY, 100, PH, { r: 5 });
-    buddyIcon(13);
-    FX.text(ctx, name, 21, TY, { size: 8.5 });
-    FX.dropIcon(ctx, 69, 10, 5);
-    FX.text(ctx, dewCount, 77, TY, { size: 8.5, color: '#7FF0FF' });
-
-    // 2. Right Room Badge
-    FX.panel(ctx, this.width - 100, PY, 96, PH, { r: 5 });
-    FX.text(ctx, this.currentLevel.title, this.width - 94, TY, { size: 8.5, color: '#FFD454' });
+    // Standard Rooms 1-4 Right Panel: Room Title Badge
+    FX.panel(ctx, 176, PY, 140, PH, { r: 5 });
+    FX.text(ctx, this.currentLevel.title, 246, TY, { size: 8.5, color: '#FFD454', align: 'center' });
   }
 
   renderTitleOverlay(ctx) {
@@ -1650,6 +1767,53 @@ class SquishyGame {
     ctx.font = 'bold 12px ' + SquishyFX.FONT;
     ctx.fillText('👉 按 A 或 点击重玩 👈', this.width / 2, 126);
     ctx.textAlign = 'left';
+  }
+
+  renderGameOverOverlay(ctx) {
+    const FX = SquishyFX;
+    const t = this.fxTime || 0;
+    ctx.fillStyle = 'rgba(18, 8, 16, 0.55)';
+    ctx.fillRect(0, 0, this.width, this.height);
+    FX.panel(ctx, 26, 42, this.width - 52, 156, {
+      r: 12,
+      lw: 2,
+      border: '#FF4D6D',
+      top: 'rgba(54, 22, 36, 0.96)',
+      bottom: 'rgba(24, 10, 18, 0.96)'
+    });
+
+    FX.text(ctx, '💔 生命耗尽 · 冒险失败', this.width / 2, 74, {
+      size: 16,
+      color: '#FF6B88',
+      align: 'center',
+      stroke: '#2A0812',
+      strokeW: 3
+    });
+    FX.text(ctx, '5 颗水滴之心已全部破碎，请重整旗鼓！', this.width / 2, 95, {
+      size: 9.5,
+      weight: 'normal',
+      color: '#F0D8E0',
+      align: 'center'
+    });
+
+    // Draw squished dizzy droplet buddy in the middle
+    const type = this.player ? this.player.type : BUDDY_TYPES.YELLOW;
+    const wobble = Math.sin(t * 5) * 0.06;
+    FX.drawBuddy(ctx, this.width / 2, 146, FX.ACTIVE_S * 1.05, type, {
+      sx: 1.22 + wobble,
+      sy: 0.72 - wobble * 0.5,
+      eyes: 'squint',
+      mouth: 'o',
+      look: Math.sin(t * 3) * 0.5
+    });
+
+    const pulse = 0.75 + 0.25 * Math.sin(t * 6);
+    FX.text(ctx, '👉 按 A / START 从第一关重新开始 👈', this.width / 2, 178, {
+      size: 11,
+      color: '#FFD454',
+      align: 'center',
+      alpha: pulse
+    });
   }
 
   animate(timestamp) {
