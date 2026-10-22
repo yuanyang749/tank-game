@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Squishy Buddies 1991 - Elastic Physics & Grid Collision System
+   Squishy Buddies 2006 - Elastic Physics & Grid Collision System
    Squash & Stretch Damped Spring Oscillator + Mobile-First Tile Collision
    ========================================================================== */
 
@@ -22,14 +22,21 @@ const T_CRACKED = 7;     // Breakable block (broken by purple explosion or heavy
 const Physics = {
   // Update squash & stretch spring oscillation toward targetSquashY
   updateSquashSpring(entity, dt) {
-    const k = 220; // spring stiffness
-    const d = 16;  // damping coefficient
-    const diff = entity.targetSquashY - entity.squashY;
-    entity.squashVelY += (diff * k - entity.squashVelY * d) * dt;
-    entity.squashY += entity.squashVelY * dt;
-    
-    // Prevent invert or singularity
-    entity.squashY = Math.max(0.25, Math.min(2.2, entity.squashY));
+    // Jelly spring tuned like the promo film's landSquash: ~3.4 Hz, damping ratio ~0.3
+    // => visible 2-3 wobbles after every landing instead of a single dull rebound.
+    const k = 460; // spring stiffness
+    const d = 13;  // damping coefficient
+
+    // Sub-step so the stiffer spring stays stable even on a laggy 100 ms frame
+    const steps = Math.max(1, Math.ceil(dt / 0.008));
+    const h = dt / steps;
+    for (let i = 0; i < steps; i++) {
+      const diff = entity.targetSquashY - entity.squashY;
+      entity.squashVelY += (diff * k - entity.squashVelY * d) * h;
+      entity.squashY += entity.squashVelY * h;
+      // Prevent invert or singularity
+      entity.squashY = Math.max(0.25, Math.min(2.2, entity.squashY));
+    }
 
     // Volume Conservation: Sx * Sy = 1 -> Sx = 1 / sqrt(Sy)
     entity.squashX = 1 / Math.sqrt(entity.squashY);

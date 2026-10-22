@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Squishy Buddies 1991 - Character, Bubble & Monster Entities
+   Squishy Buddies 2006 - Character, Bubble & Monster Entities
    The 5 Color Droplet IP Roster + 5 Elemental Bubble Types
    ========================================================================== */
 
@@ -107,6 +107,12 @@ class PlayerBuddy {
     this.trail = [];
     this.maxTrail = 60;
 
+    // Cosmetic juice flags (read by the renderer / FX spawner, never by game logic)
+    this.switchT = 1;        // seconds since the last buddy switch (drives the grow-pop)
+    this.lastImpact = 0;     // 0..1 strength of the most recent landing
+    this.justLanded = false;
+    this.justJumped = false;
+
     // Animation & Emotion Timers
     this.blinkTimer = Math.random() * 3 + 2;
     this.isBlinking = false;
@@ -127,6 +133,7 @@ class PlayerBuddy {
     // Pop switch spring
     this.squashY = 0.65;
     this.squashVelY = 14;
+    this.switchT = 0;
   }
 
   nextBuddy() {
@@ -148,6 +155,7 @@ class PlayerBuddy {
       this.onGround = false;
       this.squashY = 1.45; // Launch stretch
       this.squashVelY = -8;
+      this.justJumped = true;
       if (window.squishyAudio) window.squishyAudio.playJump();
     }
   }
@@ -192,6 +200,7 @@ class PlayerBuddy {
   update(dt, input, grid, audio) {
     // 1. Handle Cooldowns & Timers
     if (this.spitCooldown > 0) this.spitCooldown -= dt;
+    if (this.switchT < 1) this.switchT += dt;
     this.blinkTimer -= dt;
     if (this.blinkTimer <= 0) {
       this.isBlinking = !this.isBlinking;
@@ -251,7 +260,8 @@ class PlayerBuddy {
       this.targetSquashY = 0.38; // Pressed flat into a thin pancake
       this.vx *= 0.85; // Slower glide
     } else {
-      this.targetSquashY = 1.0;
+      // Airborne: stretch along the direction of travel (faster = longer jelly)
+      this.targetSquashY = this.onGround ? 1.0 : 1.0 + Math.min(0.3, Math.abs(this.vy) / 1000);
     }
 
     if (!this.isSliding) {
@@ -274,6 +284,7 @@ class PlayerBuddy {
     }
 
     const wasOnGround = this.onGround;
+    const preVy = this.vy; // fall speed right before touching down (drives squash depth)
 
     // 3. Tile Move & Physics
     Physics.resolveTileMove(this, grid, dt);
@@ -284,10 +295,15 @@ class PlayerBuddy {
       this.slideTimer = 0;
     }
 
-    // Landing impact detection
+    // Landing impact detection: harder falls squash deeper and wobble harder
     if (!wasOnGround && this.onGround) {
-      this.squashY = 0.55; // Hard landing squash
-      this.squashVelY = 12;
+      const impact = Math.max(0, Math.min(1, preVy / 520));
+      if (preVy > 40) {
+        this.squashY = 0.78 - 0.28 * impact; // 0.78 (soft) .. 0.50 (hard slam)
+        this.squashVelY = 6 + 8 * impact;
+      }
+      this.lastImpact = impact;
+      this.justLanded = true;
       if (audio) audio.playLand();
     }
 
@@ -295,7 +311,8 @@ class PlayerBuddy {
     Physics.updateSquashSpring(this, dt);
 
     // 4. Save Trail History for Trailing Buddies
-    this.trail.unshift({ x: this.x, y: this.y, facing: this.facing });
+    const halfH = (this.radius || 10) * (this.isCrouched ? 0.4 : 0.85);
+    this.trail.unshift({ x: this.x, y: this.y, facing: this.facing, feet: this.y + halfH });
     if (this.trail.length > this.maxTrail) this.trail.pop();
   }
 }
@@ -314,13 +331,17 @@ class BubbleEntity {
     this.age = 0;
     this.isStuck = false;
     this.wobble = Math.random() * Math.PI * 2;
+    this.jiggle = 0;     // cosmetic: trampoline / hit jelly jiggle (1 -> 0)
+    this.popFx = false;  // cosmetic: set when the bubble pops by itself (timeout / spikes)
   }
 
   update(dt, grid, bubbles) {
     this.age += dt;
     this.wobble += dt * 5;
+    if (this.jiggle > 0) this.jiggle = Math.max(0, this.jiggle - dt * 2.4);
     if (this.age > this.lifetime) {
       this.alive = false;
+      this.popFx = true;
       return;
     }
 
@@ -340,6 +361,8 @@ class BubbleEntity {
       this.vy += 40 * dt;
     }
 
+    const prevX = this.x;
+    const prevY = this.y;
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
@@ -350,10 +373,15 @@ class BubbleEntity {
 
     if (t === T_SOLID || t === T_GATE) {
       if (this.type === 'STICKY') {
+        // Glue onto the surface it touched (not buried inside the stone) so the buddy can really stand on it
+        this.x = prevX;
+        this.y = prevY;
         this.isStuck = true;
         this.vx = 0;
         this.vy = 0;
       } else if (this.type === 'SOLID') {
+        this.x = prevX;
+        this.y = prevY;
         this.vx = 0;
         this.vy = 0;
         this.isStuck = true; // Firmly docks as a stepping platform
@@ -363,6 +391,7 @@ class BubbleEntity {
       }
     } else if (t === T_SPIKE) {
       this.alive = false; // Pops on spikes
+      this.popFx = true;
     }
 
     // Screen bounds
@@ -426,7 +455,8 @@ class SludgeCreep {
 }
 
 class Particle {
-  constructor(x, y, color) {
+  // opts (all optional, purely cosmetic): vx, vy, life, radius, gravity, drag, kind ('dot'|'dust'|'spark'|'star')
+  constructor(x, y, color, opts) {
     this.x = x;
     this.y = y;
     const angle = Math.random() * Math.PI * 2;
@@ -437,12 +467,43 @@ class Particle {
     this.life = 0.35 + Math.random() * 0.2;
     this.maxLife = this.life;
     this.radius = Math.random() * 2.5 + 1.5;
+    this.kind = 'dot';
+    this.gravity = 120;
+    this.drag = 0;
+    if (opts) {
+      for (const k in opts) this[k] = opts[k];
+      this.maxLife = this.life;
+    }
   }
 
   update(dt) {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
-    this.vy += 120 * dt; // Gravity
+    this.vy += this.gravity * dt; // Gravity
+    if (this.drag) {
+      const f = Math.max(0, 1 - this.drag * dt);
+      this.vx *= f;
+      if (this.kind === 'dust') this.vy *= f;
+    }
+    this.life -= dt;
+  }
+}
+
+// Expanding ring / shock ripple (cosmetic only)
+class FxRing {
+  constructor(x, y, color, r1 = 20, life = 0.4, lw = 1.6, flat = 1) {
+    this.x = x;
+    this.y = y;
+    this.color = color;
+    this.r0 = 1.5;
+    this.r1 = r1;
+    this.life = life;
+    this.maxLife = life;
+    this.lw = lw;
+    this.flat = flat; // 1 = circle, <1 = ground ellipse
+  }
+
+  update(dt) {
     this.life -= dt;
   }
 }
@@ -724,6 +785,7 @@ class SludgeBoss {
         if (game) {
           game.screenShakeTimer = 0.35;
           game.vibrate([40, 60, 40]);
+          if (typeof game.onBossLand === 'function') game.onBossLand(this, floorY + this.radius);
           if (game.sludgeShockwaves) {
             game.sludgeShockwaves.push(new SludgeShockwave(this.x - 12, floorY + this.radius - 8, -1));
             game.sludgeShockwaves.push(new SludgeShockwave(this.x + 12, floorY + this.radius - 8, 1));

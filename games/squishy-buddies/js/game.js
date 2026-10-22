@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Squishy Buddies 1991 - Main Game Engine, Canvas Renderer & Controller Bridge
+   Squishy Buddies 2006 - Main Game Engine, Canvas Renderer & Controller Bridge
    Chunky Pixel Visuals, Mochi Follower Train & Game Boy Console Bridge
    ========================================================================== */
 
@@ -8,10 +8,15 @@ class SquishyGame {
     this.canvas = document.getElementById('gameCanvas');
     this.ctx = this.canvas.getContext('2d');
 
-    this.width = CANVAS_W; // 320
+    this.width = CANVAS_W; // 320 (logical units; back-buffer is scaled up for crisp vectors)
     this.height = CANVAS_H; // 240
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
+    this.renderScale = 0;
+    this.layers = null;
+    this.fxTime = 0;
+    this.fx = [];
+    this.resizeBackbuffer();
+    window.addEventListener('resize', () => this.resizeBackbuffer());
+    window.addEventListener('orientationchange', () => this.resizeBackbuffer());
 
     this.audio = window.squishyAudio;
     this.hapticsEnabled = 'vibrate' in navigator;
@@ -83,6 +88,7 @@ class SquishyGame {
 
     this.bubbles = [];
     this.particles = [];
+    this.fx = [];
     this.roomClearBannerTimer = 0;
   }
 
@@ -204,7 +210,7 @@ class SquishyGame {
           if (pressed && this.state === 'PLAYING') {
             const b = this.player.spitBubble();
             if (b) {
-              this.bubbles.push(b);
+              this.pushBubble(b);
               this.vibrate(8);
             }
           }
@@ -267,7 +273,7 @@ class SquishyGame {
           this.input.b = true;
           if (this.state === 'PLAYING') {
             const b = this.player.spitBubble();
-            if (b) this.bubbles.push(b);
+            if (b) this.pushBubble(b);
           }
           break;
         case 'ShiftLeft': case 'KeyC':
@@ -319,7 +325,7 @@ class SquishyGame {
       if (this.state === 'STORY') this.prevStorySlide();
       else if (this.state === 'PLAYING') {
         const b = this.player.spitBubble();
-        if (b) this.bubbles.push(b);
+        if (b) this.pushBubble(b);
       }
       this.input.b = true;
     }, () => this.input.b = false);
@@ -350,11 +356,101 @@ class SquishyGame {
     for (let i = 0; i < 8; i++) {
       this.particles.push(new Particle(this.player.x, this.player.y, this.player.type.color));
     }
+    for (let i = 0; i < 4; i++) {
+      this.particles.push(new Particle(this.player.x, this.player.y, '#FFFFFF', { kind: 'star', life: 0.45 + Math.random() * 0.2, radius: 2.4, gravity: -30 }));
+    }
+    this.fx.push(new FxRing(this.player.x, this.player.y, this.player.type.color, 24, 0.45, 2));
   }
 
-  spawnPopParticles(x, y, color) {
+  spawnPopParticles(x, y, color, ring = true) {
     for (let i = 0; i < 6; i++) {
       this.particles.push(new Particle(x, y, color));
+    }
+    for (let i = 0; i < 3; i++) {
+      this.particles.push(new Particle(x, y, '#FFFFFF', { kind: 'spark', life: 0.26 + Math.random() * 0.14, radius: 1.6 }));
+    }
+    if (ring) this.fx.push(new FxRing(x, y, color, 15 + Math.random() * 5, 0.38, 1.8));
+  }
+
+  // Puffs of dust kicked up at the feet (takeoff, landing, footsteps, slides)
+  spawnDust(x, y, count = 4, power = 1) {
+    const col = this.player ? this.player.type.highlight : '#FFFFFF';
+    for (let i = 0; i < count; i++) {
+      const dir = i % 2 ? 1 : -1;
+      this.particles.push(new Particle(x + dir * Math.random() * 4, y - 1, col, {
+        kind: 'dust',
+        vx: dir * (14 + Math.random() * 34) * power,
+        vy: -(4 + Math.random() * 14),
+        life: 0.32 + Math.random() * 0.2,
+        radius: 1.5 + Math.random() * 1.6,
+        gravity: -6,
+        drag: 4
+      }));
+    }
+  }
+
+  spawnDewBurst(x, y) {
+    for (let i = 0; i < 7; i++) {
+      this.particles.push(new Particle(x, y, i % 2 ? '#7FF0FF' : '#FFFFFF'));
+    }
+    for (let i = 0; i < 4; i++) {
+      this.particles.push(new Particle(x, y, '#FFFFFF', { kind: 'star', life: 0.5 + Math.random() * 0.25, radius: 2.6, gravity: -24 }));
+    }
+    this.fx.push(new FxRing(x, y, '#7FF0FF', 20, 0.45, 2));
+  }
+
+  // Spit puff + a little ripple where the bubble is born
+  pushBubble(b) {
+    // A bubble spat straight into a wall must not be born inside the stone: slide it back out toward the buddy
+    if (this.grid && this.player) {
+      const blocked = (x, y) => { const t = Physics.getTileAt(this.grid, x, y); return t === T_SOLID || t === T_GATE; };
+      for (let guard = 0; guard < 60 && blocked(b.x, b.y); guard++) {
+        b.x += (this.player.x > b.x ? 1 : -1) * 0.75;
+      }
+    }
+    this.bubbles.push(b);
+    this.fx.push(new FxRing(b.x, b.y, b.buddyType.color, 13, 0.3, 1.6));
+    for (let i = 0; i < 3; i++) {
+      this.particles.push(new Particle(b.x, b.y, b.buddyType.highlight, {
+        kind: 'dust', vx: b.vx * 0.2 + (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20,
+        life: 0.28, radius: 1.4, gravity: 0, drag: 4
+      }));
+    }
+  }
+
+  // Boss slam: debris spray + ground ripples (called from SludgeBoss on landing)
+  onBossLand(boss, groundY) {
+    for (let i = 0; i < 12; i++) {
+      const dir = i < 6 ? -1 : 1;
+      this.particles.push(new Particle(boss.x + dir * (6 + Math.random() * 14), groundY - 2, i % 3 ? '#8D7BA8' : '#B98CFF', {
+        vx: dir * (30 + Math.random() * 90), vy: -(30 + Math.random() * 80),
+        life: 0.5 + Math.random() * 0.3, radius: 1.5 + Math.random() * 2, gravity: 300
+      }));
+    }
+    this.fx.push(new FxRing(boss.x, groundY - 3, '#B98CFF', 66, 0.6, 2.4, 0.22));
+    this.fx.push(new FxRing(boss.x, groundY - 3, '#FF3B6B', 48, 0.5, 1.8, 0.22));
+  }
+
+  // Cosmetic per-frame effects driven by the player's physical state (never affects gameplay)
+  updatePlayerFx() {
+    const p = this.player;
+    const feetY = p.y + p.radius * (p.isCrouched ? 0.4 : 0.85);
+    if (p.justJumped) {
+      p.justJumped = false;
+      this.spawnDust(p.x, feetY, 5, 0.7);
+    }
+    if (p.justLanded) {
+      p.justLanded = false;
+      const k = p.lastImpact;
+      this.spawnDust(p.x, feetY, 3 + Math.round(k * 6), 0.6 + k);
+      if (k > 0.35) this.fx.push(new FxRing(p.x, feetY - 1, p.type.highlight, 10 + k * 14, 0.32, 1.6, 0.3));
+    }
+    if (p.onGround && !p.isSliding && Math.abs(p.vx) > 25) {
+      const step = Math.floor(p.walkCycle / Math.PI);
+      if (step !== this._lastStep) {
+        this._lastStep = step;
+        this.spawnDust(p.x - p.facing * p.radius * 0.6, feetY, 1, 0.4);
+      }
     }
   }
 
@@ -367,16 +463,20 @@ class SquishyGame {
     }
     if (this.state !== 'PLAYING') return;
 
+    // Screen shake used to latch on forever once triggered - let it decay
+    if (this.screenShakeTimer > 0) this.screenShakeTimer = Math.max(0, this.screenShakeTimer - dt);
+
     // 1. Update Player
     this.player.update(dt, this.input, this.grid, this.audio);
+    this.updatePlayerFx();
 
     // Slide dust particles
     if (this.player.isSliding && Math.random() < 0.45) {
-      this.particles.push(new Particle(
+      this.spawnDust(
         this.player.x - this.player.facing * (this.player.radius * 0.8),
-        this.player.y + 4,
-        '#ffffff'
-      ));
+        this.player.y + this.player.radius * 0.4,
+        1, 0.5
+      );
     }
 
     // Hazard respawn check
@@ -405,7 +505,10 @@ class SquishyGame {
             this.player.squashY = 1.6;
             this.audio.playJump();
             this.vibrate(18);
-            this.spawnPopParticles(b.x, b.y, b.buddyType.color);
+            if (!(b.jiggle > 0.4)) {
+              b.jiggle = 1; // jelly jiggle + a single burst per bounce
+              this.spawnPopParticles(b.x, b.y, b.buddyType.color);
+            }
           } else if (b.type === 'SOLID') {
             // Firm solid ledge
             if (this.player.vy > 0 && this.player.y < b.y) {
@@ -421,8 +524,8 @@ class SquishyGame {
               this.player.onGround = true;
             }
           } else if (b.type === 'STICKY') {
-            // Sticky climb peg
-            if (this.player.y < b.y) {
+            // Sticky climb peg (catches a falling / standing buddy, never one that is jumping up off it)
+            if (this.player.vy >= 0 && this.player.y < b.y) {
               this.player.y = b.y - b.radius - this.player.radius * 0.6;
               this.player.vy = 0;
               this.player.onGround = true;
@@ -437,11 +540,20 @@ class SquishyGame {
         }
       }
     }
+    // Bubbles that pop on their own (timeout / spikes) still get a pop effect
+    for (let b of this.bubbles) {
+      if (!b.alive && b.popFx) {
+        b.popFx = false;
+        this.spawnPopParticles(b.x, b.y, b.buddyType.color);
+      }
+    }
     this.bubbles = this.bubbles.filter(b => b.alive);
 
     // 3. Update Dews
     for (let d of this.dews) {
+      const wasCollected = d.collected;
       d.update(dt, this.player, this.audio);
+      if (!wasCollected && d.collected) this.spawnDewBurst(d.x, d.y);
     }
 
     // Check if all dews collected to unlock gate (or boss defeated if boss present)
@@ -585,9 +697,11 @@ class SquishyGame {
     }
     this.sludgeShockwaves = this.sludgeShockwaves.filter(sw => sw.alive);
 
-    // 5. Update Particles
+    // 5. Update Particles & FX rings
     for (let p of this.particles) p.update(dt);
     this.particles = this.particles.filter(p => p.life > 0);
+    for (let f of this.fx) f.update(dt);
+    this.fx = this.fx.filter(f => f.life > 0);
 
     // 6. Check Goal Reached
     const pCol = Math.floor(this.player.x / TILE_SIZE);
@@ -678,46 +792,116 @@ class SquishyGame {
 
   /* ================= Canvas Graphics & Rendering ================= */
 
+  // The back-buffer follows the real on-screen size (up to 4x the 320x240 logical grid)
+  // so every outline, bubble highlight and eye sparkle stays razor sharp on phones.
+  resizeBackbuffer() {
+    let s = 4;
+    try {
+      const rect = this.canvas.getBoundingClientRect ? this.canvas.getBoundingClientRect() : null;
+      const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+      if (rect && rect.width > 0 && rect.height > 0) {
+        s = Math.ceil(Math.min(rect.width / this.width, rect.height / this.height) * dpr);
+      }
+    } catch (e) { /* fall back to 4x */ }
+    s = Math.max(2, Math.min(4, s));
+    if (s !== this.renderScale) {
+      this.renderScale = s;
+      this.canvas.width = this.width * s;
+      this.canvas.height = this.height * s;
+      this.layers = null;
+    }
+  }
+
+  // Cached map layers: backdrop, merged tile terrain, vignette (rebuilt only when needed)
+  getLayers(th) {
+    const S = this.renderScale;
+    let sig = 0;
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) sig = (Math.imul(sig, 31) + this.grid[r][c] + 1) | 0;
+    }
+    if (!this.layers || this.layers.S !== S || this.layers.themeId !== th.id) {
+      this.layers = {
+        S, themeId: th.id, sig: null, tiles: null,
+        backdrop: SquishyFX.buildBackdrop(th, S),
+        vignette: SquishyFX.buildVignette(th, S)
+      };
+    }
+    if (this.layers.sig !== sig) {
+      this.layers.tiles = SquishyFX.buildTileLayer(this.grid, th, S);
+      this.layers.sig = sig;
+    }
+    return this.layers;
+  }
+
+  // y of the first walkable surface below (x, y) - used for soft ground shadows
+  groundBelow(x, y) {
+    const col = Math.floor(x / TILE_SIZE);
+    if (col < 0 || col >= GRID_COLS) return null;
+    for (let r = Math.max(0, Math.floor(y / TILE_SIZE)); r < GRID_ROWS; r++) {
+      const t = this.grid[r][col];
+      if (t === T_SOLID || t === T_CRACKED || t === T_GATE || t === T_CRAWLWAY) {
+        const top = r * TILE_SIZE;
+        if (top >= y - 1) return top;
+      }
+    }
+    return CANVAS_H - 4;
+  }
+
+  drawGroundShadow(ctx, th, x, feetY, halfWidth, strength = 1) {
+    const gy = this.groundBelow(x, feetY);
+    if (gy == null) return;
+    const h = Math.max(0, gy - feetY);
+    SquishyFX.drawShadow(ctx, x, gy, halfWidth * (1 - Math.min(0.45, h / 220)), strength * (1 - h / 110), th);
+  }
+
   render() {
     const ctx = this.ctx;
+    const FX = SquishyFX;
+    const S = this.renderScale || 1;
+    const t = this.fxTime || 0;
+    const th = FX.themeFor(this.levelIndex);
+
+    if (ctx.setTransform) ctx.setTransform(S, 0, 0, S, 0, 0);
+    // canvas state persists between frames - always start from a clean slate
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.lineCap = 'butt';
+    ctx.lineJoin = 'miter';
     ctx.clearRect(0, 0, this.width, this.height);
 
-    // Apply Screen Shake if active
+    const L = this.getLayers(th);
+
     ctx.save();
+    // Screen shake: smooth decaying wobble (timer counts down in update)
     if (this.screenShakeTimer > 0) {
-      const intensity = Math.min(5, this.screenShakeTimer * 10);
-      const sx = (Math.random() - 0.5) * intensity;
-      const sy = (Math.random() - 0.5) * intensity;
-      ctx.translate(sx, sy);
+      const k = Math.min(1, this.screenShakeTimer / 0.5);
+      ctx.translate(Math.sin(t * 85) * 3.6 * k * k, Math.cos(t * 67) * 2.8 * k * k);
     }
 
-    // 1. Soft Pastel Sky Background (Retro Daybreak)
-    const bgGradient = ctx.createLinearGradient(0, 0, 0, this.height);
-    bgGradient.addColorStop(0, '#1c2035');
-    bgGradient.addColorStop(1, '#2a3148');
-    ctx.fillStyle = bgGradient;
-    ctx.fillRect(0, 0, this.width, this.height);
+    // 1. Themed backdrop + drifting ambience
+    ctx.fillStyle = th.skyBot;
+    ctx.fillRect(-8, -8, this.width + 16, this.height + 16);
+    ctx.drawImage(L.backdrop, 0, 0, this.width, this.height);
+    FX.drawAmbient(ctx, th, t);
 
-    // Subtle LCD Grid Scanline
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
-    for (let y = 0; y < this.height; y += 3) {
-      ctx.fillRect(0, y, this.width, 1);
-    }
+    // 2. Tilemap (cached) + animated tiles
+    this.renderTiles(ctx, L, th, t);
 
-    // 2. Render Tilemap
-    this.renderTiles(ctx);
+    // 3. Soft ground shadows
+    this.renderShadows(ctx, th);
 
-    // 3. Render Bubbles
+    // 4. Bubbles
     for (let b of this.bubbles) {
       this.drawBubble(ctx, b);
     }
 
-    // 4. Render Dew Drops
+    // 5. Dew Drops
     for (let d of this.dews) {
       if (!d.collected) this.drawDewDrop(ctx, d);
     }
 
-    // 5. Render Sludge Creeps & Boss
+    // 6. Sludge Creeps & Boss
     for (let s of this.sludges) {
       if (s.alive) this.drawSludge(ctx, s);
     }
@@ -734,27 +918,25 @@ class SquishyGame {
       this.drawSludgeShockwave(ctx, sw);
     }
 
-    // 6. Render Trailing Mochi Parade (Followers)
+    // 7. Trailing Mochi Parade (Followers)
     this.renderFollowers(ctx);
 
-    // 7. Render Active Player Buddy
-    this.drawDropletBuddy(ctx, this.player.x, this.player.y, this.player.type, this.player.squashX, this.player.squashY, this.player.facing, this.player.isBlinking);
+    // 8. Active Player Buddy
+    this.drawPlayer(ctx);
 
-    // 8. Render Particles
-    for (let p of this.particles) {
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.radius * (p.life / p.maxLife), 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // 9. Impact rings & particles
+    for (let f of this.fx || []) FX.drawRing(ctx, f);
+    for (let p of this.particles) FX.drawParticle(ctx, p);
 
     // End Screen Shake transformation before rendering HUD
     ctx.restore();
 
-    // 9. Floating Micro HUD
+    ctx.drawImage(L.vignette, 0, 0, this.width, this.height);
+
+    // 10. Floating Micro HUD
     this.renderMicroHud(ctx);
 
-    // 10. Overlays
+    // 11. Overlays
     if (this.state === 'TITLE') this.renderTitleOverlay(ctx);
     else if (this.state === 'STORY') this.renderStoryOverlay(ctx);
     else if (this.state === 'PAUSED') this.renderPauseOverlay(ctx);
@@ -762,498 +944,303 @@ class SquishyGame {
 
     // Room clear toast
     if (this.state === 'PLAYING' && this.roomClearBannerTimer > 0) {
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-      ctx.fillRect(20, 100, this.width - 40, 36);
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(20, 100, this.width - 40, 36);
-
-      ctx.fillStyle = '#ffd700';
-      ctx.font = 'bold 12px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('★ 泉眼净化成功！进入下一关 ★', this.width / 2, 122);
-      ctx.textAlign = 'left';
+      const p = FX.outBack(FX.seg(2.0 - this.roomClearBannerTimer, 0, 0.3), 1.8);
+      const fade = FX.clamp(this.roomClearBannerTimer / 0.35);
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.translate(this.width / 2, 118);
+      ctx.scale(p, p);
+      FX.panel(ctx, -150, -19, 300, 38, { r: 10, lw: 1.6 });
+      FX.text(ctx, '★ 泉眼净化成功！进入下一关 ★', 0, 5, { size: 12, color: '#FFD454', align: 'center' });
+      ctx.restore();
     }
   }
 
-  renderTiles(ctx) {
+  renderTiles(ctx, L, th, t) {
+    ctx.drawImage(L.tiles, 0, 0, this.width, this.height);
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
-        const t = this.grid[r][c];
-        const tx = c * TILE_SIZE;
-        const ty = r * TILE_SIZE;
-
-        if (t === T_SOLID) {
-          // Solid Block: Deep indigo body with 1px bright top line
-          ctx.fillStyle = '#22283a';
-          ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-          ctx.fillStyle = '#485478';
-          ctx.fillRect(tx, ty, TILE_SIZE, 2);
-          ctx.fillStyle = '#141824';
-          ctx.fillRect(tx, ty + TILE_SIZE - 2, TILE_SIZE, 2);
-        } else if (t === T_SPIKE) {
-          // Hazards: High-contrast triangular red spikes
-          ctx.fillStyle = '#ff3355';
-          ctx.beginPath();
-          ctx.moveTo(tx + 2, ty + TILE_SIZE);
-          ctx.lineTo(tx + 6, ty + 6);
-          ctx.lineTo(tx + 10, ty + TILE_SIZE);
-          ctx.moveTo(tx + 10, ty + TILE_SIZE);
-          ctx.lineTo(tx + 14, ty + 6);
-          ctx.lineTo(tx + 18, ty + TILE_SIZE);
-          ctx.fill();
-        } else if (t === T_CRAWLWAY) {
-          // Crawlway: striped warning ceiling
-          ctx.fillStyle = '#3a3220';
-          ctx.fillRect(tx, ty, TILE_SIZE, 8);
-          ctx.fillStyle = '#f0c040';
-          ctx.fillRect(tx + 4, ty + 2, 4, 4);
-          ctx.fillRect(tx + 12, ty + 2, 4, 4);
-        } else if (t === T_GATE) {
-          // Locked Gate
-          ctx.fillStyle = '#553020';
-          ctx.fillRect(tx + 2, ty, TILE_SIZE - 4, TILE_SIZE);
-          ctx.fillStyle = '#e8a020';
-          ctx.fillRect(tx + 8, ty + 6, 4, 8);
-        } else if (t === T_CRACKED) {
-          // Breakable cracked stone
-          ctx.fillStyle = '#504838';
-          ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-          ctx.fillStyle = '#c0a060';
-          ctx.fillRect(tx + 4, ty + 4, 4, 2);
-          ctx.fillRect(tx + 10, ty + 10, 6, 2);
-        } else if (t === T_GOAL) {
-          // Rainbow Spring Fountain
-          ctx.fillStyle = '#ffd700';
-          ctx.fillRect(tx + 3, ty + 8, 14, 12);
-          ctx.fillStyle = '#00ffff';
-          ctx.beginPath();
-          ctx.arc(tx + 10, ty + 7, 5, 0, Math.PI * 2);
-          ctx.fill();
+        const tile = this.grid[r][c];
+        if (tile === T_GOAL) {
+          SquishyFX.drawGoal(ctx, c * TILE_SIZE, r * TILE_SIZE, t, true);
+        } else if (tile === T_GATE) {
+          // pulsing seal glow around the lock
+          const gx = c * TILE_SIZE + 10, gy = r * TILE_SIZE + 10;
+          const a = 0.18 + 0.12 * Math.sin(t * 4 + r);
+          const g = ctx.createRadialGradient(gx, gy, 1, gx, gy, 14);
+          g.addColorStop(0, `rgba(255,212,84,${a * 2})`);
+          g.addColorStop(1, 'rgba(255,212,84,0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(gx - 14, gy - 14, 28, 28);
         }
       }
     }
   }
 
-  // Draw the iconic water-droplet / mochi shape from 软乎乎IP.png
-  drawDropletBuddy(ctx, x, y, type, sx = 1.0, sy = 1.0, facing = 1, isBlinking = false, alpha = 1.0) {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(x, y);
-    ctx.scale(sx, sy);
+  renderShadows(ctx, th) {
+    const p = this.player;
+    const feetY = p.y + p.radius * (p.isCrouched ? 0.4 : 0.85);
+    this.drawGroundShadow(ctx, th, p.x, feetY, SquishyFX.ACTIVE_S * 0.95 * p.squashX, 1);
 
-    const r = type.radius;
-
-    // 1. Water Droplet Silhouette with pointed top
-    ctx.beginPath();
-    ctx.moveTo(0, -r * 1.35); // Pointed curved tip
-    ctx.bezierCurveTo(r * 0.75, -r * 0.55, r * 1.25, r * 0.4, r * 0.95, r * 0.85);
-    ctx.bezierCurveTo(r * 0.65, r * 1.15, -r * 0.65, r * 1.15, -r * 0.95, r * 0.85);
-    ctx.bezierCurveTo(-r * 1.25, r * 0.4, -r * 0.75, -r * 0.55, 0, -r * 1.35);
-    ctx.closePath();
-
-    ctx.fillStyle = type.color;
-    ctx.fill();
-
-    // 2. Base Darker Rim Outline
-    ctx.strokeStyle = type.dark;
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-
-    // 3. Top-Left Glossy Crescent Highlight
-    ctx.fillStyle = type.highlight;
-    ctx.beginPath();
-    ctx.ellipse(-r * 0.45, -r * 0.25, r * 0.28, r * 0.45, -0.4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 4. Facial Features (Follow facing direction)
-    const eyeOffsetX = facing * 3.5;
-    const eyeY = r * 0.15;
-
-    // Pink Blush Cheeks
-    ctx.fillStyle = type.blush;
-    ctx.beginPath();
-    ctx.ellipse(eyeOffsetX - 6.5, eyeY + 4, 2.5, 1.8, 0, 0, Math.PI * 2);
-    ctx.ellipse(eyeOffsetX + 6.5, eyeY + 4, 2.5, 1.8, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Eyes: Black Glossy Pearls with White Catchlight Dots
-    ctx.fillStyle = '#201614';
-    if (isBlinking) {
-      // Cute blinking curved arcs
-      ctx.strokeStyle = '#201614';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(eyeOffsetX - 4.5, eyeY + 1, 2.5, 0, Math.PI);
-      ctx.arc(eyeOffsetX + 4.5, eyeY + 1, 2.5, 0, Math.PI);
-      ctx.stroke();
-    } else {
-      ctx.beginPath();
-      ctx.arc(eyeOffsetX - 4.5, eyeY, 2.2, 0, Math.PI * 2);
-      ctx.arc(eyeOffsetX + 4.5, eyeY, 2.2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // White sparkle reflections
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(eyeOffsetX - 5.2, eyeY - 0.7, 0.9, 0, Math.PI * 2);
-      ctx.arc(eyeOffsetX + 3.8, eyeY - 0.7, 0.9, 0, Math.PI * 2);
-      ctx.fill();
+    for (let s of this.sludges) {
+      if (s.alive && !s.isEncased) this.drawGroundShadow(ctx, th, s.x, s.y + s.radius, s.radius * 1.15, 0.9);
     }
-
-    // Tiny Smiling Mouth
-    ctx.strokeStyle = '#201614';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.arc(eyeOffsetX, eyeY + 3.5, 2.2, 0.1, Math.PI - 0.1);
-    ctx.stroke();
-
-    ctx.restore();
+    const boss = this.boss;
+    if (boss && (boss.alive || boss.defeatedTimer > 0)) {
+      this.drawGroundShadow(ctx, th, boss.x, boss.y + boss.radius, boss.radius * 1.1 * boss.squashX, 1);
+    }
   }
 
-  // Trailing Mochi Parade (The other 4 color buddies follow behind in a cute line!)
-  renderFollowers(ctx) {
-    const trailingKeys = BUDDY_KEYS.filter(k => k !== this.player.typeKey);
-    const delayStep = 10;
+  // Active player: jelly squash anchored at the feet, lean into motion, expressive face
+  drawPlayer(ctx) {
+    const p = this.player;
+    const t = this.fxTime || 0;
+    const halfH = p.radius * (p.isCrouched ? 0.4 : 0.85);
+    const feet = p.y + halfH;
 
-    trailingKeys.forEach((key, idx) => {
-      const trailIndex = (idx + 1) * delayStep;
-      if (this.player.trail[trailIndex]) {
-        const t = this.player.trail[trailIndex];
-        const buddy = BUDDY_TYPES[key];
-        const bob = Math.sin(performance.now() * 0.006 + idx) * 0.08;
-        this.drawDropletBuddy(ctx, t.x, t.y, buddy, 0.82, 0.82 + bob, t.facing, false, 0.68);
-      }
+    let sx = p.squashX, sy = p.squashY;
+    let rot = Math.max(-1, Math.min(1, p.vx / (p.type.speed || 120))) * 0.12;
+    if (p.onGround && Math.abs(p.vx) > 10 && !p.isSliding) rot += Math.sin(p.walkCycle * 0.5) * 0.035;
+    if (p.onGround && !p.isCrouched && !p.isSliding && Math.abs(p.vx) < 10) {
+      // idle breathing
+      const b = 1 + Math.sin(t * 3.2) * 0.022;
+      sy *= b;
+      sx /= Math.sqrt(b);
+    }
+
+    let eyes = p.isBlinking ? 'closed' : 'open';
+    let mouth = 'smile';
+    if (p.isSliding || p.isCrouched) eyes = 'squint';
+    else if (p.onGround && p.squashY < 0.82) eyes = 'happy';
+    if (p.spitCooldown > 0.2) mouth = 'puff';
+    else if (p.spitCooldown > 0.08 || (!p.onGround && p.vy < -80)) mouth = 'o';
+
+    // Whoever is selected is drawn at the same (biggest) size; a fresh switch pops up with overshoot
+    const pop = p.switchT == null ? 1 : SquishyFX.outBack(SquishyFX.clamp(p.switchT / 0.28), 2.2);
+    const size = SquishyFX.ACTIVE_S * (0.72 + 0.28 * pop);
+
+    this.drawDropletBuddy(ctx, p.x, p.y, p.type, sx, sy, p.facing, false, 1.0, {
+      feet, rot, eyes, mouth, s: size
     });
   }
 
-  drawBubble(ctx, b) {
-    ctx.save();
-    ctx.translate(b.x, b.y);
+  // Draw the iconic water-droplet / mochi (jelly look ported from the promo film)
+  // y is the (legacy) centre of the droplet; pass opts.feet to anchor the contact point exactly.
+  drawDropletBuddy(ctx, x, y, type, sx = 1.0, sy = 1.0, facing = 1, isBlinking = false, alpha = 1.0, opts = {}) {
+    const size = opts.s != null ? opts.s : SquishyFX.ACTIVE_S * 0.92;
+    const feet = opts.feet != null ? opts.feet : y + 13;
+    SquishyFX.drawBuddy(ctx, x, feet, size, type, {
+      sx, sy, alpha,
+      rot: opts.rot,
+      look: facing * 0.8,
+      eyes: opts.eyes || (isBlinking ? 'closed' : 'open'),
+      mouth: opts.mouth,
+      cheeks: opts.cheeks
+    });
+  }
 
-    const r = b.radius + Math.sin(b.wobble) * 0.8;
+  // The four unselected buddies are shown as translucent after-images that trail behind the hero while
+  // it moves or jumps (and fade away completely when it stands still), so they never cover the hero.
+  renderFollowers(ctx) {
+    const FX = SquishyFX;
+    const p = this.player;
+    const trailingKeys = BUDDY_KEYS.filter(k => k !== p.typeKey);
+    const pFeet = p.y + p.radius * (p.isCrouched ? 0.4 : 0.85);
+    const spacing = 7; // frames between two after-images
 
-    // Translucent sphere
-    ctx.fillStyle = b.buddyType.highlight + '66';
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Bubble rim outline
-    ctx.strokeStyle = b.buddyType.color;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Interior visual icon depending on type
-    if (b.type === 'SOLID') {
-      ctx.fillStyle = '#ffd700';
-      ctx.fillRect(-4, -4, 8, 8);
-    } else if (b.type === 'BOUNCY') {
-      ctx.strokeStyle = '#00ff88';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, 5, 0, Math.PI);
-      ctx.stroke();
-    } else if (b.type === 'STICKY') {
-      ctx.fillStyle = '#ff4080';
-      ctx.beginPath();
-      ctx.arc(0, -2, 3, 0, Math.PI * 2);
-      ctx.fill();
+    // farthest ghost first so the nearer ones overlap on top of it
+    for (let idx = trailingKeys.length - 1; idx >= 0; idx--) {
+      const tr = p.trail[(idx + 1) * spacing];
+      if (!tr) continue;
+      const feet = tr.feet != null ? tr.feet : tr.y + 10;
+      const dist = Math.hypot(tr.x - p.x, feet - pFeet);
+      const vis = FX.clamp((dist - 7) / 16); // still overlapping the hero => invisible
+      if (vis <= 0.01) continue;
+      const prev = p.trail[(idx + 1) * spacing + 3] || tr;
+      const stretch = Math.min(0.3, Math.abs(tr.y - prev.y) * 0.05);
+      FX.drawBuddy(ctx, tr.x, feet, FX.GHOST_S, BUDDY_TYPES[trailingKeys[idx]], {
+        sx: 1 / Math.sqrt(1 + stretch), sy: 1 + stretch,
+        alpha: 0.5 * vis * (1 - idx * 0.14),
+        look: tr.facing * 0.8, eyes: 'happy'
+      });
     }
+  }
 
-    // Specular highlight crescent
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.ellipse(-r * 0.35, -r * 0.35, r * 0.22, r * 0.4, -0.6, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
+  drawBubble(ctx, b) {
+    const FX = SquishyFX;
+    const th = FX.themeFor(this.levelIndex);
+    const wob = Math.sin(b.wobble);
+    let sx = 1 + wob * 0.035, sy = 1 - wob * 0.035;
+    // trampoline / hit jiggle
+    if (b.jiggle > 0) {
+      const sp = Math.cos((1 - b.jiggle) * 22) * b.jiggle * 0.3;
+      sy *= 1 - sp;
+      sx *= 1 + sp * 0.8;
+    }
+    // pop-in with overshoot + warning blink right before it fades away
+    const pop = b.age < 0.28 ? Math.max(0.05, FX.outBack(b.age / 0.28, 2.2)) : 1;
+    const left = b.lifetime - b.age;
+    const alpha = left < 2.5 ? 0.5 + 0.5 * Math.abs(Math.sin(left * 9)) : 1;
+    FX.drawBubble(ctx, b.x, b.y, b.radius * pop, {
+      tint: b.buddyType.color,
+      rim: th.light ? b.buddyType.dark : b.buddyType.color,
+      type: b.type,
+      t: this.fxTime || 0,
+      sx, sy, alpha
+    });
   }
 
   drawDewDrop(ctx, d) {
-    ctx.save();
-    ctx.translate(d.x, d.y + Math.sin(d.sparkleTimer) * 2.5);
-
-    // Glowing teardrop
-    ctx.fillStyle = '#00f0ff';
-    ctx.beginPath();
-    ctx.arc(0, 2, 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(-1.5, 0, 1.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
+    SquishyFX.drawDew(ctx, d.x, d.y, this.fxTime || 0, d.sparkleTimer);
   }
 
   drawSludge(ctx, s) {
-    ctx.save();
-    ctx.translate(s.x, s.y);
-
+    const t = this.fxTime || 0;
+    SquishyFX.drawCreep(ctx, s.x, s.y + s.radius, s.radius * 1.15, t, { phase: s.startX * 0.31, facing: s.vx >= 0 ? 1 : -1 });
     if (s.isEncased) {
       // Encased in transparent blue bubble
-      ctx.fillStyle = 'rgba(117, 200, 248, 0.45)';
-      ctx.beginPath();
-      ctx.arc(0, 0, 14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#75c8f8';
-      ctx.stroke();
+      const w = Math.sin(t * 6);
+      SquishyFX.drawBubble(ctx, s.x, s.y, 14, { tint: '#75C8F8', sx: 1 + w * 0.04, sy: 1 - w * 0.04, t });
     }
-
-    // Sludge monster blob
-    ctx.fillStyle = '#4a4458';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, s.radius * 1.1, s.radius * 0.9, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Angry eyes
-    ctx.fillStyle = '#ff2040';
-    ctx.fillRect(-4, -3, 3, 3);
-    ctx.fillRect(2, -3, 3, 3);
-
-    ctx.restore();
   }
 
   drawSludgeBoss(ctx, boss) {
-    ctx.save();
-    ctx.translate(boss.x, boss.y);
+    const FX = SquishyFX;
+    const t = this.fxTime || 0;
+    const R = boss.radius * 1.08;
+    const sx = boss.squashX, sy = boss.squashY;
+    const feet = boss.y + boss.radius;
+    const cy = feet - R * 0.85 * sy;
 
-    // Ground shadow
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-    ctx.beginPath();
-    ctx.ellipse(0, boss.radius - 2, boss.radius * 1.05 * boss.squashX, 6 * boss.squashY, 0, 0, Math.PI * 2);
-    ctx.fill();
+    const flashing = (boss.hurtTimer > 0 || boss.state === 'DEFEATED') && (Math.floor(boss.animTimer * 20) % 2 === 0);
+    const fade = boss.state === 'DEFEATED' ? FX.clamp(boss.defeatedTimer / 0.6) : 1;
+
+    ctx.save();
+    ctx.globalAlpha *= fade;
+    FX.drawBoss(ctx, boss.x, cy, R, boss.animTimer, {
+      sx, sy,
+      flash: flashing ? 0.85 : 0,
+      rage: boss.hp <= 2,
+      charge: boss.state === 'CHARGE_SPIT',
+      facing: boss.facing
+    });
 
     // Blue Bubble encasing (harmless stun visual)
     if (boss.isEncased) {
-      ctx.fillStyle = 'rgba(117, 200, 248, 0.45)';
-      ctx.beginPath();
-      ctx.arc(0, 0, boss.radius + 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#75c8f8';
-      ctx.lineWidth = 1.8;
-      ctx.stroke();
-      // Highlight shine
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(-boss.radius * 0.4, -boss.radius * 0.4, 4, 0, Math.PI * 2);
-      ctx.fill();
+      const w = Math.sin(t * 8);
+      FX.drawBubble(ctx, boss.x, cy, R + 9, { tint: '#75C8F8', sx: 1 + w * 0.03, sy: 1 - w * 0.03, t });
     }
-
-    // Flashing when hurt or defeated
-    const isFlashing = (boss.hurtTimer > 0 || boss.state === 'DEFEATED') && (Math.floor(boss.animTimer * 20) % 2 === 0);
-    const bodyColor = isFlashing ? '#ffffff' : (boss.hp <= 2 ? '#2d0e36' : '#220e28');
-    const spikeColor = isFlashing ? '#ff2040' : (boss.hp <= 2 ? '#751890' : '#481560');
-
-    // Pulsing animated spikes
-    ctx.fillStyle = spikeColor;
-    const spikeCount = 6;
-    for (let s = 0; s < spikeCount; s++) {
-      const ang = (s / (spikeCount - 1)) * Math.PI + Math.PI;
-      const spikeR = (boss.radius + 6) + Math.sin(boss.animTimer * 8 + s) * 4;
-      const sx = Math.cos(ang) * spikeR * boss.squashX;
-      const sy = Math.sin(ang) * (spikeR * 0.75) * boss.squashY;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 5 * boss.squashX, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Giant Sludge Monster Blob
-    ctx.fillStyle = bodyColor;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, boss.radius * boss.squashX, (boss.radius * 0.85) * boss.squashY, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = spikeColor;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Glowing red menacing eyes
-    const eyeOffsetX = boss.facing * 9;
-    const eyeY = -4 * boss.squashY;
-    const eyeColor = isFlashing ? '#ff0033' : (boss.hp <= 2 ? '#ff0022' : '#ff2244');
-    ctx.fillStyle = eyeColor;
-    ctx.beginPath();
-    ctx.arc(eyeOffsetX - 5, eyeY, 3.5, 0, Math.PI * 2);
-    ctx.arc(eyeOffsetX + 5, eyeY, 3.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Eye pupils (angry glare towards player)
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(eyeOffsetX - 5 + boss.facing * 1.2, eyeY, 1.2, 0, Math.PI * 2);
-    ctx.arc(eyeOffsetX + 5 + boss.facing * 1.2, eyeY, 1.2, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Charging mouth glow
-    if (boss.state === 'CHARGE_SPIT') {
-      ctx.fillStyle = 'rgba(255, 30, 80, 0.7)';
-      ctx.beginPath();
-      ctx.ellipse(boss.facing * 14, 6 * boss.squashY, 5, 4, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
     ctx.restore();
   }
 
   drawSludgeProjectile(ctx, proj) {
-    ctx.save();
-    ctx.fillStyle = '#3a104c';
-    ctx.beginPath();
-    ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#9b30ff';
-    ctx.beginPath();
-    ctx.arc(proj.x - 1, proj.y - 1, proj.radius * 0.45, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#c060ff';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.restore();
+    SquishyFX.drawProjectile(ctx, proj, this.fxTime || 0);
   }
 
   drawSludgeShockwave(ctx, sw) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(80, 20, 110, 0.85)';
-    ctx.beginPath();
-    ctx.ellipse(sw.x, sw.y, sw.width / 2, sw.height / 2, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#c050ff';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-    ctx.restore();
+    SquishyFX.drawShockwave(ctx, sw, this.fxTime || 0);
   }
 
+  // HUD lives entirely inside the top wall band (y 0..20) so it never covers the playfield
   renderMicroHud(ctx) {
+    const FX = SquishyFX;
+    const t = this.fxTime || 0;
+    const p = this.player;
+    const name = p.type.name.split(' ')[0];
+    const dewsLeft = this.dews.filter(d => !d.collected).length;
+    const dewsTotal = this.dews.length;
+    const dewCount = `${dewsTotal - dewsLeft}/${dewsTotal}`;
+    const PY = 2, PH = 16, TY = 13.2; // panel top / height / text baseline
+
+    const buddyIcon = (x) => FX.drawBuddy(ctx, x, 15.2, 3.7, p.type, { eyes: p.isBlinking ? 'closed' : 'open' });
+
     if (this.boss) {
       // Room 5 Boss Battle HUD
       // 1. Left: Active Character (compact)
-      ctx.fillStyle = 'rgba(15, 20, 32, 0.88)';
-      ctx.fillRect(6, 6, 68, 22);
-      ctx.strokeStyle = '#3e4868';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(6, 6, 68, 22);
-
-      ctx.fillStyle = this.player.type.color;
-      ctx.beginPath();
-      ctx.arc(16, 17, 6, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 9px monospace';
-      ctx.fillText(`${this.player.type.name.split(' ')[0]}`, 26, 20);
+      FX.panel(ctx, 4, PY, 62, PH, { r: 5, border: '#6A5A8A' });
+      buddyIcon(13);
+      FX.text(ctx, name, 21, TY, { size: 8.5 });
 
       // 2. Center: Boss HP Bar
-      const bossHudX = 80;
-      const bossHudW = 160;
-      ctx.fillStyle = 'rgba(15, 20, 32, 0.92)';
-      ctx.fillRect(bossHudX, 6, bossHudW, 22);
-      ctx.strokeStyle = this.boss.hp <= 2 ? '#ff2244' : '#ffd700';
-      ctx.lineWidth = 1.2;
-      ctx.strokeRect(bossHudX, 6, bossHudW, 22);
+      const bx = 70, bw = 170;
+      const rageHud = this.boss.hp <= 2;
+      FX.panel(ctx, bx, PY, bw, PH, { r: 5, lw: 1.4, border: rageHud ? '#FF2244' : '#FFD454', top: 'rgba(40,24,60,.95)', bottom: 'rgba(20,10,32,.95)' });
+      // tiny boss face
+      const bgr = ctx.createRadialGradient(bx + 8, 8, 0.5, bx + 10, 10, 5);
+      bgr.addColorStop(0, '#6A3A9A'); bgr.addColorStop(1, '#1A0B27');
+      ctx.fillStyle = bgr; ctx.beginPath(); ctx.arc(bx + 10, 10, 4.6, 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 0.8; ctx.strokeStyle = '#0A0510'; ctx.stroke();
+      ctx.fillStyle = '#FF3B4E';
+      ctx.beginPath(); ctx.arc(bx + 8.5, 9.4, 1, 0, Math.PI * 2); ctx.arc(bx + 11.5, 9.4, 1, 0, Math.PI * 2); ctx.fill();
+      FX.text(ctx, '暗影巨霸', bx + 18, TY, { size: 8, color: rageHud ? '#FF8A98' : '#FFD454' });
 
-      ctx.fillStyle = this.boss.hp <= 2 ? '#ff6070' : '#ffd700';
-      ctx.font = 'bold 8.5px monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText('👾暗影巨霸', bossHudX + 6, 20);
-
-      // HP Hearts
-      const heartsX = bossHudX + 58;
+      // HP Hearts (vector)
+      const heartsX = bx + 74;
       for (let i = 0; i < this.boss.maxHp; i++) {
-        const hx = heartsX + i * 19;
-        const isFilled = i < this.boss.hp;
-        if (isFilled) {
-          ctx.fillStyle = this.boss.hp <= 2 ? '#ff1133' : '#ff2255';
-          ctx.font = 'bold 11px monospace';
-          ctx.fillText('♥', hx, 20);
+        const hx = heartsX + i * 17;
+        const filled = i < this.boss.hp;
+        const pulse = filled && rageHud ? 1 + 0.12 * Math.sin(t * 12 + i) : 1;
+        ctx.save();
+        ctx.translate(hx, 10);
+        ctx.scale(pulse * 0.82, pulse * 0.82);
+        FX.heart(ctx, 0, 0, 5.4);
+        if (filled) {
+          const g = ctx.createLinearGradient(0, -5, 0, 4);
+          g.addColorStop(0, '#FF7A9A'); g.addColorStop(1, rageHud ? '#E0102E' : '#FF2255');
+          ctx.fillStyle = g; ctx.fill();
+          ctx.lineWidth = 0.9; ctx.strokeStyle = '#3A0814'; ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.ellipse(-2.3, -2.4, 1, 0.6, -0.6, 0, Math.PI * 2); ctx.fill();
         } else {
-          ctx.fillStyle = '#4f5568';
-          ctx.font = '11px monospace';
-          ctx.fillText('♡', hx, 20);
+          ctx.fillStyle = 'rgba(80,70,100,.5)'; ctx.fill();
+          ctx.lineWidth = 0.9; ctx.strokeStyle = '#5A4A78'; ctx.stroke();
         }
+        ctx.restore();
       }
 
       // 3. Right: Dews Counter
-      const dewsLeft = this.dews.filter(d => !d.collected).length;
-      const dewsTotal = this.dews.length;
-      ctx.fillStyle = 'rgba(15, 20, 32, 0.88)';
-      ctx.fillRect(this.width - 68, 6, 62, 22);
-      ctx.strokeStyle = '#3e4868';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(this.width - 68, 6, 62, 22);
-
-      ctx.fillStyle = '#00f0ff';
-      ctx.font = 'bold 9px monospace';
-      ctx.fillText(`💧${dewsTotal - dewsLeft}/${dewsTotal}`, this.width - 60, 20);
+      FX.panel(ctx, this.width - 62, PY, 58, PH, { r: 5, border: '#6A5A8A' });
+      FX.dropIcon(ctx, this.width - 51, 10, 5);
+      FX.text(ctx, dewCount, this.width - 43, TY, { size: 8.5, color: '#7FF0FF' });
       return;
     }
 
     // 1. Left Avatar & Dew Counter
-    ctx.fillStyle = 'rgba(15, 20, 32, 0.82)';
-    ctx.fillRect(6, 6, 105, 22);
-    ctx.strokeStyle = '#3e4868';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(6, 6, 105, 22);
-
-    // Current buddy mini circle
-    ctx.fillStyle = this.player.type.color;
-    ctx.beginPath();
-    ctx.arc(18, 17, 7, 0, Math.PI * 2);
-    ctx.fill();
-
-    const dewsLeft = this.dews.filter(d => !d.collected).length;
-    const dewsTotal = this.dews.length;
-
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 9px monospace';
-    ctx.fillText(`${this.player.type.name.split(' ')[0]}`, 28, 20);
-
-    ctx.fillStyle = '#00f0ff';
-    ctx.fillText(`💧${dewsTotal - dewsLeft}/${dewsTotal}`, 72, 20);
+    FX.panel(ctx, 4, PY, 100, PH, { r: 5 });
+    buddyIcon(13);
+    FX.text(ctx, name, 21, TY, { size: 8.5 });
+    FX.dropIcon(ctx, 69, 10, 5);
+    FX.text(ctx, dewCount, 77, TY, { size: 8.5, color: '#7FF0FF' });
 
     // 2. Right Room Badge
-    ctx.fillStyle = 'rgba(15, 20, 32, 0.82)';
-    ctx.fillRect(this.width - 105, 6, 99, 22);
-    ctx.strokeStyle = '#3e4868';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(this.width - 105, 6, 99, 22);
-
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 9px monospace';
-    ctx.fillText(`${this.currentLevel.title}`, this.width - 98, 20);
+    FX.panel(ctx, this.width - 100, PY, 96, PH, { r: 5 });
+    FX.text(ctx, this.currentLevel.title, this.width - 94, TY, { size: 8.5, color: '#FFD454' });
   }
 
   renderTitleOverlay(ctx) {
-    ctx.fillStyle = 'rgba(15, 20, 32, 0.9)';
-    ctx.fillRect(20, 35, this.width - 40, 170);
-    ctx.strokeStyle = '#ffd700';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(20, 35, this.width - 40, 170);
+    const FX = SquishyFX;
+    const t = this.fxTime || 0;
+    ctx.fillStyle = 'rgba(20, 12, 8, 0.35)';
+    ctx.fillRect(0, 0, this.width, this.height);
+    FX.panel(ctx, 20, 32, this.width - 40, 176, { r: 12, lw: 2, top: 'rgba(70,50,34,.98)', bottom: 'rgba(36,26,18,.98)' });
 
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 18px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('软乎乎大冒险 1991', this.width / 2, 70);
+    FX.text(ctx, '软乎乎大冒险 2006', this.width / 2, 68, { size: 18, color: '#FFD454', align: 'center', stroke: '#3B2A1C', strokeW: 3.5 });
+    FX.text(ctx, 'SQUISHY BUDDIES · 5 COLOR POP', this.width / 2, 87, { size: 10, weight: 'normal', color: '#E8D7B8', align: 'center' });
 
-    ctx.fillStyle = '#a0b0d8';
-    ctx.font = '10px monospace';
-    ctx.fillText('SQUISHY BUDDIES · 5 COLOR POP', this.width / 2, 90);
-
-    // Draw all 5 buddies previewing in a row
-    const startX = this.width / 2 - 55;
+    // Draw all 5 buddies hopping in a row (squash on takeoff/landing)
     BUDDY_KEYS.forEach((k, i) => {
-      this.drawDropletBuddy(ctx, startX + i * 28, 120, BUDDY_TYPES[k], 0.9, 0.9, 1, false);
+      const type = BUDDY_TYPES[k];
+      const ph = (t * 1.5 + i * 0.17) % 1;
+      const hop = Math.sin(ph * Math.PI) * 9;
+      const sy = (ph < 0.12 || ph > 0.9) ? 0.82 : 1.08;
+      FX.drawShadow(ctx, this.width / 2 + (i - 2) * 34, 140, 11 * (1 - hop / 28), 0.6 * (1 - hop / 18), FX.themeFor(this.levelIndex));
+      FX.drawBuddy(ctx, this.width / 2 + (i - 2) * 34, 140 - hop, FX.ACTIVE_S * 0.95, type, {
+        sx: 1 / Math.sqrt(sy), sy, look: 0.4, eyes: ph > 0.9 || ph < 0.12 ? 'happy' : 'open'
+      });
     });
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px monospace';
-    ctx.fillText('👉 按 A 键 观看故事与开始 👈', this.width / 2, 160);
-
-    ctx.fillStyle = '#8f9cb8';
-    ctx.font = '9px monospace';
-    ctx.fillText('十字键:滚动  A:跳跃/确认  B:吐泡泡  SEL:切人', this.width / 2, 185);
-    ctx.textAlign = 'left';
+    const pulse = 0.78 + 0.22 * Math.sin(t * 5);
+    FX.text(ctx, '👉 按 A 键 观看故事与开始 👈', this.width / 2, 168, { size: 12, color: '#FFFFFF', align: 'center', alpha: pulse });
+    FX.text(ctx, '十字键:滚动  A:跳跃/确认  B:吐泡泡  SEL:切人', this.width / 2, 192, { size: 9, weight: 'normal', color: '#CDB88F', align: 'center' });
   }
 
   /* ================= Story Cutscene & Gameplay Guide Overlays ================= */
@@ -1265,12 +1252,6 @@ class SquishyGame {
     // Full screen background for story
     ctx.fillStyle = '#0f1424';
     ctx.fillRect(0, 0, this.width, this.height);
-
-    // Subtle scanline pattern
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
-    for (let y = 0; y < this.height; y += 3) {
-      ctx.fillRect(0, y, this.width, 1);
-    }
 
     if (slide === 0) {
       this.renderStoryAct1(ctx, t);
@@ -1293,7 +1274,7 @@ class SquishyGame {
     ctx.strokeRect(70, 7, 180, 18);
 
     ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 10px monospace';
+    ctx.font = 'bold 10px ' + SquishyFX.FONT;
     ctx.textAlign = 'center';
     ctx.fillText('✦ 第一幕 · 彩虹泉林 [ 1/3 ] ✦', this.width / 2, 20);
 
@@ -1361,7 +1342,7 @@ class SquishyGame {
     ctx.strokeRect(70, 7, 180, 18);
 
     ctx.fillStyle = '#ff5577';
-    ctx.font = 'bold 10px monospace';
+    ctx.font = 'bold 10px ' + SquishyFX.FONT;
     ctx.textAlign = 'center';
     ctx.fillText('✦ 第二幕 · 暗影突袭 [ 2/3 ] ✦', this.width / 2, 20);
 
@@ -1402,7 +1383,7 @@ class SquishyGame {
     ctx.fillRect(174, 75, 8, 48);
     ctx.fillRect(142, 70, 48, 8);
     ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 8px monospace';
+    ctx.font = 'bold 8px ' + SquishyFX.FONT;
     ctx.fillText('⛩️封印', 164, 98);
 
     // Floating Stolen Dew Drops trapped in purple bubbles
@@ -1424,8 +1405,8 @@ class SquishyGame {
     }
 
     // 5 Buddies shivering on the Left
-    const startX = 35;
-    const spacing = 22;
+    const startX = 30;
+    const spacing = 27;
     BUDDY_KEYS.forEach((key, i) => {
       const shiv = Math.sin(t * 32 + i * 2) * 1.5;
       const bx = startX + i * spacing + shiv;
@@ -1457,7 +1438,7 @@ class SquishyGame {
     ctx.strokeRect(70, 7, 180, 18);
 
     ctx.fillStyle = '#00ffcc';
-    ctx.font = 'bold 10px monospace';
+    ctx.font = 'bold 10px ' + SquishyFX.FONT;
     ctx.textAlign = 'center';
     ctx.fillText('✦ 第三幕 · 全员集结 [ 3/3 ] ✦', this.width / 2, 20);
 
@@ -1515,15 +1496,11 @@ class SquishyGame {
     const boxW = 300;
     const boxH = 86;
 
-    ctx.fillStyle = 'rgba(12, 16, 28, 0.95)';
-    ctx.fillRect(boxX, boxY, boxW, boxH);
-    ctx.strokeStyle = '#ffd700';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(boxX, boxY, boxW, boxH);
+    SquishyFX.panel(ctx, boxX, boxY, boxW, boxH, { r: 8, lw: 1.6, top: 'rgba(34,26,44,.96)', bottom: 'rgba(16,12,24,.96)' });
 
     // Text Lines
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 9.5px monospace';
+    ctx.font = 'bold 9.5px ' + SquishyFX.FONT;
     ctx.textAlign = 'left';
     ctx.fillText(lines[0], boxX + 10, boxY + 20);
     ctx.fillText(lines[1], boxX + 10, boxY + 36);
@@ -1531,16 +1508,17 @@ class SquishyGame {
 
     // Bottom Navigation Hint Bar
     ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.fillRect(boxX + 2, boxY + 64, boxW - 4, 20);
+    SquishyFX.rr(ctx, boxX + 3, boxY + 63, boxW - 6, 20, 5);
+    ctx.fill();
 
     ctx.fillStyle = '#8f9cb8';
-    ctx.font = '9px monospace';
+    ctx.font = '9px ' + SquishyFX.FONT;
     ctx.fillText(leftHint, boxX + 10, boxY + 77);
 
     // Pulsing right prompt
     const pulse = 0.7 + 0.3 * Math.sin(this.storyTimer * 6);
     ctx.fillStyle = `rgba(0, 255, 200, ${pulse})`;
-    ctx.font = 'bold 9.5px monospace';
+    ctx.font = 'bold 9.5px ' + SquishyFX.FONT;
     ctx.textAlign = 'right';
     ctx.fillText(rightHint, boxX + boxW - 10, boxY + 77);
   }
@@ -1555,7 +1533,7 @@ class SquishyGame {
     ctx.strokeRect(35, 5, 250, 18);
 
     ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 11px monospace';
+    ctx.font = 'bold 11px ' + SquishyFX.FONT;
     ctx.textAlign = 'center';
     ctx.fillText('✦ 软乎乎大冒险 · 核心玩法指南 ✦', this.width / 2, 18);
 
@@ -1568,16 +1546,16 @@ class SquishyGame {
       ctx.strokeRect(x, y, w, h);
 
       ctx.fillStyle = borderColor;
-      ctx.font = 'bold 9.5px monospace';
+      ctx.font = 'bold 9.5px ' + SquishyFX.FONT;
       ctx.textAlign = 'left';
       ctx.fillText(title, x + 8, y + 13);
 
       ctx.fillStyle = '#d0dcf4';
-      ctx.font = '8.5px monospace';
+      ctx.font = '8.5px ' + SquishyFX.FONT;
       ctx.fillText(desc1, x + 8, y + 25);
       if (desc2) {
         ctx.fillStyle = '#ffd700';
-        ctx.font = '8px monospace';
+        ctx.font = '8px ' + SquishyFX.FONT;
         ctx.fillText(desc2, x + 8, y + 36);
       }
     };
@@ -1618,51 +1596,56 @@ class SquishyGame {
     ctx.strokeRect(35, 198, 250, 26);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px monospace';
+    ctx.font = 'bold 12px ' + SquishyFX.FONT;
     ctx.textAlign = 'center';
     ctx.fillText('👉 按 [A] 键 正式开始冒险 👈', this.width / 2, 215);
 
     ctx.fillStyle = '#8f9cb8';
-    ctx.font = '8px monospace';
+    ctx.font = '8px ' + SquishyFX.FONT;
     ctx.fillText('( 或点击屏幕任何位置开始 )', this.width / 2, 234);
   }
 
   renderPauseOverlay(ctx) {
-    ctx.fillStyle = 'rgba(15, 20, 32, 0.85)';
-    ctx.fillRect(60, 80, this.width - 120, 80);
-    ctx.strokeStyle = '#ffd700';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(60, 80, this.width - 120, 80);
+    ctx.fillStyle = 'rgba(20, 12, 8, 0.35)';
+    ctx.fillRect(0, 0, this.width, this.height);
+    SquishyFX.panel(ctx, 60, 80, this.width - 120, 80, { r: 12, lw: 1.8 });
 
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 16px monospace';
+    ctx.font = 'bold 16px ' + SquishyFX.FONT;
     ctx.textAlign = 'center';
     ctx.fillText('⏸ 游戏已暂停', this.width / 2, 115);
-    ctx.font = '10px monospace';
+    ctx.font = '10px ' + SquishyFX.FONT;
     ctx.fillStyle = '#ffd700';
     ctx.fillText('按 START 或 点击继续', this.width / 2, 138);
     ctx.textAlign = 'left';
   }
 
   renderVictoryOverlay(ctx) {
-    ctx.fillStyle = 'rgba(15, 20, 32, 0.92)';
-    ctx.fillRect(20, 40, this.width - 40, 160);
-    ctx.strokeStyle = '#00ff88';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(20, 40, this.width - 40, 160);
+    ctx.fillStyle = 'rgba(20, 12, 8, 0.35)';
+    ctx.fillRect(0, 0, this.width, this.height);
+    SquishyFX.panel(ctx, 20, 40, this.width - 40, 160, { r: 12, lw: 2, border: '#7CF0B0' });
+    // the five buddies celebrate along the top of the card
+    const vt = this.fxTime || 0;
+    BUDDY_KEYS.forEach((k, i) => {
+      const type = BUDDY_TYPES[k];
+      const ph = (vt * 1.6 + i * 0.2) % 1;
+      const hop = Math.sin(ph * Math.PI) * 8;
+      const sy = (ph < 0.12 || ph > 0.9) ? 0.82 : 1.08;
+      SquishyFX.drawBuddy(ctx, this.width / 2 + (i - 2) * 36, 190 - hop, SquishyFX.ACTIVE_S * 0.9, type, { sx: 1 / Math.sqrt(sy), sy, eyes: 'happy', look: 0.3 });
+    });
 
     ctx.fillStyle = '#00ff88';
-    ctx.font = 'bold 18px monospace';
+    ctx.font = 'bold 18px ' + SquishyFX.FONT;
     ctx.textAlign = 'center';
-    ctx.fillText('🎉 全员通关·彩虹泉复苏！', this.width / 2, 80);
+    ctx.fillText('🎉 全员通关·彩虹泉复苏！', this.width / 2, 76);
 
     ctx.fillStyle = '#ffd700';
-    ctx.font = '11px monospace';
-    ctx.fillText('恭喜软乎乎五兄弟找回全部色彩', this.width / 2, 115);
+    ctx.font = '11px ' + SquishyFX.FONT;
+    ctx.fillText('恭喜软乎乎五兄弟找回全部色彩', this.width / 2, 100);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px monospace';
-    ctx.fillText('👉 按 A 或 点击重玩 👈', this.width / 2, 155);
+    ctx.font = 'bold 12px ' + SquishyFX.FONT;
+    ctx.fillText('👉 按 A 或 点击重玩 👈', this.width / 2, 126);
     ctx.textAlign = 'left';
   }
 
@@ -1671,6 +1654,7 @@ class SquishyGame {
     const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1);
     this.lastTime = timestamp;
 
+    this.fxTime += dt; // visual clock - keeps ambience & idle animations alive in every game state
     this.update(dt);
     this.render();
 

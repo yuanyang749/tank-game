@@ -1,11 +1,13 @@
 /* ==========================================================================
-   Squishy Buddies 1991 - 5 Handcrafted Single-Screen Puzzle Rooms
+   Squishy Buddies 2006 - 5 Handcrafted Single-Screen Puzzle Rooms
    Chunky 16x12 Tile Grid Layout with Minimal Visual Clutter
    ========================================================================== */
 
 const LEVELS = [
   // ================= ROOM 1: 初遇彩虹 (Rainbow Springs) =================
-  // Intro to moving, jumping on yellow solid bubble, collecting 3 dews to open gate
+  // Staircase of floating blocks (+40px each) up to a 60px wall: spit a SOLID bubble mid-jump,
+  // land on it and step onto the goal ledge. The fountain sits in a sealed chamber whose ONLY
+  // door is the 2-tile gate (1,11)+(2,11) - collect all 3 dews to open it.
   {
     id: 1,
     title: 'ROOM 1: 初遇彩虹',
@@ -13,28 +15,30 @@ const LEVELS = [
     playerStart: { x: 30, y: 190 },
     grid: [
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Row 0 (Top wall)
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 1
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 1], // Row 2 (Goal top-right)
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1], // Row 3
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 1], // Row 4 (Gate guarding exit)
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1], // Row 5
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1], // Row 6
-      [1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 7 (Mid ledge)
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 8
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 1], // Row 1 (Gate, upper half of the 2-tile door)
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 5, 1], // Row 2 (Gate, lower half - the only door; Goal inside)
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1], // Row 3 (Goal ledge, top y=60)
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], // Row 4 (60px wall)
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], // Row 5
+      [1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1], // Row 6 (Block 2, top y=120)
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 7
+      [1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 8 (Block 1, top y=160)
       [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 9
-      [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1], // Row 10
+      [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1], // Row 10 (Start shelf / right shelf)
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  // Row 11 (Floor)
     ],
     dews: [
-      { x: 120, y: 110 },
-      { x: 180, y: 80 },
-      { x: 230, y: 150 }
+      { x: 90, y: 135 },
+      { x: 160, y: 88 },
+      { x: 250, y: 172 }
     ],
     sludges: []
   },
 
   // ================= ROOM 2: 浮力峡谷 (Floating Chasm) =================
-  // Floor has spikes! Switch to Blue (蓝波波) to float across abyss
+  // Spike pit between the start cliff and the goal ledge: switch to Blue (蓝波波), ride a float
+  // bubble up and hop onto the ledge. The fountain sits in a sealed chamber; its only door is
+  // the 2-tile gate (2,11)+(3,11).
   {
     id: 2,
     title: 'ROOM 2: 浮力峡谷',
@@ -42,22 +46,22 @@ const LEVELS = [
     playerStart: { x: 30, y: 150 },
     grid: [
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Row 0
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 1
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 2
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 1], // Row 3 (Goal right)
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1], // Row 4
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 1, 1, 1], // Row 5 (Gate)
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1], // Row 6
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 7
-      [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 8 (Start cliff)
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 9
-      [1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 1], // Row 10 (Spikes!)
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1], // Row 1 (Chamber roof)
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 1], // Row 2 (Gate, upper half of the 2-tile door)
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 5, 1], // Row 3 (Gate, lower half - the only door; Goal inside)
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1], // Row 4 (Goal ledge, top y=80)
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1], // Row 5
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1], // Row 6
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1], // Row 7
+      [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1], // Row 8 (Start cliff, top y=160)
+      [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1], // Row 9
+      [1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1], // Row 10 (Spikes!)
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  // Row 11
     ],
     dews: [
-      { x: 120, y: 140 },
-      { x: 170, y: 100 },
-      { x: 220, y: 130 }
+      { x: 118, y: 108 },
+      { x: 158, y: 46 },
+      { x: 205, y: 62 }
     ],
     sludges: []
   },
@@ -71,7 +75,7 @@ const LEVELS = [
     playerStart: { x: 30, y: 190 },
     grid: [
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Row 0 (Top ceiling)
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 1
+      [1, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 1 (Upper half of the 2-tile gate - the only door)
       [1, 5, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 2 (Goal at col 1, Gate at col 3)
       [1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1], // Row 3 (Ledge cols 1-4, Cliff at col 7)
       [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1], // Row 4 (Towering middle cliff at col 7)
@@ -121,7 +125,9 @@ const LEVELS = [
   },
 
   // ================= ROOM 5: 五彩交响 (Chroma Symphony) =================
-  // Sludge creep, cracked blocks, full team coordination!
+  // Boss arena. A staircase (shelf -> A -> B -> walkway, +40/+40/+20px) leads along the walkway to two
+  // cracked rocks and the ancient 2-tile gate (3,12)+(4,12). The fountain is sealed in the chamber behind
+  // the gate. Defeat the Titan: the gate opens, the rocks shatter and the way is clear.
   {
     id: 5,
     title: 'ROOM 5: 五彩交响',
@@ -129,20 +135,20 @@ const LEVELS = [
     playerStart: { x: 30, y: 190 },
     grid: [
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Row 0
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 1], // Row 1 (Goal)
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1], // Row 2
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 1, 1, 1], // Row 3 (Gate)
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 7, 1, 1, 1, 1], // Row 4 (7 = cracked blocks!)
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 5
-      [1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 6
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 1
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1], // Row 2 (Chamber roof / lintel)
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 1], // Row 3 (Gate upper half)
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 7, 6, 0, 5, 1], // Row 4 (7 = cracked rocks, Gate lower half, Goal)
+      [1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1], // Row 5 (Walkway, top y=100)
+      [1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1], // Row 6 (Step B, top y=120)
       [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 7
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 8
+      [1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 8 (Step A, top y=160)
       [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Row 9
       [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1], // Row 10
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  // Row 11
     ],
     dews: [
-      { x: 100, y: 95 },
+      { x: 130, y: 95 },
       { x: 180, y: 150 },
       { x: 235, y: 60 }
     ],

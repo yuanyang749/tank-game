@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Squishy Buddies 1991 - Mobile-First Retro Game Boy Stylesheet
+   Squishy Buddies 2006 - Mobile-First Retro Game Boy Stylesheet
    Chunky, Clean, High-Contrast Handheld Viewport
    ========================================================================== */
 
@@ -67,8 +67,7 @@ canvas#gameCanvas {
   max-height: 80vh;
   object-fit: contain;
   background-color: #1a1e2e;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
+  image-rendering: auto; /* vector art rendered on a hi-res back-buffer - keep it smooth & sharp */
   border-radius: 4px;
 }
 

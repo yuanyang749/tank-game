@@ -102,12 +102,12 @@ async function runHeadlessAutomation() {
   await page.screenshot({ path: tetrisShotPath });
   console.log(`✅ [4/6] 俄罗斯方块 1989 运行态截图: ${tetrisShotPath}`);
 
-  // 5. 复位到菜单并选择软乎乎大冒险 1991 (ROM 04)
+  // 5. 复位到菜单并选择软乎乎大冒险 2006 (ROM 04)
   console.log('🔄 模拟点击实体复位键返回菜单...');
   await page.tap('#gb-btn-reset');
   await new Promise(r => setTimeout(r, 600));
 
-  console.log('⬇️ 按下方向键选择 ROM 04 (软乎乎大冒险 1991)...');
+  console.log('⬇️ 按下方向键选择 ROM 04 (软乎乎大冒险 2006)...');
   await page.tap('#dpad-down');
   await new Promise(r => setTimeout(r, 300));
 
@@ -163,7 +163,7 @@ async function runHeadlessAutomation() {
 
   const squishyShotPath = path.join(screenshotsDir, 'headless_squishy.png');
   await page.screenshot({ path: squishyShotPath });
-  console.log(`✅ [5c] 软乎乎大冒险 1991 实战运行态截图: ${squishyShotPath}`);
+  console.log(`✅ [5c] 软乎乎大冒险 2006 实战运行态截图: ${squishyShotPath}`);
 
   // 6. 点击复位键回到菜单，并用方向下选择第 5 项（TERMUX 开发攻略）
   console.log('🔄 模拟点击复位键返回菜单...');

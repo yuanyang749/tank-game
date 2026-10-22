@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Squishy Buddies 1991 - Web Audio 8-Bit Chiptune Synthesizer
+   Squishy Buddies 2006 - Web Audio 8-Bit Chiptune Synthesizer
    Bouncy, Plucky, Watery Sound Effects & Pentatonic BGM
    ========================================================================== */
 
