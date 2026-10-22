@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#101014">
   <title>Antigravity Retro Game Boy Console - 掌机模拟器</title>
-  <link rel="stylesheet" href="css/gameboy.css?v=20261003_8">
+  <link rel="stylesheet" href="css/gameboy.css?v=20261022_9">
 </head>
 <body>
 
@@ -22,7 +22,7 @@
         <div class="bezel-line-top"></div>
         <div class="bezel-line-bottom"></div>
         <div class="bezel-text">DOT MATRIX WITH STEREO SOUND</div>
-        <button id="in-game-menu-btn" class="bezel-menu-btn hidden" aria-label="返回掌机目录" title="返回游戏目录 (RESET)">◀ 复位 / 目录</button>
+        <button id="in-game-menu-btn" class="bezel-menu-btn hidden" tabindex="-1" aria-label="返回掌机目录" title="返回游戏目录 (RESET)">◀ 复位 / 目录</button>
       </div>
 
       <div class="screen-housing">
@@ -168,7 +168,7 @@
               <span class="rubber-label">START</span>
             </div>
           </div>
-          <button type="button" class="reset-silk-screen" id="gb-btn-reset" aria-label="复位键" title="复位回到游戏菜单 (RESET)">◀ RESET: SELECT + START ▶</button>
+          <button type="button" class="reset-silk-screen" id="gb-btn-reset" tabindex="-1" aria-label="复位键" title="复位回到游戏菜单 (RESET)">◀ RESET: SELECT + START ▶</button>
         </div>
 
         <!-- Speaker Grille Slits (Bottom Right) -->
@@ -186,7 +186,7 @@
     <!-- Game Boy Chassis Hardware Utility Dock (3 Authentic SVG Operations) -->
     <div class="console-utility-dock">
       <!-- 1. Power Switch / Button -->
-      <button class="utility-btn active" id="btn-power" aria-label="电源开关" title="电源开关 (POWER)">
+      <button class="utility-btn active" id="btn-power" tabindex="-1" aria-label="电源开关" title="电源开关 (POWER)">
         <div class="btn-cap">
           <svg class="utility-svg" viewBox="0 0 24 24">
             <path d="M12 2v10"/>
@@ -197,7 +197,7 @@
       </button>
 
       <!-- 2. Palette Mode Switcher -->
-      <button class="utility-btn" id="btn-palette" aria-label="色彩调色板" title="色彩模式 (PALETTE)">
+      <button class="utility-btn" id="btn-palette" tabindex="-1" aria-label="色彩调色板" title="色彩模式 (PALETTE)">
         <div class="btn-cap">
           <svg class="utility-svg" viewBox="0 0 24 24">
             <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.5-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16c3.3 0 6-2.7 6-6 0-5.5-4.5-9.8-10-9.8z"/>
@@ -210,7 +210,7 @@
       </button>
 
       <!-- 3. Fullscreen Toggle -->
-      <button class="utility-btn" id="btn-fullscreen" aria-label="全屏显示" title="全屏切换 (FULLSCREEN)">
+      <button class="utility-btn" id="btn-fullscreen" tabindex="-1" aria-label="全屏显示" title="全屏切换 (FULLSCREEN)">
         <div class="btn-cap">
           <svg class="utility-svg" viewBox="0 0 24 24">
             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
@@ -222,6 +222,6 @@
   </div>
 
   <!-- Console Engine Script -->
-  <script src="js/console.js?v=20261003_7"></script>
+  <script src="js/console.js?v=20261022_9"></script>
 </body>
 </html>

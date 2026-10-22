@@ -245,6 +245,9 @@ class SquishyGame {
 
     // Keyboard support for standalone mode
     window.addEventListener('keydown', (e) => {
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'Tab', 'Enter', 'Backspace'].includes(e.code) && e.preventDefault) {
+        e.preventDefault();
+      }
       this.audio.init();
       if (this.state === 'TITLE' && (e.code === 'KeyZ' || e.code === 'Space' || e.code === 'Enter')) {
         this.startStory();
@@ -269,14 +272,14 @@ class SquishyGame {
           this.input.a = true;
           if (this.state === 'PLAYING') this.player.jump(this.input);
           break;
-        case 'KeyX': case 'KeyJ':
+        case 'KeyX': case 'KeyJ': case 'KeyK':
           this.input.b = true;
           if (this.state === 'PLAYING') {
             const b = this.player.spitBubble();
             if (b) this.pushBubble(b);
           }
           break;
-        case 'ShiftLeft': case 'KeyC':
+        case 'ShiftLeft': case 'ShiftRight': case 'KeyC': case 'Tab':
           if (this.state === 'PLAYING') {
             this.player.nextBuddy();
             this.audio.playSwitch();
@@ -297,7 +300,7 @@ class SquishyGame {
         case 'ArrowDown': case 'KeyS': this.input.down = false; break;
         case 'ArrowUp': case 'KeyW': this.input.up = false; break;
         case 'KeyZ': case 'Space': this.input.a = false; break;
-        case 'KeyX': case 'KeyJ': this.input.b = false; break;
+        case 'KeyX': case 'KeyJ': case 'KeyK': this.input.b = false; break;
       }
     });
 

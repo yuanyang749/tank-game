@@ -229,6 +229,13 @@ class GameBoyConsole {
   loadCartridge(gameId) {
     this.currentCartridge = gameId;
     this.inMenu = false;
+    this.lastSelectTime = 0;
+    this.lastStartTime = 0;
+
+    // Ensure no chassis button retains keyboard focus on PC (prevents Space/Enter from clicking Reset)
+    if (typeof document !== 'undefined' && document.activeElement && typeof document.activeElement.blur === 'function') {
+      try { document.activeElement.blur(); } catch (e) {}
+    }
 
     // Hide Menu View
     if (this.menuView) {
@@ -301,11 +308,17 @@ class GameBoyConsole {
       this.pressedKeys.delete(key);
     }
 
-    // Authentic Soft-Reset: SELECT + START pressed together OR sequentially within 1.2s
+    // Authentic Soft-Reset: SELECT + START pressed together, or SELECT -> START sequentially
+    // Note: In squishy-buddies, SELECT is used constantly in-game to switch characters, so only simultaneous hold resets there.
     const isComboPressed = this.pressedKeys.has('SELECT') && this.pressedKeys.has('START');
-    const isComboSequential = (this.lastSelectTime && this.lastStartTime && Math.abs(this.lastSelectTime - this.lastStartTime) < 1200);
+    const isComboSequential = (
+      this.currentCartridge !== 'squishy-buddies' &&
+      key === 'START' &&
+      this.lastSelectTime &&
+      (now - this.lastSelectTime) < 800
+    );
 
-    if (isComboPressed || (pressed && (key === 'SELECT' || key === 'START') && isComboSequential)) {
+    if (isComboPressed || (pressed && isComboSequential)) {
       this.lastSelectTime = 0;
       this.lastStartTime = 0;
       this.returnToMenu();
@@ -408,13 +421,16 @@ class GameBoyConsole {
         }
       });
 
+      let isMouseDown = false;
       el.addEventListener('mousedown', () => {
         if (isTouching) return;
+        isMouseDown = true;
         el.classList.add('active');
         this.sendInput(key, true);
       });
       window.addEventListener('mouseup', () => {
-        if (isTouching) return;
+        if (isTouching || !isMouseDown) return;
+        isMouseDown = false;
         el.classList.remove('active');
         this.sendInput(key, false);
       });
@@ -607,43 +623,52 @@ class GameBoyConsole {
 
   initKeyboardBridge() {
     window.addEventListener('keydown', (e) => {
+      // Never let Space/Enter activate a focused hardware button on PC
+      if (typeof document !== 'undefined' && document.activeElement && document.activeElement.tagName === 'BUTTON') {
+        try { document.activeElement.blur(); } catch (err) {}
+      }
       switch (e.code) {
         case 'ArrowUp':
         case 'KeyW':
+          e.preventDefault();
           this.sendInput('UP', true);
           break;
         case 'ArrowDown':
         case 'KeyS':
+          e.preventDefault();
           this.sendInput('DOWN', true);
           break;
         case 'ArrowLeft':
         case 'KeyA':
+          e.preventDefault();
           this.sendInput('LEFT', true);
           break;
         case 'ArrowRight':
         case 'KeyD':
+          e.preventDefault();
           this.sendInput('RIGHT', true);
           break;
         case 'KeyJ':
         case 'KeyZ':
         case 'Space':
+          e.preventDefault();
           this.sendInput('A', true);
           break;
         case 'KeyK':
         case 'KeyX':
+          e.preventDefault();
           this.sendInput('B', true);
           break;
         case 'Enter':
+          e.preventDefault();
           this.sendInput('START', true);
           break;
         case 'ShiftLeft':
+        case 'ShiftRight':
+        case 'KeyC':
         case 'Tab':
+          e.preventDefault();
           this.sendInput('SELECT', true);
-          break;
-        case 'Escape':
-        case 'KeyR':
-        case 'Backspace':
-          this.returnToMenu();
           break;
       }
     });
@@ -679,6 +704,8 @@ class GameBoyConsole {
           this.sendInput('START', false);
           break;
         case 'ShiftLeft':
+        case 'ShiftRight':
+        case 'KeyC':
         case 'Tab':
           this.sendInput('SELECT', false);
           break;

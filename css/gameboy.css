@@ -485,11 +485,13 @@ iframe#game-screen {
   flex-direction: column;
   align-items: center;
   gap: 3px;
+  padding: 4px 6px;
+  cursor: pointer;
   transform: rotate(-25deg);
 }
 .rubber-pill-btn {
   width: 44px;
-  height: 14px;
+  height: 16px;
   background: var(--gb-rubber);
   border-radius: 8px;
   border: 1px solid #565860;
@@ -507,6 +509,7 @@ iframe#game-screen {
   font-weight: 900;
   color: var(--gb-accent-blue);
   letter-spacing: 0.5px;
+  pointer-events: none;
 }
 .reset-silk-screen {
   font-family: inherit;
@@ -514,11 +517,11 @@ iframe#game-screen {
   font-weight: 900;
   color: #636674;
   letter-spacing: 0.6px;
-  margin-top: 4px;
+  margin-top: 8px;
   background: rgba(0, 0, 0, 0.06);
   border: 1px solid rgba(80, 84, 100, 0.22);
   border-radius: 4px;
-  padding: 5px 12px;
+  padding: 4px 10px;
   cursor: pointer;
   touch-action: manipulation;
   display: inline-flex;
