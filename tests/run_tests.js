@@ -404,10 +404,17 @@ suite('5. Game Boy Console OS & Bridge Controller', () => {
   gb.returnToMenu();
   assert(gb.inMenu === true, 'GB_RESET message restores menu');
 
-  // Test 3 SVG Utility Actions: Palette cycle
+  // Test 3 SVG Utility Actions: Palette cycle (4 modes: true -> color -> dmg -> bw -> true)
   const initialPalette = gb.paletteMode;
+  assert(initialPalette === 'true', 'Default palette mode starts at scanline-free True Color (原彩)');
   gb.cyclePalette();
-  assert(gb.paletteMode !== initialPalette, 'Palette utility button cycles screen color mode');
+  assert(gb.paletteMode === 'color', 'Palette utility cycles to retro scanline COLOR mode');
+  gb.cyclePalette();
+  assert(gb.paletteMode === 'dmg', 'Palette utility cycles to DMG green mode');
+  gb.cyclePalette();
+  assert(gb.paletteMode === 'bw', 'Palette utility cycles to B&W mode');
+  gb.cyclePalette();
+  assert(gb.paletteMode === 'true', 'Palette utility wraps back to True Color (原彩) mode');
 });
 
 // =========================================================================

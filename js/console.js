@@ -8,7 +8,7 @@ class GameBoyConsole {
     this.powerOn = true;
     this.audioCtx = null;
     this.currentCartridge = 'tank-battle';
-    this.paletteMode = 'color'; // 'color', 'dmg', 'bw'
+    this.paletteMode = 'true'; // 'true' (原彩无扫描线), 'color' (复古扫描线), 'dmg', 'bw'
     this.inMenu = true; // Authentic Game Boy starts at the Multi-Cartridge game list!
     this.menuIndex = 0;
     this.games = ['tank-battle', 'space-invaders', 'tetris', 'squishy-buddies', 'tutorial'];
@@ -762,20 +762,21 @@ class GameBoyConsole {
   }
 
   cyclePalette() {
-    const palettes = ['color', 'dmg', 'bw'];
-    const labels = { 'color': 'COLOR', 'dmg': 'DMG', 'bw': 'B&W' };
+    const palettes = ['true', 'color', 'dmg', 'bw'];
+    const labels = { 'true': '原彩', 'color': 'COLOR', 'dmg': 'DMG', 'bw': 'B&W' };
 
     const idx = palettes.indexOf(this.paletteMode);
     this.paletteMode = palettes[(idx + 1) % palettes.length];
     
     if (this.screenFrame) {
-      this.screenFrame.classList.remove('palette-dmg', 'palette-bw', 'palette-color');
+      this.screenFrame.classList.remove('palette-true', 'palette-dmg', 'palette-bw', 'palette-color');
       this.screenFrame.classList.add(`palette-${this.paletteMode}`);
     }
     if (this.paletteLabel) {
       this.paletteLabel.innerText = labels[this.paletteMode];
     }
     if (this.btnPalette) {
+      this.btnPalette.classList.toggle('true-color-active', this.paletteMode === 'true');
       this.btnPalette.classList.add('active');
       setTimeout(() => this.btnPalette.classList.remove('active'), 200);
     }

@@ -116,6 +116,13 @@ html, body {
   box-shadow: inset 0 1px 2px rgba(255,255,255,0.4), 0 0 8px rgba(255, 51, 68, 0.35);
 }
 
+/* True-Color (原彩) active indicator on palette button */
+.utility-btn#btn-palette.true-color-active .btn-cap {
+  color: #ffd454;
+  border-color: #5c4e28;
+  box-shadow: inset 0 1.5px 2px rgba(255, 255, 255, 0.4), 0 3px 5px rgba(0, 0, 0, 0.35), 0 0 6px rgba(255, 212, 84, 0.28);
+}
+
 /* Text Labels matching Game Boy DMG-01 Silk-screened styling */
 .btn-label {
   font-size: 7.5px;
@@ -242,6 +249,14 @@ html, body {
 }
 #gb-screen-frame.palette-color {
   filter: none;
+}
+#gb-screen-frame.palette-true {
+  filter: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+#gb-screen-frame.palette-true .lcd-grid-overlay {
+  display: none;
+  opacity: 0;
 }
 
 /* Scanline / Pixel Grid Overlay */

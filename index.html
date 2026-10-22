@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#101014">
   <title>Antigravity Retro Game Boy Console - 掌机模拟器</title>
-  <link rel="stylesheet" href="css/gameboy.css?v=20261022_9">
+  <link rel="stylesheet" href="css/gameboy.css?v=20261022_10">
 </head>
 <body>
 
@@ -27,7 +27,7 @@
 
       <div class="screen-housing">
         <!-- LCD Screen Frame & Canvas/Iframe/Menu -->
-        <div id="gb-screen-frame" class="palette-color">
+        <div id="gb-screen-frame" class="palette-true">
           <div class="lcd-grid-overlay"></div>
 
           <!-- Authentic Game Boy Multi-Cart Selection Menu (On-Screen List) -->
@@ -197,7 +197,7 @@
       </button>
 
       <!-- 2. Palette Mode Switcher -->
-      <button class="utility-btn" id="btn-palette" tabindex="-1" aria-label="色彩调色板" title="色彩模式 (PALETTE)">
+      <button class="utility-btn true-color-active" id="btn-palette" tabindex="-1" aria-label="色彩调色板" title="色彩模式切换：原彩(无条纹) / COLOR(扫描线) / DMG / B&W">
         <div class="btn-cap">
           <svg class="utility-svg" viewBox="0 0 24 24">
             <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.5-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16c3.3 0 6-2.7 6-6 0-5.5-4.5-9.8-10-9.8z"/>
@@ -206,7 +206,7 @@
             <circle cx="16.5" cy="10.5" r="1.5" fill="currentColor"/>
           </svg>
         </div>
-        <span class="btn-label" id="palette-label">COLOR</span>
+        <span class="btn-label" id="palette-label">原彩</span>
       </button>
 
       <!-- 3. Fullscreen Toggle -->
@@ -222,6 +222,6 @@
   </div>
 
   <!-- Console Engine Script -->
-  <script src="js/console.js?v=20261022_9"></script>
+  <script src="js/console.js?v=20261022_10"></script>
 </body>
 </html>
