@@ -81,7 +81,10 @@ class SquishyGame {
 
     // Init boss if present in level
     if (this.currentLevel.boss) {
-      this.boss = new SludgeBoss(this.currentLevel.boss.x, this.currentLevel.boss.y, this.currentLevel.boss.hp);
+      this.boss = new SludgeBoss(this.currentLevel.boss.x, this.currentLevel.boss.y, this.currentLevel.boss.hp, {
+        variant: this.currentLevel.boss.variant,
+        name: this.currentLevel.boss.name
+      });
     } else {
       this.boss = null;
     }
@@ -537,6 +540,33 @@ class SquishyGame {
     for (let b of this.bubbles) {
       b.update(dt, this.grid, this.bubbles);
 
+      // Purple CHAIN_POP bubble detonates on impact with cracked rocks (T_CRACKED)
+      if (b.alive && b.type === 'CHAIN_POP') {
+        const bCol = Math.floor(b.x / TILE_SIZE);
+        const bRow = Math.floor(b.y / TILE_SIZE);
+        let hitCracked = false;
+        for (let r = Math.max(0, bRow - 1); r <= Math.min(GRID_ROWS - 1, bRow + 1); r++) {
+          for (let c = Math.max(0, bCol - 1); c <= Math.min(GRID_COLS - 1, bCol + 1); c++) {
+            if (this.grid[r][c] === T_CRACKED) {
+              const cx = c * TILE_SIZE + 10;
+              const cy = r * TILE_SIZE + 10;
+              if (Math.hypot(b.x - cx, b.y - cy) < b.radius + 12) {
+                hitCracked = true;
+                break;
+              }
+            }
+          }
+          if (hitCracked) break;
+        }
+        if (hitCracked) {
+          b.alive = false;
+          this.audio.playPop();
+          this.spawnPopParticles(b.x, b.y, b.buddyType.color);
+          this.triggerChainPop(b.x, b.y);
+          continue;
+        }
+      }
+
       // Player jump interaction on bubble
       if (b.alive) {
         const dist = Math.hypot(this.player.x - b.x, (this.player.y + this.player.radius * 0.7) - b.y);
@@ -981,12 +1011,15 @@ class SquishyGame {
     if (this.state === 'PLAYING' && this.roomClearBannerTimer > 0) {
       const p = FX.outBack(FX.seg(2.0 - this.roomClearBannerTimer, 0, 0.3), 1.8);
       const fade = FX.clamp(this.roomClearBannerTimer / 0.35);
+      const msg = this.levelIndex === 5
+        ? '★ 第二阶段开启：星渊秘境！ ★'
+        : '★ 泉眼净化成功！进入下一关 ★';
       ctx.save();
       ctx.globalAlpha = fade;
       ctx.translate(this.width / 2, 118);
       ctx.scale(p, p);
       FX.panel(ctx, -150, -19, 300, 38, { r: 10, lw: 1.6 });
-      FX.text(ctx, '★ 泉眼净化成功！进入下一关 ★', 0, 5, { size: 12, color: '#FFD454', align: 'center' });
+      FX.text(ctx, msg, 0, 5, { size: 12, color: '#FFD454', align: 'center' });
       ctx.restore();
     }
   }
@@ -1155,12 +1188,15 @@ class SquishyGame {
 
     ctx.save();
     ctx.globalAlpha *= fade;
+    const isCrystal = boss.variant === 'CRYSTAL';
+    const rage = boss.hp <= (isCrystal ? 4 : 2);
     FX.drawBoss(ctx, boss.x, cy, R, boss.animTimer, {
       sx, sy,
       flash: flashing ? 0.85 : 0,
-      rage: boss.hp <= 2,
+      rage,
       charge: boss.state === 'CHARGE_SPIT',
-      facing: boss.facing
+      facing: boss.facing,
+      variant: boss.variant
     });
 
     // Blue Bubble encasing (harmless stun visual)
@@ -1169,25 +1205,25 @@ class SquishyGame {
       FX.drawBubble(ctx, boss.x, cy, R + 9, { tint: '#75C8F8', sx: 1 + w * 0.03, sy: 1 - w * 0.03, t });
     }
 
-    // Floating 10-segment micro armor bar right above the Boss in the arena
+    // Floating segmented micro armor bar right above the Boss in the arena
     if (boss.alive && boss.state !== 'DEFEATED') {
-      const barW = 54, barH = 4.5;
+      const barW = 56, barH = 4.5;
       const bx = boss.x - barW / 2;
       const by = Math.max(24, cy - R - 11);
       FX.rr(ctx, bx - 1.5, by - 1.5, barW + 3, barH + 3, 2.5);
       ctx.fillStyle = 'rgba(18, 8, 28, 0.85)';
       ctx.fill();
       ctx.lineWidth = 0.8;
-      ctx.strokeStyle = boss.hp <= 3 ? '#FF3B5C' : '#B98CFF';
+      ctx.strokeStyle = rage ? '#FF3B5C' : (isCrystal ? '#58E4FF' : '#B98CFF');
       ctx.stroke();
 
       const totalCells = boss.maxHp || 10;
-      const cellGap = 1;
+      const cellGap = 0.9;
       const cellW = (barW - (totalCells - 1) * cellGap) / totalCells;
       for (let i = 0; i < totalCells; i++) {
         const cx = bx + i * (cellW + cellGap);
         ctx.fillStyle = i < boss.hp
-          ? (boss.hp <= 3 ? '#FF3B5C' : '#C864FF')
+          ? (rage ? '#FF3B5C' : (isCrystal ? '#58E4FF' : '#C864FF'))
           : 'rgba(70, 50, 95, 0.45)';
         ctx.fillRect(cx, by, cellW, barH);
       }
@@ -1256,22 +1292,23 @@ class SquishyGame {
       ctx.restore();
     }
 
-    // 3. Right Panel (x=176, w=140): Boss 10-Segment Armor HP Bar (Room 5) OR Room Badge (Rooms 1-4)
+    // 3. Right Panel (x=176, w=140): Boss Segmented Armor HP Bar (Room 5 & Room 10) OR Room Badge
     if (this.boss) {
       const bx = 176, bw = 140;
-      const rageHud = this.boss.hp <= 3;
+      const isCrystal = this.boss.variant === 'CRYSTAL';
+      const rageHud = this.boss.hp <= (isCrystal ? 4 : 3);
       FX.panel(ctx, bx, PY, bw, PH, {
         r: 5,
         lw: 1.4,
-        border: rageHud ? '#FF2244' : '#FFD454',
-        top: 'rgba(40,24,60,.95)',
-        bottom: 'rgba(20,10,32,.95)'
+        border: rageHud ? '#FF2244' : (isCrystal ? '#58E4FF' : '#FFD454'),
+        top: isCrystal ? 'rgba(18,38,68,.95)' : 'rgba(40,24,60,.95)',
+        bottom: isCrystal ? 'rgba(8,18,36,.95)' : 'rgba(20,10,32,.95)'
       });
 
       // Tiny Boss emblem
       const bgr = ctx.createRadialGradient(bx + 7, 8, 0.5, bx + 9, 10, 4.8);
-      bgr.addColorStop(0, '#7A42B0');
-      bgr.addColorStop(1, '#1A0B27');
+      bgr.addColorStop(0, isCrystal ? '#78F0FF' : '#7A42B0');
+      bgr.addColorStop(1, isCrystal ? '#0E2240' : '#1A0B27');
       ctx.fillStyle = bgr;
       ctx.beginPath();
       ctx.arc(bx + 9, 10, 4.5, 0, Math.PI * 2);
@@ -1285,25 +1322,33 @@ class SquishyGame {
       ctx.arc(bx + 10.4, 9.5, 0.95, 0, Math.PI * 2);
       ctx.fill();
 
-      FX.text(ctx, '巨霸', bx + 15, TY, { size: 8, color: rageHud ? '#FF8A98' : '#FFD454' });
+      const shortBossName = isCrystal ? '霜晶' : '巨霸';
+      FX.text(ctx, shortBossName, bx + 15, TY, {
+        size: 8,
+        color: rageHud ? '#FF8A98' : (isCrystal ? '#78F0FF' : '#FFD454')
+      });
 
-      // 10-Segment Purple/Crimson Boss Armor Gauge
+      // Auto-scaled Segmented Boss Armor Gauge (supports 10 HP or 12 HP cleanly)
       const totalCells = this.boss.maxHp || 10;
       const segStartX = bx + 35;
-      const segW = 5.4;
-      const segGap = 1.4;
+      const availW = 66;
+      const segGap = 1.2;
+      const segW = (availW - (totalCells - 1) * segGap) / totalCells;
       const segY = 6.2;
       const segH = 7.6;
 
       for (let i = 0; i < totalCells; i++) {
         const sx = segStartX + i * (segW + segGap);
         const filled = i < this.boss.hp;
-        FX.rr(ctx, sx, segY, segW, segH, 1.4);
+        FX.rr(ctx, sx, segY, segW, segH, 1.2);
         if (filled) {
           const sg = ctx.createLinearGradient(0, segY, 0, segY + segH);
           if (rageHud) {
             sg.addColorStop(0, '#FF7A9A');
             sg.addColorStop(1, '#E01035');
+          } else if (isCrystal) {
+            sg.addColorStop(0, '#98F8FF');
+            sg.addColorStop(1, '#2288E8');
           } else {
             sg.addColorStop(0, '#DF88FF');
             sg.addColorStop(1, '#8A22D8');
@@ -1311,7 +1356,7 @@ class SquishyGame {
           ctx.fillStyle = sg;
           ctx.fill();
           ctx.lineWidth = 0.7;
-          ctx.strokeStyle = '#240838';
+          ctx.strokeStyle = '#140828';
           ctx.stroke();
         } else {
           ctx.fillStyle = 'rgba(65, 50, 88, 0.45)';
@@ -1322,10 +1367,10 @@ class SquishyGame {
         }
       }
 
-      // Numeric Boss HP readout (e.g. "10/10")
+      // Numeric Boss HP readout (e.g. "10/10" or "12/12")
       FX.text(ctx, `${this.boss.hp}/${totalCells}`, bx + bw - 4, TY, {
         size: 7.5,
-        color: rageHud ? '#FF8A98' : '#E5C6FF',
+        color: rageHud ? '#FF8A98' : (isCrystal ? '#B8F6FF' : '#E5C6FF'),
         align: 'right'
       });
       return;

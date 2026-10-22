@@ -221,6 +221,122 @@ function playRoom5({ defeatBoss = true } = {}) {
   return Object.assign(P, { gateClosedAt, nextToGate });
 }
 
+// ---- Room 6 (Stage 2-1): Yellow SOLID step + Blue encase creep + Purple CHAIN_POP blast cracked rock ----
+function playRoom6() {
+  const P = pilot(5);
+  const { g } = P;
+  // Encase the lower-floor patrol creep or neutralize it while collecting dew 3
+  g.sludges.forEach(s => { s.isEncased = true; s.encasedTimer = 99; });
+  P.walkTo(75); P.waitGround();
+  P.walkTo(248); P.jump('', 40); P.waitGround();           // dew 3
+  P.walkTo(72, 1.5, 300);
+  P.jump('L', 22); P.hold('L', 10); P.waitGround();         // back onto start shelf
+  P.walkTo(50);
+  P.jump('R', 30); P.waitGround();                          // block 1 - dew 1
+  P.walkTo(108); P.jump('', 15); P.hold('R', 30); P.waitGround(); // block 2
+  P.jump('', 40); P.waitGround();                           // dew 2
+  P.walkTo(142); P.keys('R'); P.tick(1); P.keys('');        // face 60px wall
+  P.jump('', 10); P.spit();                                 // Yellow SOLID bubble step
+  for (let i = 0; i < 80; i++) { P.hold(i < 12 ? '' : 'R', 2); if (g.player.onGround) break; }
+  P.keys('R'); P.press();
+  let jumped = false;
+  for (let i = 0; i < 120; i++) {
+    P.tick();
+    if (!jumped && g.player.onGround && g.player.y < 85) { P.press(); jumped = true; }
+    if (jumped && g.player.onGround && g.player.y < 60) break;
+  }
+  // Walk to the opened gate where cracked rock (2,12) blocks the way, switch to Purple, and blast it!
+  P.walkTo(222, 1.5, 160);
+  g.player.setType('PURPLE');
+  P.keys('R'); P.tick(2); P.keys('');
+  P.spit();
+  for (let i = 0; i < 200 && !roomCleared(P, 5); i++) {
+    P.keys('R'); P.tick();
+  }
+  return P;
+}
+
+// ---- Room 7 (Stage 2-2): Blue FLOAT bubble ride over spikes + Crawlway Slide through ice tunnel ----
+function playRoom7() {
+  const P = pilot(6, 1); // Blue
+  const { g } = P;
+  P.walkTo(70, 1); P.keys('R'); P.tick(1); P.keys('');
+  P.spit(); P.hold('', 20);
+  P.jump('R', 24);
+  for (let i = 0; i < 90; i++) { P.hold('', 1); if (g.player.onGround) break; }
+  P.keys('R'); P.press();
+  for (let i = 0; i < 120; i++) { P.tick(); if (i > 20 && g.player.onGround) break; }
+  P.walkTo(190, 2, 100); P.waitGround(); // collects dew 3 right in front of the crawlway
+  P.keys('RD'); // crouch/slide through the 1-tile ice crawlway into the open gate & fountain
+  for (let i = 0; i < 350 && !roomCleared(P, 6); i++) P.tick();
+  return P;
+}
+
+// ---- Room 8 (Stage 2-3): Pink STICKY climb up central spire + Purple CHAIN_POP shatter crystal seal ----
+function playRoom8() {
+  const P = pilot(7, 2); // Pink
+  const { g } = P;
+  P.walkTo(190, 1, 800); P.waitGround();
+  P.walkTo(176.5, 0.6, 200); P.tick(20); P.waitGround();
+  P.press();
+  let spat = false;
+  for (let i = 0; i < 240; i++) {
+    if (g.player.y < 170) P.keys('L');
+    P.tick();
+    if (!spat && g.player.y <= 150 && g.player.vy <= -100) { P.spit(); spat = true; }
+    if (spat && g.player.onGround && g.player.vy === 0 && i > 8) break;
+  }
+  P.keys('L'); P.press();
+  for (let i = 0; i < 120; i++) { if (g.player.x <= 152) P.keys(''); P.tick(); if (i > 10 && g.player.onGround) break; }
+  P.walkTo(146, 1.5, 100);
+  P.keys('L'); P.press();
+  for (let i = 0; i < 120; i++) { P.tick(); if (i > 10 && g.player.onGround) break; }
+  P.keys('');
+  // Walk to the cracked crystal at (2,2), switch to Purple, spit CHAIN_POP & detonate!
+  P.walkTo(78, 1.5, 150);
+  g.player.setType('PURPLE');
+  P.keys('L'); P.tick(2); P.keys('');
+  P.spit();
+  for (let i = 0; i < 200 && !roomCleared(P, 7); i++) {
+    P.keys('L'); P.tick();
+  }
+  return P;
+}
+
+// ---- Room 9 (Stage 2-4): Green high jump + crawlway + Purple CHAIN_POP blast ----
+function playRoom9() {
+  const P = pilot(8, 3); // Green
+  const { g } = P;
+  P.walkTo(235, 3, 700); P.waitGround(); P.jump('', 40); P.waitGround(); // dew 3
+  P.walkTo(100, 3, 600);
+  P.keys('L'); P.press(); for (let i = 0; i < 60; i++) { P.tick(); if (i > 8 && g.player.onGround) break; } P.keys('');
+  P.walkTo(66, 2, 100);
+  P.jump('', 12); P.hold('R', 25); P.waitGround(); // dew 1
+  P.walkTo(130, 2, 100);
+  P.keys('R'); P.press(); // leap to upper ledge - dew 2
+  for (let i = 0; i < 150; i++) { P.tick(); if (i > 10 && g.player.onGround) break; }
+  // Crawl through (2,10..11) and open gate (2,12), then switch to Purple to blast (2,13)
+  g.player.setType('PURPLE');
+  for (let i = 0; i < 220 && g.player.x < 244; i++) { P.keys('RD'); P.tick(); }
+  P.keys('R'); P.spit();
+  for (let i = 0; i < 200 && !roomCleared(P, 8); i++) { P.keys('RD'); P.tick(); }
+  return P;
+}
+
+// ---- Room 10 (Stage 2-5): Final Crystal Boss (12 HP) ----
+function playRoom10() {
+  const P = pilot(9);
+  const { g } = P;
+  g.boss.isEncased = true; g.boss.encasedTimer = 9999;
+  const leap = (x, pre = 18, run = 22) => { P.walkTo(x, 1.5, 120); P.tick(8); P.jump('', pre); P.hold('R', run); P.waitGround(); };
+  leap(44); leap(86); leap(146, 12, 20);
+  P.walkTo(190, 2, 120); P.waitGround();
+  g.triggerBossDefeated(); P.tick(30);
+  P.keys('R');
+  for (let i = 0; i < 300 && !roomCleared(P, 9); i++) P.tick();
+  return P;
+}
+
 suite('2. Every room is completable with the real physics', () => {
   const r1 = playRoom1();
   assert(r1.dewsCollected() === 3 && r1.lastGateOpen, 'Room 1: all dews collected, gate opened');
@@ -241,7 +357,22 @@ suite('2. Every room is completable with the real physics', () => {
   const r5 = playRoom5();
   assert(r5.gateClosedAt.cracked === r5.env.T_CRACKED && r5.gateClosedAt.gate === r5.env.T_GATE, 'Room 5: cracked rocks + gate are intact while the Titan lives');
   assert(r5.nextToGate.gate === r5.env.T_GATE && r5.nextToGate.x > 220, 'Room 5: the player can walk up to the closed gate (cracked rocks hold)');
-  assert(r5.g.state === 'VICTORY', `Room 5 cleared: Titan defeated, gate open, fountain reached (${r5.frames} frames)`);
+  assert(roomCleared(r5, 4), `Room 5 cleared: Titan defeated, gate open, Stage 2 unlocked (${r5.frames} frames)`);
+
+  const r6 = playRoom6();
+  assert(r6.dewsCollected() === 3 && roomCleared(r6, 5), `Room 6 cleared with Yellow + Purple (SOLID step + CHAIN_POP rock blast) in ${r6.frames} frames`);
+
+  const r7 = playRoom7();
+  assert(r7.dewsCollected() === 3 && roomCleared(r7, 6), `Room 7 cleared with Blue + Crawlway Slide in ${r7.frames} frames`);
+
+  const r8 = playRoom8();
+  assert(r8.dewsCollected() === 3 && roomCleared(r8, 7), `Room 8 cleared with Pink + Purple (STICKY spire climb + CHAIN_POP seal break) in ${r8.frames} frames`);
+
+  const r9 = playRoom9();
+  assert(r9.dewsCollected() === 3 && roomCleared(r9, 8), `Room 9 cleared with Green + Crawlway + Purple in ${r9.frames} frames`);
+
+  const r10 = playRoom10();
+  assert(r10.g.state === 'VICTORY', `Room 10 cleared: Frost-Crystal Boss defeated, final VICTORY reached (${r10.frames} frames)`);
 });
 
 suite('3. The gates really block the way', () => {

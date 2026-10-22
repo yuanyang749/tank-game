@@ -745,9 +745,10 @@ suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
   // Load and verify Handcrafted Levels
   loadScript(levelsJs, env);
   const LEVELS = env.LEVELS;
-  assert(Array.isArray(LEVELS) && LEVELS.length === 5, '5 handcrafted single-screen rooms exist');
+  assert(Array.isArray(LEVELS) && LEVELS.length === 10, '10 handcrafted single-screen rooms exist across Stage 1 (1-5) and Stage 2 (6-10)');
   assert(LEVELS[0].grid.length === 12 && LEVELS[0].grid[0].length === 16, 'Level 1 has 16x12 dimensions');
   assert(LEVELS[0].dews.length === 3, 'Level 1 has 3 collectible dews');
+  assert(LEVELS[9].boss && LEVELS[9].boss.hp === 12 && LEVELS[9].boss.variant === 'CRYSTAL', 'Room 10 has Stage 2 Final Boss (霜晶魔偶, 12 HP, CRYSTAL variant)');
 
   // Test Game Boy Bridge in game.js
   const gameJsCode = fs.readFileSync(gameJs, 'utf8');

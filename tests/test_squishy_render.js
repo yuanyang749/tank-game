@@ -34,10 +34,10 @@ suite('1. fx.js module & game wiring', () => {
   loadAll(env);
   const FX = env.SquishyFX;
   assert(FX && typeof FX.drawBuddy === 'function' && typeof FX.drawBubble === 'function' && typeof FX.drawBoss === 'function', 'SquishyFX exposes buddy / bubble / boss renderers');
-  assert(FX.THEMES.length === 5, 'five room themes (one per room)');
-  assert(new Set(FX.THEMES.map(t => t.id)).size === 5, 'every room theme is unique');
-  assert(FX.themeFor(0).light === true && FX.themeFor(4).light === false, 'rooms 1-4 are bright toy worlds, room 5 is the dusk boss arena');
-  assert(FX.themeFor(99).id === FX.THEMES[4].id && FX.themeFor(-3).id === FX.THEMES[0].id, 'themeFor clamps out-of-range room indexes');
+  assert(FX.THEMES.length === 10, 'ten room themes (5 Stage 1 + 5 Stage 2)');
+  assert(new Set(FX.THEMES.map(t => t.id)).size === 10, 'every room theme is unique');
+  assert(FX.themeFor(0).light === true && FX.themeFor(4).light === false && FX.themeFor(9).light === false, 'rooms 1-4 and 6-9 are bright worlds, rooms 5 & 10 are dark boss arenas');
+  assert(FX.themeFor(99).id === FX.THEMES[9].id && FX.themeFor(-3).id === FX.THEMES[0].id, 'themeFor clamps out-of-range room indexes');
 });
 
 suite('2. Hi-res back-buffer', () => {
@@ -76,7 +76,7 @@ suite('3. Every screen renders without errors', () => {
 
   run('TITLE overlay', () => { g.state = 'TITLE'; g.loadLevel(0); });
   for (let i = 0; i < 4; i++) run(`STORY slide ${i + 1}`, () => { g.state = 'STORY'; g.storySlideIndex = i; g.storyTimer = 1.2; });
-  for (let lv = 0; lv < 5; lv++) {
+  for (let lv = 0; lv < env.LEVELS.length; lv++) {
     run(`Room ${lv + 1} gameplay`, () => {
       g.loadLevel(lv); g.state = 'PLAYING'; g.fxTime = 1.5;
       for (const [type, key] of [['SOLID', 'YELLOW'], ['FLOAT', 'BLUE'], ['STICKY', 'PINK'], ['BOUNCY', 'GREEN'], ['CHAIN_POP', 'PURPLE']]) {
@@ -91,6 +91,11 @@ suite('3. Every screen renders without errors', () => {
     g.boss.isEncased = true; g.boss.state = 'CHARGE_SPIT'; g.boss.hp = 2;
     g.sludgeProjectiles.push(new env.SludgeProjectile(120, 100, 60, -40));
     g.sludgeShockwaves.push(new env.SludgeShockwave(150, 212, 1));
+  });
+  run('Room 10 crystal boss: enraged + charging', () => {
+    g.loadLevel(9); g.state = 'PLAYING';
+    g.boss.state = 'CHARGE_SPIT'; g.boss.hp = 3;
+    g.sludgeProjectiles.push(new env.SludgeProjectile(140, 110, -70, -50));
   });
   run('Room 5 boss defeated fade-out', () => { g.loadLevel(4); g.triggerBossDefeated(); g.boss.takeDamage(99); });
   run('PAUSED overlay', () => { g.state = 'PAUSED'; });

@@ -573,13 +573,15 @@ class SludgeShockwave {
 }
 
 class SludgeBoss {
-  constructor(x, y, hp = 10) {
+  constructor(x, y, hp = 10, opts = {}) {
     this.x = x;
     this.y = y;
     this.startX = x;
     this.radius = 24;
     this.hp = hp;
     this.maxHp = hp;
+    this.variant = opts.variant || 'SLUDGE'; // 'SLUDGE' (Stage 1) or 'CRYSTAL' (Stage 2)
+    this.name = opts.name || (this.variant === 'CRYSTAL' ? '霜晶魔偶' : '暗影巨霸');
     this.alive = true;
     this.facing = -1;
     this.vx = -35;
@@ -682,7 +684,10 @@ class SludgeBoss {
       if (Math.random() < dt * 1.5) {
         this.facing = player.x < this.x ? -1 : 1;
       }
-      const speed = (this.hp <= 2) ? 55 : 35;
+      const isCrystal = this.variant === 'CRYSTAL';
+      const baseSpd = isCrystal ? 42 : 35;
+      const rageSpd = isCrystal ? 62 : 55;
+      const speed = (this.hp <= (isCrystal ? 4 : 2)) ? rageSpd : baseSpd;
       this.vx = this.facing * speed;
 
       if (Math.abs(this.x - this.startX) > this.patrolRange) {
@@ -691,16 +696,16 @@ class SludgeBoss {
       }
 
       if (this.stateTimer <= 0) {
-        const canStomp = (this.hp <= Math.ceil(this.maxHp * 0.6));
-        if (canStomp && Math.random() < 0.45) {
+        const canStomp = isCrystal || (this.hp <= Math.ceil(this.maxHp * 0.6));
+        if (canStomp && Math.random() < (isCrystal ? 0.52 : 0.45)) {
           this.state = 'PREPARE_STOMP';
-          this.stateTimer = 0.65;
+          this.stateTimer = isCrystal ? 0.55 : 0.65;
           this.vx = 0;
           this.squashY = 0.55;
           this.squashX = 1.35;
         } else {
           this.state = 'CHARGE_SPIT';
-          this.stateTimer = 0.65;
+          this.stateTimer = isCrystal ? 0.55 : 0.65;
           this.vx = 0;
           this.squashY = 0.7;
           this.squashX = 1.25;
@@ -715,12 +720,13 @@ class SludgeBoss {
         this.squashX = 0.75;
         this.facing = player.x < this.x ? -1 : 1;
 
-        const count = (this.hp <= 2) ? 2 : 1;
+        const isCrystal = this.variant === 'CRYSTAL';
+        const count = isCrystal ? (this.hp <= 4 ? 3 : 2) : ((this.hp <= 2) ? 2 : 1);
         for (let i = 0; i < count; i++) {
-          const spread = (i - (count - 1) / 2) * 30;
+          const spread = (i - (count - 1) / 2) * (isCrystal ? 26 : 30);
           const targetX = player.x + spread;
           const dx = targetX - this.x;
-          const spdX = Math.max(-120, Math.min(120, dx * 1.2));
+          const spdX = Math.max(-130, Math.min(130, dx * 1.2));
           const spdY = -120 - Math.random() * 30;
           if (game && game.sludgeProjectiles) {
             game.sludgeProjectiles.push(new SludgeProjectile(this.x + this.facing * 18, this.y - 6, spdX, spdY));
@@ -729,7 +735,7 @@ class SludgeBoss {
         if (audio && audio.playSpit) audio.playSpit();
 
         this.state = 'PATROL';
-        this.stateTimer = Math.max(1.4, 2.6 - (this.maxHp - this.hp) * 0.14);
+        this.stateTimer = Math.max(1.2, (isCrystal ? 2.2 : 2.6) - (this.maxHp - this.hp) * 0.12);
       }
     } else if (this.state === 'PREPARE_STOMP') {
       this.squashY = 0.55 + Math.sin(this.animTimer * 20) * 0.06;

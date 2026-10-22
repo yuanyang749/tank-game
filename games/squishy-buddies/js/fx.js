@@ -118,11 +118,18 @@ const SquishyFX = (() => {
 
   /* ---------------- room themes (map style) ---------------- */
   const THEMES = [
+    // Stage 1 (Rooms 1-5)
     { id: 'springs', name: '彩虹泉林', light: true, skyTop: '#FFF6E6', skyBot: '#FFDDB8', grid: 'rgba(196,150,98,.20)', body0: '#D6AC82', body1: '#A57A52', lip: '#8EE0B0', lipHi: '#D2FAE2', ink: '#3B2A1C', accent: '#FFD454', cloud: 'rgba(255,255,255,.80)', shadow: 'rgba(90,58,30,.30)', vignette: 'rgba(130,76,34,.26)', deco: 'meadow', rainbow: true },
     { id: 'chasm', name: '浮力峡谷', light: true, skyTop: '#EAF6FF', skyBot: '#B7DEF8', grid: 'rgba(110,160,205,.22)', body0: '#8499CE', body1: '#566BA6', lip: '#C9EBFF', lipHi: '#F2FBFF', ink: '#1E2A4D', accent: '#75C8F8', cloud: 'rgba(255,255,255,.85)', shadow: 'rgba(30,50,100,.28)', vignette: 'rgba(30,70,140,.26)', deco: 'ice' },
     { id: 'cliff', name: '绝壁粘附', light: true, skyTop: '#FFEAF3', skyBot: '#FFC6DC', grid: 'rgba(222,130,170,.22)', body0: '#DE92B4', body1: '#B05A82', lip: '#FFD6E7', lipHi: '#FFF1F7', ink: '#4A1F35', accent: '#FF8CB8', cloud: 'rgba(255,255,255,.80)', shadow: 'rgba(110,30,70,.28)', vignette: 'rgba(160,40,100,.24)', deco: 'candy' },
     { id: 'meadow', name: '弹跳苍穹', light: true, skyTop: '#EBFBF0', skyBot: '#B8EACB', grid: 'rgba(96,170,128,.22)', body0: '#63BC8E', body1: '#3C8A66', lip: '#D0F8E0', lipHi: '#F3FFF8', ink: '#143A2C', accent: '#70D8A8', cloud: 'rgba(255,255,255,.82)', shadow: 'rgba(20,80,50,.28)', vignette: 'rgba(24,110,70,.24)', deco: 'leaf' },
-    { id: 'dusk', name: '五彩交响', light: false, skyTop: '#2C2040', skyBot: '#150E1F', grid: 'rgba(120,90,170,.20)', body0: '#4F4264', body1: '#2A2038', lip: '#8D7BA8', lipHi: '#C8B6E8', ink: '#0A0510', accent: '#B98CFF', cloud: 'rgba(185,140,255,.10)', shadow: 'rgba(0,0,0,.45)', vignette: 'rgba(0,0,0,.50)', deco: 'crystal' }
+    { id: 'dusk', name: '五彩交响', light: false, skyTop: '#2C2040', skyBot: '#150E1F', grid: 'rgba(120,90,170,.20)', body0: '#4F4264', body1: '#2A2038', lip: '#8D7BA8', lipHi: '#C8B6E8', ink: '#0A0510', accent: '#B98CFF', cloud: 'rgba(185,140,255,.10)', shadow: 'rgba(0,0,0,.45)', vignette: 'rgba(0,0,0,.50)', deco: 'crystal' },
+    // Stage 2 (Rooms 6-10)
+    { id: 'star_mine', name: '星岩爆破', light: true, skyTop: '#F7EEFF', skyBot: '#DEC8FA', grid: 'rgba(145,105,205,.22)', body0: '#9A78C8', body1: '#684898', lip: '#FFE498', lipHi: '#FFF8DC', ink: '#2B1848', accent: '#C884FF', cloud: 'rgba(255,255,255,.82)', shadow: 'rgba(65,30,110,.28)', vignette: 'rgba(85,40,140,.25)', deco: 'crystal' },
+    { id: 'glacier', name: '冰渊浮渡', light: true, skyTop: '#E4FAFF', skyBot: '#9EE2F8', grid: 'rgba(70,155,195,.22)', body0: '#589EC8', body1: '#326A94', lip: '#C8FAFF', lipHi: '#F4FFFF', ink: '#10324A', accent: '#45E0FF', cloud: 'rgba(255,255,255,.86)', shadow: 'rgba(15,65,105,.28)', vignette: 'rgba(18,85,135,.26)', deco: 'ice' },
+    { id: 'rose_spires', name: '绝壁双塔', light: true, skyTop: '#FFF0EC', skyBot: '#FFC8BC', grid: 'rgba(215,115,105,.22)', body0: '#D87C78', body1: '#A24848', lip: '#FFE0D8', lipHi: '#FFF6F2', ink: '#481818', accent: '#FF7888', cloud: 'rgba(255,255,255,.82)', shadow: 'rgba(110,35,35,.28)', vignette: 'rgba(145,45,50,.24)', deco: 'candy' },
+    { id: 'aurora', name: '翡翠云梯', light: true, skyTop: '#E8FFF8', skyBot: '#A8F0DC', grid: 'rgba(65,175,145,.22)', body0: '#4CB89E', body1: '#28826E', lip: '#C8FFEE', lipHi: '#F2FFFA', ink: '#0E382E', accent: '#48F0C8', cloud: 'rgba(255,255,255,.84)', shadow: 'rgba(16,80,68,.28)', vignette: 'rgba(20,105,88,.24)', deco: 'leaf', rainbow: true },
+    { id: 'crystal_core', name: '终焉晶核', light: false, skyTop: '#16243E', skyBot: '#091020', grid: 'rgba(70,165,220,.20)', body0: '#2E4E72', body1: '#182A42', lip: '#64C8F0', lipHi: '#B8F2FF', ink: '#050B14', accent: '#58E4FF', cloud: 'rgba(100,220,255,.12)', shadow: 'rgba(0,0,0,.48)', vignette: 'rgba(0,8,24,.52)', deco: 'crystal' }
   ];
   const themeFor = (levelIndex) => THEMES[Math.max(0, Math.min(THEMES.length - 1, levelIndex | 0))];
 
@@ -261,16 +268,36 @@ const SquishyFX = (() => {
   }
 
   /* ---------------- enemies ---------------- */
-  // Sludge Titan (ported from the film boss).  x,y = body centre, R = horizontal radius
+  // Sludge Titan (Stage 1) & Frost-Crystal Golem (Stage 2). x,y = body centre, R = horizontal radius
   function drawBoss(ctx, x, y, R, t, o = {}) {
     const rage = !!o.rage, facing = o.facing || 1;
+    const isCrystal = o.variant === 'CRYSTAL';
     ctx.save();
     ctx.translate(x, y); ctx.scale(o.sx || 1, o.sy || 1);
-    // tendril bumps
-    ctx.fillStyle = rage ? '#5A1846' : '#3A1C55';
-    for (let i = 0; i < 7; i++) {
-      const a = i / 7 * TAU + t * .8, rr2 = R * (1.0 + .04 * Math.sin(t * 3 + i));
-      ctx.beginPath(); ctx.arc(Math.cos(a) * rr2, Math.sin(a) * rr2 * .85, R * .17, 0, TAU); ctx.fill();
+    if (isCrystal) {
+      // Orbiting crystal crown spikes
+      ctx.fillStyle = rage ? '#FF5898' : '#58E4FF';
+      ctx.strokeStyle = '#08182C';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 8; i++) {
+        const a = i / 8 * TAU + t * 1.1;
+        const rr2 = R * (1.04 + .06 * Math.sin(t * 4 + i));
+        const px = Math.cos(a) * rr2, py = Math.sin(a) * rr2 * .85;
+        ctx.beginPath();
+        ctx.moveTo(px + Math.cos(a) * R * .22, py + Math.sin(a) * R * .22);
+        ctx.lineTo(px + Math.cos(a + 1.2) * R * .12, py + Math.sin(a + 1.2) * R * .12);
+        ctx.lineTo(px + Math.cos(a - 1.2) * R * .12, py + Math.sin(a - 1.2) * R * .12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+    } else {
+      // tendril bumps
+      ctx.fillStyle = rage ? '#5A1846' : '#3A1C55';
+      for (let i = 0; i < 7; i++) {
+        const a = i / 7 * TAU + t * .8, rr2 = R * (1.0 + .04 * Math.sin(t * 3 + i));
+        ctx.beginPath(); ctx.arc(Math.cos(a) * rr2, Math.sin(a) * rr2 * .85, R * .17, 0, TAU); ctx.fill();
+      }
     }
     // wobbling body
     ctx.beginPath();
@@ -282,7 +309,14 @@ const SquishyFX = (() => {
     }
     ctx.closePath();
     const g = ctx.createRadialGradient(-R * .3, -R * .4, R * .1, 0, 0, R * 1.1);
-    g.addColorStop(0, rage ? '#7A2A70' : '#4A2669'); g.addColorStop(1, rage ? '#2A0A26' : '#1A0B27');
+    if (isCrystal) {
+      g.addColorStop(0, rage ? '#FF78B8' : '#78F0FF');
+      g.addColorStop(0.55, rage ? '#7A2068' : '#2668A8');
+      g.addColorStop(1, rage ? '#280828' : '#0E2240');
+    } else {
+      g.addColorStop(0, rage ? '#7A2A70' : '#4A2669');
+      g.addColorStop(1, rage ? '#2A0A26' : '#1A0B27');
+    }
     ctx.fillStyle = g; ctx.fill();
     ctx.lineWidth = Math.max(1, R * .05); ctx.strokeStyle = '#0A0510'; ctx.lineJoin = 'round'; ctx.stroke();
     if (o.flash) { ctx.fillStyle = `rgba(255,255,255,${o.flash})`; ctx.fill(); }
