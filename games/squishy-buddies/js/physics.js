@@ -69,10 +69,45 @@ const Physics = {
     return grid[row][col];
   },
 
+  // Find the lowest solid ceiling inner edge (tileBottom) directly above the entity
+  getCeilingLimitY(entity, grid, referenceBottomY) {
+    if (!grid) return TILE_SIZE;
+    const radius = entity.radius || 10;
+    const halfW = radius * 0.85;
+    const xInset = Math.min(3.5, halfW * 0.3);
+    const minCol = Math.max(0, Math.floor((entity.x - halfW + xInset) / TILE_SIZE));
+    const maxCol = Math.min(GRID_COLS - 1, Math.floor((entity.x + halfW - xInset) / TILE_SIZE));
+    const currHalfH = radius * (entity.isCrouched ? 0.4 : 0.85);
+    const refY = referenceBottomY !== undefined ? referenceBottomY : (entity.y + currHalfH);
+    const startRow = Math.min(GRID_ROWS - 1, Math.max(0, Math.floor((refY - 1) / TILE_SIZE)));
+
+    let limitY = TILE_SIZE; // Row 0 top border wall inner edge is always y = TILE_SIZE (20)
+    for (let r = startRow; r >= 0; r--) {
+      for (let c = minCol; c <= maxCol; c++) {
+        const t = grid[r][c];
+        const isSolid = t === T_SOLID || t === T_GATE || t === T_CRACKED || (t === T_CRAWLWAY && !entity.isCrouched);
+        if (isSolid) {
+          const tileBottom = (r + 1) * TILE_SIZE;
+          if (tileBottom <= refY - 2 && tileBottom > limitY) {
+            limitY = tileBottom;
+          }
+        }
+      }
+    }
+    return limitY;
+  },
+
   // Resolve tile collisions for a moving entity with width, height, vx, vy
   resolveTileMove(entity, grid, dt) {
     const halfW = (entity.radius || 10) * (entity.isCrouched ? 1.3 : 0.85);
     const halfH = (entity.radius || 10) * (entity.isCrouched ? 0.4 : 0.85);
+
+    // Pre-depenetrate from ceiling if an external push or size switch put the top edge inside a ceiling tile
+    const preCeilingY = Physics.getCeilingLimitY(entity, grid, entity.y + halfH);
+    if (entity.y - halfH < preCeilingY) {
+      entity.y = preCeilingY + halfH;
+      if (entity.vy < 0) entity.vy = 0;
+    }
 
     const oldX = entity.x;
     const oldY = entity.y;
@@ -180,7 +215,10 @@ const Physics = {
             entity.onGround = true;
           }
           // Hitting ceiling (head was below tile bottom)
-          else if (entity.vy < 0 && oldY - halfH >= tileBottom - 8 && entity.y - halfH <= tileBottom) {
+          else if (entity.vy < 0 && oldY + halfH > tileBottom && entity.y - halfH <= tileBottom) {
+            if (entity.vy < -60 && entity.squashY !== undefined) {
+              entity.squashY = Math.min(entity.squashY, 0.72);
+            }
             entity.y = tileBottom + halfH;
             entity.vy = 0;
           }
@@ -194,6 +232,13 @@ const Physics = {
           }
         }
       }
+    }
+
+    // Hard ceiling boundary & passive vertical de-penetration from ceiling tiles
+    const postCeilingY = Physics.getCeilingLimitY(entity, grid, Math.max(oldY, entity.y) + halfH);
+    if (entity.y - halfH < postCeilingY) {
+      entity.y = postCeilingY + halfH;
+      if (entity.vy < 0) entity.vy = 0;
     }
 
     // Floor boundary

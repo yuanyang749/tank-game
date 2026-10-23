@@ -572,6 +572,49 @@ class SquishyGame {
 
   /* ================= Update Logic ================= */
 
+  // Place player on top of a supporting bubble while respecting solid ceiling inner edges:
+  // Once the character's top edge touches a ceiling's inner bottom boundary, upward displacement stops
+  // completely and any further upward bubble push translates into elastic squished deformation.
+  placePlayerOnBubble(b, offsetFactor, targetVy) {
+    const p = this.player;
+    const standHalfH = p.radius * 0.85;
+    const crouchHalfH = p.radius * 0.4;
+    const desiredY = b.y - b.radius - p.radius * offsetFactor;
+    const refBottomY = Math.max(p.y + (p.isCrouched ? crouchHalfH : standHalfH), desiredY + standHalfH);
+    const ceilingY = Physics.getCeilingLimitY(p, this.grid, refBottomY);
+
+    if (desiredY - standHalfH < ceilingY) {
+      // Squeezed between bubble below and ceiling inner edge above
+      p.isCrouched = true;
+      const maxGap = standHalfH * 2;
+      const minGap = crouchHalfH * 2;
+      const feetY = Math.max(ceilingY + minGap, desiredY + standHalfH);
+      const gap = Math.max(minGap, feetY - ceilingY);
+      const squashRatio = gap / maxGap; // 1.0 at initial ceiling touch -> ~0.47 at full compression
+
+      p.squashY = Math.max(0.36, Math.min(p.squashY, squashRatio * 0.85));
+      p.targetSquashY = Math.max(0.36, squashRatio * 0.85);
+      p.squashVelY = 0;
+      p.squashX = 1 / Math.sqrt(p.squashY);
+
+      // Clamp player center so top edge never penetrates ceilingY
+      p.y = Math.max(ceilingY + crouchHalfH, feetY - crouchHalfH);
+      p.vy = 0;
+      p.onGround = true;
+
+      // Stop rising bubble underneath the compressed player
+      const minBubbleY = ceilingY + minGap - standHalfH + p.radius * offsetFactor + b.radius;
+      if (!b.isStuck && b.y < minBubbleY) {
+        b.y = minBubbleY;
+        if (b.vy < 0) b.vy = 0;
+      }
+    } else {
+      p.y = desiredY;
+      p.vy = targetVy;
+      p.onGround = true;
+    }
+  }
+
   update(dt) {
     if (this.state === 'STORY') {
       this.storyTimer += dt;
@@ -650,23 +693,17 @@ class SquishyGame {
           } else if (b.type === 'SOLID') {
             // Firm solid ledge
             if (this.player.vy > 0 && this.player.y < b.y) {
-              this.player.y = b.y - b.radius - this.player.radius * 0.7;
-              this.player.vy = 0;
-              this.player.onGround = true;
+              this.placePlayerOnBubble(b, 0.7, 0);
             }
           } else if (b.type === 'FLOAT') {
             // Ride float bubble upward
-            if (this.player.vy > 0 && this.player.y < b.y) {
-              this.player.y = b.y - b.radius - this.player.radius * 0.5;
-              this.player.vy = b.vy;
-              this.player.onGround = true;
+            if ((this.player.vy > 0 || (this.player.isCrouched && !this.player.justJumped && this.player.vy >= b.vy - 5)) && this.player.y < b.y) {
+              this.placePlayerOnBubble(b, 0.5, b.vy);
             }
           } else if (b.type === 'STICKY') {
             // Sticky climb peg (catches a falling / standing buddy, never one that is jumping up off it)
             if (this.player.vy >= 0 && this.player.y < b.y) {
-              this.player.y = b.y - b.radius - this.player.radius * 0.6;
-              this.player.vy = 0;
-              this.player.onGround = true;
+              this.placePlayerOnBubble(b, 0.6, 0);
             }
           } else if (b.type === 'CHAIN_POP') {
             // Detonate!

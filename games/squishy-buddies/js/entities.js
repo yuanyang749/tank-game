@@ -218,7 +218,10 @@ class PlayerBuddy {
     let ceilingAbove = false;
     if (grid) {
       const standingHalfH = (this.radius || 10) * 0.85;
-      const headRow = Math.floor((this.y - standingHalfH) / TILE_SIZE);
+      const crouchHalfH = (this.radius || 10) * 0.4;
+      const uncrouchLift = (this.isCrouched && this.onGround) ? (standingHalfH - crouchHalfH) : 0;
+      const minHeadRow = Math.floor((this.y - uncrouchLift - standingHalfH + 0.01) / TILE_SIZE);
+      const maxHeadRow = Math.floor((this.y - (this.isCrouched ? crouchHalfH : standingHalfH) + 0.01) / TILE_SIZE);
       const isSquished = this.isCrouched || this.isSliding;
       // When squished and moving horizontally toward an obstacle, look ahead into the tunnel entrance
       const lookahead = (isSquished && (input.right || (this.isSliding && this.facing === 1))) ? 8 : 
@@ -226,13 +229,18 @@ class PlayerBuddy {
       const checkX = this.x + lookahead;
       const leftCol = Math.floor((Math.min(this.x, checkX) - this.radius * 0.7) / TILE_SIZE);
       const rightCol = Math.floor((Math.max(this.x, checkX) + this.radius * 0.7) / TILE_SIZE);
-      if (headRow >= 0 && headRow < GRID_ROWS) {
-        for (let c = Math.max(0, leftCol); c <= Math.min(GRID_COLS - 1, rightCol); c++) {
-          const t = grid[headRow][c];
-          if (t === T_SOLID || t === T_CRAWLWAY || t === T_GATE || t === T_CRACKED) {
-            ceilingAbove = true;
-            break;
+      if (minHeadRow < 0) {
+        ceilingAbove = true;
+      } else {
+        for (let r = Math.max(0, minHeadRow); r <= Math.min(GRID_ROWS - 1, maxHeadRow); r++) {
+          for (let c = Math.max(0, leftCol); c <= Math.min(GRID_COLS - 1, rightCol); c++) {
+            const t = grid[r][c];
+            if (t === T_SOLID || t === T_CRAWLWAY || t === T_GATE || t === T_CRACKED) {
+              ceilingAbove = true;
+              break;
+            }
           }
+          if (ceilingAbove) break;
         }
       }
       // Auto-duck into 1-tile crawlway entrance when pushing LEFT/RIGHT on 4-way virtual joystick
@@ -256,8 +264,12 @@ class PlayerBuddy {
         if (this.onGround) this.y += diff;
         this.isCrouched = true;
       } else if (!ceilingAbove) {
-        if (this.onGround) this.y -= diff;
-        this.isCrouched = false;
+        const candY = this.onGround ? (this.y - diff) : this.y;
+        const ceilY = grid ? Physics.getCeilingLimitY(this, grid, this.y + crouchHalfH) : TILE_SIZE;
+        if (candY - standingHalfH >= ceilY) {
+          this.y = candY;
+          this.isCrouched = false;
+        }
       }
     }
 
@@ -402,12 +414,21 @@ class BubbleEntity {
     } else if (t === T_SPIKE) {
       this.alive = false; // Pops on spikes
       this.popFx = true;
+    } else if (this.type === 'FLOAT' && this.vy < 0 && Math.abs(this.vx) < 35) {
+      // Stop rising float bubble cleanly when its top edge reaches an overhead ceiling block
+      const topY = this.y - this.radius;
+      const topT = Physics.getTileAt(grid, this.x, topY);
+      if (topT === T_SOLID || topT === T_GATE || topT === T_CRACKED) {
+        const topRow = Math.floor(topY / TILE_SIZE);
+        this.y = (topRow + 1) * TILE_SIZE + this.radius;
+        this.vy = 0;
+      }
     }
 
-    // Screen bounds
+    // Screen bounds (top wall inner edge is y = TILE_SIZE = 20)
     if (this.x < this.radius) { this.x = this.radius; this.vx = -this.vx; }
     if (this.x > CANVAS_W - this.radius) { this.x = CANVAS_W - this.radius; this.vx = -this.vx; }
-    if (this.y < this.radius + 18) { this.y = this.radius + 18; this.vy = 0; }
+    if (this.y < TILE_SIZE + this.radius) { this.y = TILE_SIZE + this.radius; this.vy = 0; }
     if (this.y > CANVAS_H - this.radius) { this.y = CANVAS_H - this.radius; this.vy = -this.vy * 0.4; }
   }
 }

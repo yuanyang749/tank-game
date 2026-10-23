@@ -1031,6 +1031,66 @@ suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
   }
   assert(game.boss.y === 196, 'Boss fell and landed on floor during/after HURT state');
   assert(game.boss.onGround === true, 'Boss onGround confirmed on floor');
+
+  // Verify Bubble Rising Into Ceiling: Zero Wall Penetration + Squished Deformation + Never Stuck
+  game.loadLevel(1); // Room 2 (open chasm under top wall Row 0, ceiling inner edge = 20)
+  game.state = 'PLAYING';
+  game.player.setType('BLUE');
+  game.player.x = 120;
+  game.player.y = 80;
+  game.player.vy = 20;
+  const floatBubble = new env.BubbleEntity(120, 95, 1, 'FLOAT', env.BUDDY_TYPES.BLUE);
+  floatBubble.vx = 0;
+  game.bubbles = [floatBubble];
+
+  let minTopEdge = Infinity;
+  let reachedSquishState = false;
+  for (let i = 0; i < 200; i++) {
+    game.update(1 / 60);
+    const halfH = game.player.radius * (game.player.isCrouched ? 0.4 : 0.85);
+    const topEdge = game.player.y - halfH;
+    minTopEdge = Math.min(minTopEdge, topEdge);
+    if (game.player.isCrouched && game.player.squashY < 0.65 && game.player.squashX > 1.2) {
+      reachedSquishState = true;
+    }
+  }
+  assert(minTopEdge >= 19.99, `Rising FLOAT bubble never pushes player top edge into top wall (minTopEdge=${minTopEdge.toFixed(2)} >= 20)`);
+  assert(reachedSquishState === true, `Player exhibits squished deformation (isCrouched=true, squashY=${game.player.squashY.toFixed(2)}, squashX=${game.player.squashX.toFixed(2)}) when pressed against ceiling`);
+
+  // Verify player is NOT stuck inside ceiling and can walk off the bubble horizontally
+  const startWalkX = game.player.x;
+  game.input.right = true;
+  for (let i = 0; i < 45; i++) {
+    game.update(1 / 60);
+  }
+  game.input.right = false;
+  assert(game.player.x > startWalkX + 20, `Player walks freely off ceiling-pressed bubble without getting stuck (x: ${startWalkX.toFixed(1)} -> ${game.player.x.toFixed(1)})`);
+  assert(game.player.isCrouched === false, 'Player uncrouches back to normal droplet state after leaving the ceiling squeeze');
+
+  // Verify Interior Overhang Ceiling Squeeze (e.g. solid block at row 4, ceiling inner edge = 100)
+  game.loadLevel(0); // Room 1 has Block 2 at row 6 (cols 6..10, y=120..140, ceiling inner edge = 140)
+  game.state = 'PLAYING';
+  game.player.setType('BLUE');
+  game.player.x = 150; // col 7, directly under Block 2 (row 6 -> tileBottom = 140)
+  game.player.y = 175;
+  game.player.vy = 20;
+  const overhangBubble = new env.BubbleEntity(150, 190, 1, 'FLOAT', env.BUDDY_TYPES.BLUE);
+  overhangBubble.vx = 0;
+  game.bubbles = [overhangBubble];
+
+  let minOverhangTopEdge = Infinity;
+  let overhangSquished = false;
+  for (let i = 0; i < 150; i++) {
+    game.update(1 / 60);
+    const halfH = game.player.radius * (game.player.isCrouched ? 0.4 : 0.85);
+    const topEdge = game.player.y - halfH;
+    minOverhangTopEdge = Math.min(minOverhangTopEdge, topEdge);
+    if (game.player.isCrouched && game.player.squashY < 0.65) {
+      overhangSquished = true;
+    }
+  }
+  assert(minOverhangTopEdge >= 139.99, `Rising FLOAT bubble under interior overhang stops at overhang inner edge (minTopEdge=${minOverhangTopEdge.toFixed(2)} >= 140)`);
+  assert(overhangSquished === true, 'Player squishes elastically against interior overhang without penetrating block');
 });
 
 // =========================================================================
