@@ -531,31 +531,32 @@ suite('6. Multi-Touch Concurrency & Button Isolation (B + LEFT Anti-Collision)',
   }
   assert(armLeft.classList.contains('active') === false, 'D-Pad LEFT releases cleanly when its own touch ends');
 
-  // Test 8-Way Diagonal D-Pad Input: Touch in DOWN-RIGHT sector
-  // Center is at (135, 1635). Down-Right: dx = +20, dy = +20 => clientX = 155, clientY = 1655
-  const touchDownRight = { identifier: 103, clientX: 155, clientY: 1655 };
+  // Test Virtual Joystick 4-Way Anti-Combo-Key Cardinal Lock & Stick Cap Translation
+  // Center is at (135, 1635). Touch slightly down-right (dx = +24, dy = +16): must lock to RIGHT only (no accidental DOWN combo!)
+  const stickEl = elements['gb-joystick-stick'];
+  const touchSlightDownRight = { identifier: 103, clientX: 159, clientY: 1651 };
   listeners['gb-dpad']['touchstart'].forEach(cb => cb({
     preventDefault: () => {},
-    changedTouches: [touchDownRight],
-    touches: [touchDownRight]
+    changedTouches: [touchSlightDownRight],
+    touches: [touchSlightDownRight]
   }));
-  assert(armDown.classList.contains('active') === true, 'Diagonal touch activates D-Pad DOWN');
-  assert(armRight.classList.contains('active') === true, 'Diagonal touch activates D-Pad RIGHT simultaneously');
-  assert(armLeft.classList.contains('active') === false, 'Diagonal touch does not activate LEFT');
-  assert(armUp.classList.contains('active') === false, 'Diagonal touch does not activate UP');
-  assert(gb.pressedKeys.has('DOWN') === true, 'DOWN key registered in Game Boy pressedKeys');
-  assert(gb.pressedKeys.has('RIGHT') === true, 'RIGHT key registered in Game Boy pressedKeys');
+  assert(armRight.classList.contains('active') === true, 'Virtual Joystick activates dominant RIGHT direction');
+  assert(armDown.classList.contains('active') === false, 'Anti-combo lock: slight vertical drift does NOT falsely trigger DOWN');
+  assert(armLeft.classList.contains('active') === false, 'Virtual Joystick does not activate LEFT');
+  assert(armUp.classList.contains('active') === false, 'Virtual Joystick does not activate UP');
+  assert(gb.pressedKeys.has('RIGHT') === true && gb.pressedKeys.size === 1, 'Strictly 1 cardinal key (RIGHT) registered in pressedKeys');
+  assert(stickEl && stickEl.classList.contains('dragging') === true, 'Virtual Joystick cap enters dragging state and follows thumb');
 
-  // Release diagonal touch
+  // Release Virtual Joystick touch
   if (windowListeners['touchend']) {
     windowListeners['touchend'].forEach(cb => cb({
       preventDefault: () => {},
-      changedTouches: [touchDownRight],
+      changedTouches: [touchSlightDownRight],
       touches: []
     }));
   }
-  assert(armDown.classList.contains('active') === false, 'DOWN arm deactivates after release');
-  assert(armRight.classList.contains('active') === false, 'RIGHT arm deactivates after release');
+  assert(armRight.classList.contains('active') === false, 'RIGHT indicator deactivates after release');
+  assert(stickEl && stickEl.classList.contains('dragging') === false, 'Virtual Joystick cap springs back to center on release');
 });
 
 // =========================================================================

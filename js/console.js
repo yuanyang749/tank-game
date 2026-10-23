@@ -456,9 +456,10 @@ class GameBoyConsole {
     bindButton(btnStart, 'START');
   }
 
-  // Multi-Touch Safe Cross D-Pad on the Game Boy chassis
+  // Multi-Touch Safe Virtual Joystick on the Game Boy chassis (4-Way Cardinal Lock, Anti-Combo-Key)
   initDpadTouchSliding() {
     const dpadContainer = document.getElementById('gb-dpad');
+    const stickEl = document.getElementById('gb-joystick-stick');
     const armUp = document.getElementById('dpad-up');
     const armDown = document.getElementById('dpad-down');
     const armLeft = document.getElementById('dpad-left');
@@ -467,9 +468,13 @@ class GameBoyConsole {
     if (!dpadContainer) return;
 
     let activeTouchId = null;
+    let isMouseDragging = false;
     let centerX = 0;
     let centerY = 0;
+    let currentCardinal = null;
     const activeDirs = { UP: false, DOWN: false, LEFT: false, RIGHT: false };
+    const MAX_STICK_TRAVEL = 34;
+    const DEADZONE = 10;
 
     const updateCenter = () => {
       const rect = dpadContainer.getBoundingClientRect();
@@ -480,20 +485,35 @@ class GameBoyConsole {
     window.addEventListener('resize', updateCenter);
     window.addEventListener('scroll', updateCenter);
 
+    const setStickOffset = (sx, sy, dragging) => {
+      if (!stickEl || !stickEl.style) return;
+      stickEl.classList.toggle('dragging', Boolean(dragging));
+      stickEl.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0px)`;
+    };
+
     const applyDirections = (newDirs) => {
       const dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+      let changed = false;
       dirs.forEach(dir => {
         const shouldBeActive = Boolean(newDirs && newDirs[dir]);
         if (activeDirs[dir] !== shouldBeActive) {
           activeDirs[dir] = shouldBeActive;
           this.sendInput(dir, shouldBeActive);
+          if (shouldBeActive) changed = true;
         }
       });
+
+      if (changed) this.vibrate(6);
 
       if (armUp) armUp.classList.toggle('active', activeDirs.UP);
       if (armDown) armDown.classList.toggle('active', activeDirs.DOWN);
       if (armLeft) armLeft.classList.toggle('active', activeDirs.LEFT);
       if (armRight) armRight.classList.toggle('active', activeDirs.RIGHT);
+
+      if (!newDirs) {
+        currentCardinal = null;
+        setStickOffset(0, 0, false);
+      }
     };
 
     const handleCoords = (clientX, clientY) => {
@@ -501,37 +521,47 @@ class GameBoyConsole {
       const dx = clientX - centerX;
       const dy = clientY - centerY;
       const dist = Math.hypot(dx, dy);
-      if (dist < 10) {
+
+      // Update movable joystick cap position
+      const clampedDist = Math.min(dist, MAX_STICK_TRAVEL);
+      const rad = Math.atan2(dy, dx);
+      const sx = dist > 0 ? Math.cos(rad) * clampedDist : 0;
+      const sy = dist > 0 ? Math.sin(rad) * clampedDist : 0;
+      setStickOffset(sx, sy, true);
+
+      if (dist < DEADZONE) {
+        currentCardinal = null;
         applyDirections(null);
+        setStickOffset(sx, sy, true);
         return;
       }
 
-      // Calculate angle in degrees: 0° is RIGHT, 90° is DOWN, -90° is UP, ±180° is LEFT
-      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-      const dirs = { UP: false, DOWN: false, LEFT: false, RIGHT: false };
+      // 4-Way Single-Direction Cardinal Lock with Angular Hysteresis (prevents accidental 2-key combo triggers)
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+      let nextDir = null;
 
-      if (angle >= -22.5 && angle <= 22.5) {
-        dirs.RIGHT = true;
-      } else if (angle > 22.5 && angle < 67.5) {
-        dirs.DOWN = true;
-        dirs.RIGHT = true;
-      } else if (angle >= 67.5 && angle <= 112.5) {
-        dirs.DOWN = true;
-      } else if (angle > 112.5 && angle < 157.5) {
-        dirs.DOWN = true;
-        dirs.LEFT = true;
-      } else if (angle >= 157.5 || angle <= -157.5) {
-        dirs.LEFT = true;
-      } else if (angle > -157.5 && angle < -112.5) {
-        dirs.UP = true;
-        dirs.LEFT = true;
-      } else if (angle >= -112.5 && angle <= -67.5) {
-        dirs.UP = true;
-      } else if (angle > -67.5 && angle < -22.5) {
-        dirs.UP = true;
-        dirs.RIGHT = true;
+      if (currentCardinal === 'LEFT' || currentCardinal === 'RIGHT') {
+        // Stay horizontal unless vertical deflection clearly dominates (> ~51 deg)
+        if (absY > absX * 1.25) {
+          nextDir = dy >= 0 ? 'DOWN' : 'UP';
+        } else {
+          nextDir = dx >= 0 ? 'RIGHT' : 'LEFT';
+        }
+      } else if (currentCardinal === 'UP' || currentCardinal === 'DOWN') {
+        // Stay vertical unless horizontal deflection clearly dominates (> ~51 deg)
+        if (absX > absY * 1.25) {
+          nextDir = dx >= 0 ? 'RIGHT' : 'LEFT';
+        } else {
+          nextDir = dy >= 0 ? 'DOWN' : 'UP';
+        }
+      } else {
+        nextDir = absX >= absY ? (dx >= 0 ? 'RIGHT' : 'LEFT') : (dy >= 0 ? 'DOWN' : 'UP');
       }
 
+      currentCardinal = nextDir;
+      const dirs = { UP: false, DOWN: false, LEFT: false, RIGHT: false };
+      dirs[nextDir] = true;
       applyDirections(dirs);
     };
 
@@ -545,12 +575,11 @@ class GameBoyConsole {
       return null;
     };
 
-    // Touch start on D-Pad: Bind strictly to this specific finger
+    // Touch start on Virtual Joystick: Bind strictly to this specific finger
     dpadContainer.addEventListener('touchstart', (e) => {
       e.preventDefault();
       updateCenter();
 
-      // Use the touch that triggered this event (changedTouches), NOT e.touches[0]!
       const touch = e.changedTouches ? e.changedTouches[0] : (e.touches ? e.touches[0] : null);
       if (touch) {
         activeTouchId = touch.identifier;
@@ -558,7 +587,7 @@ class GameBoyConsole {
       }
     }, { passive: false });
 
-    // Touch move: Track ONLY the finger bound to D-Pad (ignore other fingers like B button!)
+    // Touch move: Track ONLY the finger bound to the Virtual Joystick
     window.addEventListener('touchmove', (e) => {
       if (activeTouchId === null) return;
       const touch = findDpadTouch(e.touches);
@@ -568,7 +597,7 @@ class GameBoyConsole {
       }
     }, { passive: false });
 
-    // Touch end: Release D-Pad when touch lifts
+    // Touch end: Release Virtual Joystick and spring back to center
     const onTouchEnd = (e) => {
       if (activeTouchId === null) return;
       const touch = findDpadTouch(e.changedTouches);
@@ -579,56 +608,24 @@ class GameBoyConsole {
     };
     window.addEventListener('touchend', onTouchEnd);
     window.addEventListener('touchcancel', onTouchEnd);
-    window.addEventListener('mouseup', () => {
-      applyDirections(null);
+
+    // Mouse drag support for desktop/browser testing
+    dpadContainer.addEventListener('mousedown', (e) => {
+      if (activeTouchId !== null) return;
+      isMouseDragging = true;
+      updateCenter();
+      handleCoords(e.clientX, e.clientY);
     });
-
-    // Direct click/touch support on individual arms for fast discrete tapping
-    const bindDirectArm = (armEl, dir) => {
-      if (!armEl) return;
-      let isTouching = false;
-
-      const handlePress = (e) => {
-        if (e && e.cancelable && e.type !== 'mousedown') e.preventDefault();
-        updateCenter();
-        isTouching = true;
-        const touch = e.changedTouches ? e.changedTouches[0] : null;
-        if (touch) activeTouchId = touch.identifier;
-        applyDirections({ [dir]: true });
-      };
-
-      const handleRelease = (e) => {
-        if (e && e.cancelable && e.type !== 'mouseup') e.preventDefault();
-        activeTouchId = null;
+    window.addEventListener('mousemove', (e) => {
+      if (!isMouseDragging) return;
+      handleCoords(e.clientX, e.clientY);
+    });
+    window.addEventListener('mouseup', () => {
+      if (isMouseDragging) {
+        isMouseDragging = false;
         applyDirections(null);
-        setTimeout(() => { isTouching = false; }, 300);
-      };
-
-      armEl.addEventListener('touchstart', handlePress, { passive: false });
-      armEl.addEventListener('touchend', handleRelease, { passive: false });
-      armEl.addEventListener('touchcancel', handleRelease, { passive: false });
-
-      armEl.addEventListener('mousedown', (e) => {
-        if (isTouching) return;
-        applyDirections({ [dir]: true });
-      });
-      armEl.addEventListener('mouseup', (e) => {
-        if (isTouching) return;
-        applyDirections(null);
-      });
-
-      armEl.addEventListener('click', (e) => {
-        if (isTouching) return;
-        e.preventDefault();
-        setDir(dir);
-        setTimeout(() => setDir(null), 50);
-      });
-    };
-
-    bindDirectArm(armUp, 'UP');
-    bindDirectArm(armDown, 'DOWN');
-    bindDirectArm(armLeft, 'LEFT');
-    bindDirectArm(armRight, 'RIGHT');
+      }
+    });
   }
 
   initKeyboardBridge() {

@@ -235,6 +235,16 @@ class PlayerBuddy {
           }
         }
       }
+      // Auto-duck into 1-tile crawlway entrance when pushing LEFT/RIGHT on 4-way virtual joystick
+      if (!ceilingAbove && this.onGround && (input.right || input.left)) {
+        const footRow = Math.floor(this.y / TILE_SIZE);
+        const aheadCol = Math.floor((this.x + (input.right ? (this.radius + 6) : -(this.radius + 6))) / TILE_SIZE);
+        if (footRow >= 0 && footRow < GRID_ROWS && aheadCol >= 0 && aheadCol < GRID_COLS) {
+          if (grid[footRow][aheadCol] === T_CRAWLWAY) {
+            ceilingAbove = true;
+          }
+        }
+      }
     }
 
     const wantsCrouch = Boolean(input.down || ceilingAbove || this.isSliding);

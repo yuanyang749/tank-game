@@ -128,15 +128,18 @@
     <!-- Lower Handheld Controls Deck -->
     <div id="lower-deck">
       <div class="primary-controls-row">
-        <!-- Authentic Cross D-Pad with Slide Touch Support -->
-        <div class="dpad-container" id="gb-dpad">
-          <div class="dpad-well"></div>
-          <div class="dpad-cross">
+        <!-- Tactile Virtual Joystick (Anti-Combo-Key 4-Way Cardinal Lock) -->
+        <div class="dpad-container joystick-container" id="gb-dpad">
+          <div class="dpad-well joystick-well"></div>
+          <div class="dpad-cross joystick-ring">
             <div class="dpad-btn up" id="dpad-up">▲</div>
             <div class="dpad-btn down" id="dpad-down">▼</div>
             <div class="dpad-btn left" id="dpad-left">◀</div>
             <div class="dpad-btn right" id="dpad-right">▶</div>
-            <div class="dpad-center"></div>
+            <div class="dpad-center joystick-socket"></div>
+            <div class="joystick-stick" id="gb-joystick-stick">
+              <div class="joystick-cap-inner"></div>
+            </div>
           </div>
         </div>
 
@@ -222,6 +225,6 @@
   </div>
 
   <!-- Console Engine Script -->
-  <script src="js/console.js?v=20261022_10"></script>
+  <script src="js/console.js?v=20261023_joystick"></script>
 </body>
 </html>
