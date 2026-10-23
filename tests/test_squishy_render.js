@@ -58,6 +58,15 @@ suite('2. Hi-res back-buffer', () => {
   loadAll(env);
   g = new env.SquishyGame();
   assert(g.renderScale === 4, 'no layout info (tests / hidden iframe) falls back to 4x');
+
+  env = createEnv({ dpr: 2.5, rect: { width: 350, height: 306 } });
+  loadAll(env);
+  g = new env.SquishyGame();
+  assert(g.viewHeight === 280 && g.padTop === 20 && g.padBottom === 20, `tall Game Boy viewport (350x306) expands viewHeight to 280 with 20px top/bottom themed bands (got ${g.viewHeight}, pad=${g.padTop}/${g.padBottom})`);
+  assert(env.__canvas.width === 320 * g.renderScale && env.__canvas.height === 280 * g.renderScale, 'back-buffer matches 320x280 at exact 1:1 unstretched ratio');
+  g.state = 'PLAYING';
+  g.render();
+  assert(env.__stats.calls > 100, '320x280 themed bands + playfield render cleanly');
 });
 
 suite('3. Every screen renders without errors', () => {

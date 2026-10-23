@@ -358,6 +358,116 @@ class BubbleEntity {
     this.popFx = false;  // cosmetic: set when the bubble pops by itself (timeout / spikes)
   }
 
+  // Ensure a newly spat bubble does not spawn embedded inside a nearby wall, floor, ceiling, or corner
+  clampSpawnPosition(grid, originX, originY) {
+    if (!grid) return;
+    const R = this.radius;
+    const isObs = (t) => t === T_SOLID || t === T_GATE || t === T_CRACKED;
+
+    // 1. Sweep horizontally from player center (originX) to target spawn X across bubble's vertical core
+    const yInset = R * 0.58;
+    const minR = Math.max(0, Math.floor((this.y - yInset) / TILE_SIZE));
+    const maxR = Math.min(GRID_ROWS - 1, Math.floor((this.y + yInset) / TILE_SIZE));
+    if (this.x >= originX) {
+      const startCol = Math.max(0, Math.floor(originX / TILE_SIZE));
+      const endCol = Math.min(GRID_COLS - 1, Math.floor((this.x + R) / TILE_SIZE));
+      let hitWall = false;
+      for (let c = startCol; c <= endCol && !hitWall; c++) {
+        for (let r = minR; r <= maxR; r++) {
+          if (isObs(grid[r][c]) && originX <= c * TILE_SIZE) {
+            this.x = c * TILE_SIZE - R - 0.01;
+            if (this.type === 'STICKY' || this.type === 'SOLID') {
+              this.vx = 0; this.vy = 0; this.isStuck = true;
+            } else if (this.vx > 0) {
+              this.vx = -this.vx * 0.5;
+            }
+            hitWall = true;
+            break;
+          }
+        }
+      }
+    } else {
+      const startCol = Math.min(GRID_COLS - 1, Math.floor(originX / TILE_SIZE));
+      const endCol = Math.max(0, Math.floor((this.x - R) / TILE_SIZE));
+      let hitWall = false;
+      for (let c = startCol; c >= endCol && !hitWall; c--) {
+        for (let r = minR; r <= maxR; r++) {
+          if (isObs(grid[r][c]) && originX >= (c + 1) * TILE_SIZE) {
+            this.x = (c + 1) * TILE_SIZE + R + 0.01;
+            if (this.type === 'STICKY' || this.type === 'SOLID') {
+              this.vx = 0; this.vy = 0; this.isStuck = true;
+            } else if (this.vx < 0) {
+              this.vx = -this.vx * 0.5;
+            }
+            hitWall = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // 2. Clamp vertically against ceiling above and floor below across bubble's horizontal core
+    const xInset = R * 0.58;
+    const minC = Math.max(0, Math.floor((this.x - xInset) / TILE_SIZE));
+    const maxC = Math.min(GRID_COLS - 1, Math.floor((this.x + xInset) / TILE_SIZE));
+    const topRow = Math.floor((this.y - R) / TILE_SIZE);
+    const botRow = Math.floor((this.y + R) / TILE_SIZE);
+    let ceilEdge = topRow < 0 ? TILE_SIZE : null;
+    let floorEdge = botRow >= GRID_ROWS ? (GRID_ROWS - 1) * TILE_SIZE : null;
+
+    if (topRow >= 0 && topRow < GRID_ROWS) {
+      for (let c = minC; c <= maxC; c++) {
+        if (isObs(grid[topRow][c])) { ceilEdge = (topRow + 1) * TILE_SIZE; break; }
+      }
+    }
+    if (botRow >= 0 && botRow < GRID_ROWS) {
+      for (let c = minC; c <= maxC; c++) {
+        if (isObs(grid[botRow][c])) { floorEdge = botRow * TILE_SIZE; break; }
+      }
+    }
+
+    if (ceilEdge !== null && floorEdge !== null && floorEdge - ceilEdge < R * 2) {
+      this.y = (ceilEdge + floorEdge) * 0.5;
+    } else {
+      if (floorEdge !== null && this.y + R > floorEdge) {
+        this.y = floorEdge - R;
+      }
+      if (ceilEdge !== null && this.y - R < ceilEdge) {
+        this.y = ceilEdge + R;
+      }
+    }
+
+    // 3. Corner Circle-vs-AABB de-penetration on spawn
+    if (!(ceilEdge !== null && floorEdge !== null && floorEdge - ceilEdge < R * 2)) {
+      const r0 = Math.max(0, Math.floor((this.y - R) / TILE_SIZE));
+      const r1 = Math.min(GRID_ROWS - 1, Math.floor((this.y + R) / TILE_SIZE));
+      const c0 = Math.max(0, Math.floor((this.x - R) / TILE_SIZE));
+      const c1 = Math.min(GRID_COLS - 1, Math.floor((this.x + R) / TILE_SIZE));
+      for (let r = r0; r <= r1; r++) {
+        for (let c = c0; c <= c1; c++) {
+          if (!isObs(grid[r][c])) continue;
+          const nearX = Math.max(c * TILE_SIZE, Math.min(this.x, (c + 1) * TILE_SIZE));
+          const nearY = Math.max(r * TILE_SIZE, Math.min(this.y, (r + 1) * TILE_SIZE));
+          const dx = this.x - nearX;
+          const dy = this.y - nearY;
+          const distSq = dx * dx + dy * dy;
+          if (distSq < R * R && distSq > 0.0001) {
+            const dist = Math.sqrt(distSq);
+            const pen = R - dist;
+            this.x += (dx / dist) * pen;
+            this.y += (dy / dist) * pen;
+          }
+        }
+      }
+    }
+
+    // Screen border wall bounds
+    if (this.x < TILE_SIZE + R) this.x = TILE_SIZE + R;
+    if (this.x > CANVAS_W - TILE_SIZE - R) this.x = CANVAS_W - TILE_SIZE - R;
+    if (this.y < TILE_SIZE + R) this.y = TILE_SIZE + R;
+    if (this.y > CANVAS_H - TILE_SIZE - R) this.y = CANVAS_H - TILE_SIZE - R;
+  }
+
   update(dt, grid, bubbles) {
     this.age += dt;
     this.wobble += dt * 5;
@@ -386,110 +496,163 @@ class BubbleEntity {
 
     const prevX = this.x;
     const prevY = this.y;
+    const R = this.radius;
+    const isObs = (t) => t === T_SOLID || t === T_GATE || t === T_CRACKED;
+
+    // 1. Move X & resolve Left / Right obstacle surfaces
     this.x += this.vx * dt;
-    this.y += this.vy * dt;
+    if (grid) {
+      const yInset = R * 0.58;
+      const minR = Math.max(0, Math.floor((prevY - yInset) / TILE_SIZE));
+      const maxR = Math.min(GRID_ROWS - 1, Math.floor((prevY + yInset) / TILE_SIZE));
 
-    // Collision with solid blocks
-    const col = Math.floor(this.x / TILE_SIZE);
-    const row = Math.floor(this.y / TILE_SIZE);
-    const t = Physics.getTileAt(grid, this.x, this.y);
-
-    if (t === T_SOLID || t === T_GATE) {
-      if (this.type === 'STICKY') {
-        // Glue onto the surface it touched (not buried inside the stone) so the buddy can really stand on it
-        this.x = prevX;
-        this.y = prevY;
-        this.isStuck = true;
-        this.vx = 0;
-        this.vy = 0;
-      } else if (this.type === 'SOLID') {
-        this.x = prevX;
-        this.y = prevY;
-        this.vx = 0;
-        this.vy = 0;
-        this.isStuck = true; // Firmly docks as a stepping platform
-      } else {
-        this.x = prevX;
-        this.y = prevY;
-        this.vx = -this.vx * 0.5;
-        this.vy = -this.vy * 0.5;
-      }
-    } else if (t === T_SPIKE) {
-      this.alive = false; // Pops on spikes
-      this.popFx = true;
-    } else {
-      // 1. Horizontal wall edge collision (prevents half-embedding into vertical walls)
-      if (this.type !== 'STICKY' && Math.abs(this.vx) > 0.1) {
-        const dir = this.vx > 0 ? 1 : -1;
-        const leadX = this.x + dir * this.radius;
-        const prevLeadX = prevX + dir * this.radius;
-        const leadT = Physics.getTileAt(grid, leadX, prevY);
-        const prevLeadT = Physics.getTileAt(grid, prevLeadX, prevY);
-        if ((leadT === T_SOLID || leadT === T_GATE) && prevLeadT !== T_SOLID && prevLeadT !== T_GATE) {
-          const wallCol = Math.floor(leadX / TILE_SIZE);
-          this.x = dir > 0 ? (wallCol * TILE_SIZE - this.radius - 0.01) : ((wallCol + 1) * TILE_SIZE + this.radius + 0.01);
-          if (this.type === 'SOLID') {
-            this.vx = 0;
-            this.vy = 0;
-            this.isStuck = true;
-          } else {
-            this.vx = -this.vx * 0.5;
+      // Right edge vs Left face of obstacle
+      const rightCol = Math.floor((this.x + R) / TILE_SIZE);
+      if (rightCol >= 0 && rightCol < GRID_COLS) {
+        for (let r = minR; r <= maxR; r++) {
+          const t = grid[r][rightCol];
+          if (t === T_SPIKE) {
+            this.alive = false; this.popFx = true; return;
+          }
+          if (isObs(t) && prevX <= rightCol * TILE_SIZE) {
+            this.x = rightCol * TILE_SIZE - R - 0.01;
+            if (this.type === 'STICKY' || this.type === 'SOLID') {
+              this.vx = 0; this.vy = 0; this.isStuck = true;
+            } else if (this.vx > 0) {
+              this.vx = -this.vx * 0.5;
+            }
+            break;
           }
         }
       }
 
-      // 2. Floor / platform landing collision (prevents Yellow, Purple, Green bubbles from embedding half into the ground)
+      // Left edge vs Right face of obstacle
+      const leftCol = Math.floor((this.x - R) / TILE_SIZE);
+      if (leftCol >= 0 && leftCol < GRID_COLS && !this.isStuck) {
+        for (let r = minR; r <= maxR; r++) {
+          const t = grid[r][leftCol];
+          if (t === T_SPIKE) {
+            this.alive = false; this.popFx = true; return;
+          }
+          if (isObs(t) && prevX >= (leftCol + 1) * TILE_SIZE) {
+            this.x = (leftCol + 1) * TILE_SIZE + R + 0.01;
+            if (this.type === 'STICKY' || this.type === 'SOLID') {
+              this.vx = 0; this.vy = 0; this.isStuck = true;
+            } else if (this.vx < 0) {
+              this.vx = -this.vx * 0.5;
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // 2. Move Y & resolve Top (ceiling) / Bottom (floor) obstacle surfaces
+    if (!this.isStuck) {
+      this.y += this.vy * dt;
+    }
+    if (grid && !this.isStuck) {
+      const xInset = R * 0.58;
+      const minC = Math.max(0, Math.floor((this.x - xInset) / TILE_SIZE));
+      const maxC = Math.min(GRID_COLS - 1, Math.floor((this.x + xInset) / TILE_SIZE));
+
+      // Bottom edge vs Top face of floor / obstacle
       if (this.vy >= 0) {
-        const bottomY = this.y + this.radius;
-        const bottomT = Physics.getTileAt(grid, this.x, bottomY);
-        if (bottomT === T_SPIKE) {
-          this.alive = false;
-          this.popFx = true;
-        } else if (bottomT === T_SOLID || bottomT === T_GATE || bottomT === T_CRACKED || bottomT === T_CRAWLWAY) {
-          const floorRow = Math.floor(bottomY / TILE_SIZE);
-          const floorTop = floorRow * TILE_SIZE;
-          if (prevY <= floorTop) {
-            this.y = floorTop - this.radius;
-            if (this.type === 'SOLID') {
-              this.vy = 0;
-              this.vx *= 0.82;
-              if (Math.abs(this.vx) < 5) {
-                this.vx = 0;
-                this.isStuck = true;
+        const botRow = Math.floor((this.y + R) / TILE_SIZE);
+        if (botRow >= 0 && botRow < GRID_ROWS) {
+          for (let c = minC; c <= maxC; c++) {
+            const t = grid[botRow][c];
+            if (t === T_SPIKE) {
+              this.alive = false; this.popFx = true; return;
+            }
+            if ((isObs(t) || t === T_CRAWLWAY) && prevY <= botRow * TILE_SIZE) {
+              this.y = botRow * TILE_SIZE - R;
+              if (this.type === 'SOLID') {
+                this.vy = 0;
+                this.vx *= 0.82;
+                if (Math.abs(this.vx) < 5) { this.vx = 0; this.isStuck = true; }
+              } else if (this.type === 'STICKY') {
+                this.vx = 0; this.vy = 0; this.isStuck = true;
+              } else if (this.type === 'BOUNCY') {
+                this.vy = this.vy > 22 ? -this.vy * 0.55 : 0;
+                this.vx *= 0.88;
+              } else {
+                this.vy = this.vy > 18 ? -this.vy * 0.35 : 0;
+                this.vx *= 0.85;
               }
-            } else if (this.type === 'STICKY') {
-              this.vy = 0;
-              this.vx = 0;
-              this.isStuck = true;
-            } else if (this.type === 'BOUNCY') {
-              this.vy = this.vy > 22 ? -this.vy * 0.55 : 0;
-              this.vx *= 0.88;
-            } else {
-              // CHAIN_POP or others: rest cleanly on top of floor surface
-              this.vy = this.vy > 18 ? -this.vy * 0.35 : 0;
-              this.vx *= 0.85;
+              break;
             }
           }
         }
       }
 
-      // 3. Ceiling collision for rising FLOAT bubbles
-      if (this.type === 'FLOAT' && this.vy < 0 && Math.abs(this.vx) < 35) {
-        const topY = this.y - this.radius;
-        const topT = Physics.getTileAt(grid, this.x, topY);
-        if (topT === T_SOLID || topT === T_GATE || topT === T_CRACKED) {
-          const topRow = Math.floor(topY / TILE_SIZE);
-          this.y = (topRow + 1) * TILE_SIZE + this.radius;
-          this.vy = 0;
+      // Top edge vs Bottom face of ceiling / obstacle
+      if (this.vy <= 0 && !this.isStuck) {
+        const topRow = Math.floor((this.y - R) / TILE_SIZE);
+        if (topRow >= 0 && topRow < GRID_ROWS) {
+          for (let c = minC; c <= maxC; c++) {
+            const t = grid[topRow][c];
+            if (t === T_SPIKE) {
+              this.alive = false; this.popFx = true; return;
+            }
+            if (isObs(t) && prevY >= (topRow + 1) * TILE_SIZE) {
+              // Check if confined in a 1-tile crawlway where floor is only 20px below ceiling
+              const belowRow = topRow + 2;
+              const confined1Tile = belowRow < GRID_ROWS && isObs(grid[belowRow][c]);
+              if (confined1Tile) {
+                this.y = (topRow + 1) * TILE_SIZE + TILE_SIZE * 0.5;
+                if (this.vy < 0) this.vy = 0;
+              } else {
+                this.y = (topRow + 1) * TILE_SIZE + R;
+                if (this.type === 'STICKY' || this.type === 'SOLID') {
+                  this.vx = 0; this.vy = 0; this.isStuck = true;
+                } else if (this.type === 'FLOAT') {
+                  this.vy = 0;
+                } else {
+                  this.vy = -this.vy * 0.5;
+                }
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      // 3. Corner Circle-vs-AABB de-penetration so bubble rim never clips into obstacle corners
+      const r0 = Math.max(0, Math.floor((this.y - R) / TILE_SIZE));
+      const r1 = Math.min(GRID_ROWS - 1, Math.floor((this.y + R) / TILE_SIZE));
+      const c0 = Math.max(0, Math.floor((this.x - R) / TILE_SIZE));
+      const c1 = Math.min(GRID_COLS - 1, Math.floor((this.x + R) / TILE_SIZE));
+      const curRow = Math.floor(this.y / TILE_SIZE);
+      const confinedTunnel = curRow > 0 && curRow < GRID_ROWS - 1 &&
+        isObs(Physics.getTileAt(grid, this.x, (curRow - 1) * TILE_SIZE + 10)) &&
+        isObs(Physics.getTileAt(grid, this.x, (curRow + 1) * TILE_SIZE + 10));
+
+      if (!confinedTunnel) {
+        for (let r = r0; r <= r1; r++) {
+          for (let c = c0; c <= c1; c++) {
+            if (!isObs(grid[r][c])) continue;
+            const nearX = Math.max(c * TILE_SIZE, Math.min(this.x, (c + 1) * TILE_SIZE));
+            const nearY = Math.max(r * TILE_SIZE, Math.min(this.y, (r + 1) * TILE_SIZE));
+            const dx = this.x - nearX;
+            const dy = this.y - nearY;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < R * R && distSq > 0.0001) {
+              const dist = Math.sqrt(distSq);
+              const pen = R - dist;
+              this.x += (dx / dist) * pen;
+              this.y += (dy / dist) * pen;
+            }
+          }
         }
       }
     }
 
-    // Screen bounds (top wall inner edge is y = TILE_SIZE = 20)
-    if (this.x < this.radius) { this.x = this.radius; this.vx = -this.vx; }
-    if (this.x > CANVAS_W - this.radius) { this.x = CANVAS_W - this.radius; this.vx = -this.vx; }
-    if (this.y < TILE_SIZE + this.radius) { this.y = TILE_SIZE + this.radius; this.vy = 0; }
-    if (this.y > CANVAS_H - this.radius) { this.y = CANVAS_H - this.radius; this.vy = -this.vy * 0.4; }
+    // Screen bounds (outer border walls are row 0, row 11, col 0, col 15)
+    if (this.x < TILE_SIZE + R) { this.x = TILE_SIZE + R; if (this.vx < 0) this.vx = -this.vx * 0.5; }
+    if (this.x > CANVAS_W - TILE_SIZE - R) { this.x = CANVAS_W - TILE_SIZE - R; if (this.vx > 0) this.vx = -this.vx * 0.5; }
+    if (this.y < TILE_SIZE + R) { this.y = TILE_SIZE + R; if (this.vy < 0) this.vy = 0; }
+    if (this.y > CANVAS_H - TILE_SIZE - R) { this.y = CANVAS_H - TILE_SIZE - R; if (this.vy > 0) this.vy = -this.vy * 0.4; }
   }
 }
 

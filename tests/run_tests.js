@@ -1109,6 +1109,49 @@ suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
   assert(bYellow.y + bYellow.radius <= 220.01, `Yellow SOLID bubble rests on floor surface without embedding (bottom=${(bYellow.y + bYellow.radius).toFixed(2)} <= 220)`);
   assert(bPurple.y + bPurple.radius <= 220.01, `Purple CHAIN_POP bubble rests on floor surface without embedding (bottom=${(bPurple.y + bPurple.radius).toFixed(2)} <= 220)`);
   assert(bGreen.y + bGreen.radius <= 220.01, `Green BOUNCY bubble rests on floor surface without embedding (bottom=${(bGreen.y + bGreen.radius).toFixed(2)} <= 220)`);
+
+  // Verify 4-Directional Bubble Non-Embedding against an Interior Obstacle Block (Left, Right, Top, Bottom & Spawn)
+  game.loadLevel(1); // Room 2 open chasm
+  game.state = 'PLAYING';
+  // Place a single isolated solid obstacle at (row=6, col=7) -> x in [140, 160], y in [120, 140]
+  game.grid[6][7] = env.T_SOLID;
+  const bFromLeft  = new env.BubbleEntity(115, 130, 1, 'SOLID', env.BUDDY_TYPES.YELLOW);
+  bFromLeft.vx = 90; bFromLeft.vy = 0;
+  const bFromRight = new env.BubbleEntity(185, 130, -1, 'STICKY', env.BUDDY_TYPES.PINK);
+  bFromRight.vx = -90; bFromRight.vy = 0;
+  const bFromTop   = new env.BubbleEntity(150, 95, 1, 'BOUNCY', env.BUDDY_TYPES.GREEN);
+  bFromTop.vx = 0; bFromTop.vy = 40;
+  const bFromBot   = new env.BubbleEntity(150, 165, 1, 'FLOAT', env.BUDDY_TYPES.BLUE);
+  bFromBot.vx = 0; bFromBot.vy = -45;
+
+  let maxRightEdgeFromLeft = -Infinity;
+  let minLeftEdgeFromRight = Infinity;
+  let maxBotEdgeFromTop    = -Infinity;
+  let minTopEdgeFromBot    = Infinity;
+
+  for (let i = 0; i < 60; i++) {
+    bFromLeft.update(1 / 60, game.grid, []);
+    bFromRight.update(1 / 60, game.grid, []);
+    bFromTop.update(1 / 60, game.grid, []);
+    bFromBot.update(1 / 60, game.grid, []);
+    maxRightEdgeFromLeft = Math.max(maxRightEdgeFromLeft, bFromLeft.x + bFromLeft.radius);
+    minLeftEdgeFromRight = Math.min(minLeftEdgeFromRight, bFromRight.x - bFromRight.radius);
+    maxBotEdgeFromTop    = Math.max(maxBotEdgeFromTop, bFromTop.y + bFromTop.radius);
+    minTopEdgeFromBot    = Math.min(minTopEdgeFromBot, bFromBot.y - bFromBot.radius);
+  }
+  assert(maxRightEdgeFromLeft <= 140.01, `4-way obstacle test [LEFT face]: bubble never embeds into left face (maxRight=${maxRightEdgeFromLeft.toFixed(2)} <= 140)`);
+  assert(minLeftEdgeFromRight >= 159.99, `4-way obstacle test [RIGHT face]: bubble never embeds into right face (minLeft=${minLeftEdgeFromRight.toFixed(2)} >= 160)`);
+  assert(maxBotEdgeFromTop <= 120.01, `4-way obstacle test [TOP face]: bubble never embeds into top face (maxBot=${maxBotEdgeFromTop.toFixed(2)} <= 120)`);
+  assert(minTopEdgeFromBot >= 139.99, `4-way obstacle test [BOTTOM face]: bubble never embeds into bottom face (minTop=${minTopEdgeFromBot.toFixed(2)} >= 140)`);
+
+  // Verify spawning a bubble right next to a wall clamps it outside the wall on Frame 0
+  game.player.x = 129;
+  game.player.y = 130;
+  game.player.facing = 1;
+  game.player.spitCooldown = 0;
+  const closeWallBubble = game.player.spitBubble();
+  game.pushBubble(closeWallBubble);
+  assert(closeWallBubble.x + closeWallBubble.radius <= 140.01, `Bubble spat right against wall is clamped outside wall on Frame 0 (rightEdge=${(closeWallBubble.x + closeWallBubble.radius).toFixed(2)} <= 140)`);
 });
 
 // =========================================================================

@@ -10,6 +10,9 @@ class SquishyGame {
 
     this.width = CANVAS_W; // 320 (logical units; back-buffer is scaled up for crisp vectors)
     this.height = CANVAS_H; // 240
+    this.viewHeight = CANVAS_H;
+    this.padTop = 0;
+    this.padBottom = 0;
     this.renderScale = 0;
     this.layers = null;
     this.fxTime = 0;
@@ -190,21 +193,23 @@ class SquishyGame {
   }
 
   handleHeartZoneTap(clientX, clientY) {
+    const viewH = this.viewHeight || this.height;
     let lx = clientX, ly = clientY;
     if (this.canvas && typeof this.canvas.getBoundingClientRect === 'function') {
       const rect = this.canvas.getBoundingClientRect();
       if (rect && rect.width > 0 && rect.height > 0) {
-        const scale = Math.min(rect.width / this.width, rect.height / this.height);
+        const scale = Math.min(rect.width / this.width, rect.height / viewH);
         const drawW = this.width * scale;
-        const drawH = this.height * scale;
+        const drawH = viewH * scale;
         const offsetX = (rect.width - drawW) / 2;
         const offsetY = (rect.height - drawH) / 2;
         lx = ((clientX - rect.left - offsetX) / drawW) * this.width;
-        ly = ((clientY - rect.top - offsetY) / drawH) * this.height;
+        ly = ((clientY - rect.top - offsetY) / drawH) * viewH;
       }
     }
-    // Top center heart HUD zone: x in [60, 188], y in [0, 38]
-    if (lx >= 60 && lx <= 188 && ly >= 0 && ly <= 38) {
+    // Top center heart HUD zone: x in [60, 188], y in [0, maxHeartY]
+    const maxHeartY = Math.max(38, (this.padTop || 0) + 24);
+    if (lx >= 60 && lx <= 188 && ly >= 0 && ly <= maxHeartY) {
       const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
       if (now - this.lastHeartTapTime > 1500) {
         this.secretHeartTapCount = 1;
@@ -522,12 +527,9 @@ class SquishyGame {
 
   // Spit puff + a little ripple where the bubble is born
   pushBubble(b) {
-    // A bubble spat straight into a wall must not be born inside the stone: slide it back out toward the buddy
-    if (this.grid && this.player) {
-      const blocked = (x, y) => { const t = Physics.getTileAt(this.grid, x, y); return t === T_SOLID || t === T_GATE; };
-      for (let guard = 0; guard < 60 && blocked(b.x, b.y); guard++) {
-        b.x += (this.player.x > b.x ? 1 : -1) * 0.75;
-      }
+    // A bubble spat straight into a wall/ceiling/floor must not embed any part of its radius into the obstacle
+    if (this.grid && this.player && typeof b.clampSpawnPosition === 'function') {
+      b.clampSpawnPosition(this.grid, this.player.x, this.player.y);
     }
     this.bubbles.push(b);
     this.fx.push(new FxRing(b.x, b.y, b.buddyType.color, 13, 0.3, 1.6));
@@ -966,21 +968,129 @@ class SquishyGame {
 
   // The back-buffer follows the real on-screen size (up to 4x the 320x240 logical grid)
   // so every outline, bubble highlight and eye sparkle stays razor sharp on phones.
+  // When embedded in a taller handheld screen frame (e.g. ~350x306), viewHeight expands proportionally
+  // to maintain exact 1:1 unstretched pixels while filling the top/bottom bands with themed cavern rock & status bars.
   resizeBackbuffer() {
     let s = 4;
+    let viewH = this.height;
     try {
       const rect = this.canvas.getBoundingClientRect ? this.canvas.getBoundingClientRect() : null;
       const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
       if (rect && rect.width > 0 && rect.height > 0) {
-        s = Math.ceil(Math.min(rect.width / this.width, rect.height / this.height) * dpr);
+        const targetH = Math.round(this.width * (rect.height / rect.width));
+        if (targetH > this.height + 4) {
+          viewH = Math.min(340, targetH);
+        }
+        s = Math.ceil(Math.min(rect.width / this.width, rect.height / viewH) * dpr);
       }
     } catch (e) { /* fall back to 4x */ }
     s = Math.max(2, Math.min(4, s));
-    if (s !== this.renderScale) {
+    const extraH = Math.max(0, viewH - this.height);
+    const padTop = Math.floor(extraH / 2);
+    const padBottom = extraH - padTop;
+    if (s !== this.renderScale || viewH !== this.viewHeight) {
       this.renderScale = s;
+      this.viewHeight = viewH;
+      this.padTop = padTop;
+      this.padBottom = padBottom;
       this.canvas.width = this.width * s;
-      this.canvas.height = this.height * s;
+      this.canvas.height = this.viewHeight * s;
       this.layers = null;
+    }
+  }
+
+  // Render cohesive themed stone arch (top) & bedrock status bar (bottom) when viewport is taller than 4:3
+  renderThemedBands(ctx, th, t, padTop, padBot) {
+    const FX = SquishyFX;
+    const viewH = this.viewHeight || this.height;
+
+    // 1. Top Cavern Crown Band (y = 0 .. padTop)
+    if (padTop > 0) {
+      const tg = ctx.createLinearGradient(0, 0, 0, padTop);
+      tg.addColorStop(0, th.body1);
+      tg.addColorStop(1, th.body0);
+      ctx.fillStyle = tg;
+      ctx.fillRect(0, 0, this.width, padTop);
+
+      // Staggered stone brick seams
+      ctx.save();
+      ctx.strokeStyle = th.ink;
+      ctx.globalAlpha = 0.28;
+      ctx.lineWidth = 1;
+      for (let c = 0; c < GRID_COLS; c++) {
+        const x = c * TILE_SIZE + 10;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, padTop);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Subtle lip highlight along the seam between top crown and Row 0
+      ctx.fillStyle = th.lip;
+      ctx.fillRect(0, Math.max(0, padTop - 2), this.width, 1.5);
+      ctx.fillStyle = th.ink;
+      ctx.fillRect(0, Math.max(0, padTop - 0.8), this.width, 0.8);
+    }
+
+    // 2. Bottom Bedrock Status Band (y = padTop + this.height .. viewH)
+    if (padBot > 0) {
+      const by = padTop + this.height;
+      const bg = ctx.createLinearGradient(0, by, 0, viewH);
+      bg.addColorStop(0, th.body0);
+      bg.addColorStop(1, th.body1);
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, by, this.width, padBot);
+
+      // Staggered stone brick seams
+      ctx.save();
+      ctx.strokeStyle = th.ink;
+      ctx.globalAlpha = 0.28;
+      ctx.lineWidth = 1;
+      for (let c = 0; c < GRID_COLS; c++) {
+        const x = c * TILE_SIZE + 10;
+        ctx.beginPath();
+        ctx.moveTo(x, by);
+        ctx.lineTo(x, viewH);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Seam highlight at top of bedrock bar
+      ctx.fillStyle = th.ink;
+      ctx.fillRect(0, by, this.width, 0.9);
+      ctx.fillStyle = th.lip;
+      ctx.fillRect(0, by + 0.9, this.width, 1.4);
+
+      // Embedded Room Title & Active Buddy Skill Bar inside the bottom bedrock band
+      if (padBot >= 12 && this.currentLevel && this.player) {
+        const ph = Math.min(16, padBot - 3);
+        const py = by + (padBot - ph) * 0.5 + 0.5;
+        FX.panel(ctx, 4, py, this.width - 8, ph, {
+          r: 4.5,
+          lw: 1.0,
+          border: th.accent || '#FFD454',
+          top: 'rgba(26, 20, 34, 0.90)',
+          bottom: 'rgba(14, 10, 20, 0.92)'
+        });
+        const ty = py + ph * 0.73;
+        const roomTitle = this.currentLevel.title || `ROOM ${this.levelIndex + 1}`;
+        FX.text(ctx, roomTitle, 11, ty, { size: 8, color: '#FFD454' });
+
+        const skillMap = {
+          YELLOW: '黄圆圆 · B键:固化垫脚泡',
+          BLUE: '蓝波波 · B键:浮空水泡',
+          PINK: '粉嘟嘟 · B键:绝壁粘泡',
+          GREEN: '绿萌萌 · B键:高弹泡 | 下+A:滑行',
+          PURPLE: '紫灵灵 · B键:连锁爆破泡'
+        };
+        const skillText = skillMap[this.player.typeKey] || '';
+        FX.text(ctx, skillText, this.width - 11, ty, {
+          size: 7.8,
+          color: this.player.type.highlight || '#FFFFFF',
+          align: 'right'
+        });
+      }
     }
   }
 
@@ -1027,11 +1137,15 @@ class SquishyGame {
   }
 
   render() {
+    this.resizeBackbuffer();
     const ctx = this.ctx;
     const FX = SquishyFX;
     const S = this.renderScale || 1;
     const t = this.fxTime || 0;
     const th = FX.themeFor(this.levelIndex);
+    const viewH = this.viewHeight || this.height;
+    const padTop = this.padTop || 0;
+    const padBot = this.padBottom || 0;
 
     if (ctx.setTransform) ctx.setTransform(S, 0, 0, S, 0, 0);
     // canvas state persists between frames - always start from a clean slate
@@ -1040,11 +1154,12 @@ class SquishyGame {
     ctx.textBaseline = 'alphabetic';
     ctx.lineCap = 'butt';
     ctx.lineJoin = 'miter';
-    ctx.clearRect(0, 0, this.width, this.height);
+    ctx.clearRect(0, 0, this.width, viewH);
 
     const L = this.getLayers(th);
 
     ctx.save();
+    ctx.translate(0, padTop);
     // Screen shake: smooth decaying wobble (timer counts down in update)
     if (this.screenShakeTimer > 0) {
       const k = Math.min(1, this.screenShakeTimer / 0.5);
@@ -1103,17 +1218,39 @@ class SquishyGame {
     // End Screen Shake transformation before rendering HUD
     ctx.restore();
 
+    ctx.save();
+    ctx.translate(0, padTop);
     ctx.drawImage(L.vignette, 0, 0, this.width, this.height);
+    ctx.restore();
 
-    // 10. Floating Micro HUD
+    // 9.5. Cohesive top cavern crown & bottom bedrock status bar (eliminates top/bottom black bars at 1:1 ratio)
+    if (padTop > 0 || padBot > 0) {
+      this.renderThemedBands(ctx, th, t, padTop, padBot);
+    }
+
+    // 10. Floating Micro HUD (placed in top crown band when padTop >= 18, otherwise at playfield top)
+    ctx.save();
+    ctx.translate(0, padTop >= 18 ? Math.floor((padTop - 20) * 0.5) : padTop);
     this.renderMicroHud(ctx);
+    ctx.restore();
 
     // 11. Overlays
-    if (this.state === 'TITLE') this.renderTitleOverlay(ctx);
-    else if (this.state === 'STORY') this.renderStoryOverlay(ctx);
-    else if (this.state === 'PAUSED') this.renderPauseOverlay(ctx);
-    else if (this.state === 'VICTORY') this.renderVictoryOverlay(ctx);
-    else if (this.state === 'GAME_OVER') this.renderGameOverOverlay(ctx);
+    if (this.state === 'TITLE' || this.state === 'STORY' || this.state === 'PAUSED' || this.state === 'VICTORY' || this.state === 'GAME_OVER') {
+      if ((padTop > 0 || padBot > 0) && this.state !== 'PAUSED') {
+        ctx.fillStyle = '#0c0818';
+        if (padTop > 0) ctx.fillRect(0, 0, this.width, padTop + 2);
+        if (padBot > 0) ctx.fillRect(0, padTop + this.height - 2, this.width, padBot + 2);
+        this.renderThemedBands(ctx, th, t, padTop, padBot);
+      }
+      ctx.save();
+      ctx.translate(0, padTop);
+      if (this.state === 'TITLE') this.renderTitleOverlay(ctx);
+      else if (this.state === 'STORY') this.renderStoryOverlay(ctx);
+      else if (this.state === 'PAUSED') this.renderPauseOverlay(ctx);
+      else if (this.state === 'VICTORY') this.renderVictoryOverlay(ctx);
+      else if (this.state === 'GAME_OVER') this.renderGameOverOverlay(ctx);
+      ctx.restore();
+    }
 
     // Room clear toast
     if (this.state === 'PLAYING' && this.roomClearBannerTimer > 0) {
@@ -1124,7 +1261,7 @@ class SquishyGame {
         : '★ 泉眼净化成功！进入下一关 ★';
       ctx.save();
       ctx.globalAlpha = fade;
-      ctx.translate(this.width / 2, 118);
+      ctx.translate(this.width / 2, padTop + 118);
       ctx.scale(p, p);
       FX.panel(ctx, -150, -19, 300, 38, { r: 10, lw: 1.6 });
       FX.text(ctx, msg, 0, 5, { size: 12, color: '#FFD454', align: 'center' });
@@ -1137,7 +1274,7 @@ class SquishyGame {
       const fade = FX.clamp(this.secretBannerTimer / 0.35);
       ctx.save();
       ctx.globalAlpha = fade;
-      ctx.translate(this.width / 2, 46);
+      ctx.translate(this.width / 2, padTop + 46);
       ctx.scale(p, p);
       FX.panel(ctx, -146, -15, 292, 30, {
         r: 8,
