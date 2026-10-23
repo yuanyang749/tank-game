@@ -190,7 +190,8 @@ class PlayerBuddy {
     this.vx -= this.facing * 35; // Slight physics recoil pushback!
 
     const bubbleX = this.x + this.facing * (this.radius + 12);
-    const bubbleY = this.y - 2;
+    const feetY = this.y + (this.radius || 10) * (this.isCrouched ? 0.4 : 0.85);
+    const bubbleY = Math.min(this.y - 2, feetY - 12);
     const bubble = new BubbleEntity(bubbleX, bubbleY, this.facing, this.type.bubbleType, this.type);
     
     if (window.squishyAudio) window.squishyAudio.playSpit();
@@ -408,20 +409,79 @@ class BubbleEntity {
         this.vy = 0;
         this.isStuck = true; // Firmly docks as a stepping platform
       } else {
+        this.x = prevX;
+        this.y = prevY;
         this.vx = -this.vx * 0.5;
         this.vy = -this.vy * 0.5;
       }
     } else if (t === T_SPIKE) {
       this.alive = false; // Pops on spikes
       this.popFx = true;
-    } else if (this.type === 'FLOAT' && this.vy < 0 && Math.abs(this.vx) < 35) {
-      // Stop rising float bubble cleanly when its top edge reaches an overhead ceiling block
-      const topY = this.y - this.radius;
-      const topT = Physics.getTileAt(grid, this.x, topY);
-      if (topT === T_SOLID || topT === T_GATE || topT === T_CRACKED) {
-        const topRow = Math.floor(topY / TILE_SIZE);
-        this.y = (topRow + 1) * TILE_SIZE + this.radius;
-        this.vy = 0;
+    } else {
+      // 1. Horizontal wall edge collision (prevents half-embedding into vertical walls)
+      if (this.type !== 'STICKY' && Math.abs(this.vx) > 0.1) {
+        const dir = this.vx > 0 ? 1 : -1;
+        const leadX = this.x + dir * this.radius;
+        const prevLeadX = prevX + dir * this.radius;
+        const leadT = Physics.getTileAt(grid, leadX, prevY);
+        const prevLeadT = Physics.getTileAt(grid, prevLeadX, prevY);
+        if ((leadT === T_SOLID || leadT === T_GATE) && prevLeadT !== T_SOLID && prevLeadT !== T_GATE) {
+          const wallCol = Math.floor(leadX / TILE_SIZE);
+          this.x = dir > 0 ? (wallCol * TILE_SIZE - this.radius - 0.01) : ((wallCol + 1) * TILE_SIZE + this.radius + 0.01);
+          if (this.type === 'SOLID') {
+            this.vx = 0;
+            this.vy = 0;
+            this.isStuck = true;
+          } else {
+            this.vx = -this.vx * 0.5;
+          }
+        }
+      }
+
+      // 2. Floor / platform landing collision (prevents Yellow, Purple, Green bubbles from embedding half into the ground)
+      if (this.vy >= 0) {
+        const bottomY = this.y + this.radius;
+        const bottomT = Physics.getTileAt(grid, this.x, bottomY);
+        if (bottomT === T_SPIKE) {
+          this.alive = false;
+          this.popFx = true;
+        } else if (bottomT === T_SOLID || bottomT === T_GATE || bottomT === T_CRACKED || bottomT === T_CRAWLWAY) {
+          const floorRow = Math.floor(bottomY / TILE_SIZE);
+          const floorTop = floorRow * TILE_SIZE;
+          if (prevY <= floorTop) {
+            this.y = floorTop - this.radius;
+            if (this.type === 'SOLID') {
+              this.vy = 0;
+              this.vx *= 0.82;
+              if (Math.abs(this.vx) < 5) {
+                this.vx = 0;
+                this.isStuck = true;
+              }
+            } else if (this.type === 'STICKY') {
+              this.vy = 0;
+              this.vx = 0;
+              this.isStuck = true;
+            } else if (this.type === 'BOUNCY') {
+              this.vy = this.vy > 22 ? -this.vy * 0.55 : 0;
+              this.vx *= 0.88;
+            } else {
+              // CHAIN_POP or others: rest cleanly on top of floor surface
+              this.vy = this.vy > 18 ? -this.vy * 0.35 : 0;
+              this.vx *= 0.85;
+            }
+          }
+        }
+      }
+
+      // 3. Ceiling collision for rising FLOAT bubbles
+      if (this.type === 'FLOAT' && this.vy < 0 && Math.abs(this.vx) < 35) {
+        const topY = this.y - this.radius;
+        const topT = Physics.getTileAt(grid, this.x, topY);
+        if (topT === T_SOLID || topT === T_GATE || topT === T_CRACKED) {
+          const topRow = Math.floor(topY / TILE_SIZE);
+          this.y = (topRow + 1) * TILE_SIZE + this.radius;
+          this.vy = 0;
+        }
       }
     }
 

@@ -1091,6 +1091,24 @@ suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
   }
   assert(minOverhangTopEdge >= 139.99, `Rising FLOAT bubble under interior overhang stops at overhang inner edge (minTopEdge=${minOverhangTopEdge.toFixed(2)} >= 140)`);
   assert(overhangSquished === true, 'Player squishes elastically against interior overhang without penetrating block');
+
+  // Verify Yellow (SOLID), Purple (CHAIN_POP), and Green (BOUNCY) bubbles land on top of floor without half-embedding
+  game.loadLevel(0); // Floor at Row 11 (tileTop = 220) in cols 3..12
+  game.state = 'PLAYING';
+  const bYellow = new env.BubbleEntity(150, 195, 1, 'SOLID', env.BUDDY_TYPES.YELLOW);
+  const bPurple = new env.BubbleEntity(175, 195, 1, 'CHAIN_POP', env.BUDDY_TYPES.PURPLE);
+  const bGreen  = new env.BubbleEntity(200, 195, 1, 'BOUNCY', env.BUDDY_TYPES.GREEN);
+  bYellow.vx = 0; bPurple.vx = 0; bGreen.vx = 0;
+  game.bubbles = [bYellow, bPurple, bGreen];
+
+  for (let i = 0; i < 180; i++) {
+    bYellow.update(1 / 60, game.grid, game.bubbles);
+    bPurple.update(1 / 60, game.grid, game.bubbles);
+    bGreen.update(1 / 60, game.grid, game.bubbles);
+  }
+  assert(bYellow.y + bYellow.radius <= 220.01, `Yellow SOLID bubble rests on floor surface without embedding (bottom=${(bYellow.y + bYellow.radius).toFixed(2)} <= 220)`);
+  assert(bPurple.y + bPurple.radius <= 220.01, `Purple CHAIN_POP bubble rests on floor surface without embedding (bottom=${(bPurple.y + bPurple.radius).toFixed(2)} <= 220)`);
+  assert(bGreen.y + bGreen.radius <= 220.01, `Green BOUNCY bubble rests on floor surface without embedding (bottom=${(bGreen.y + bGreen.radius).toFixed(2)} <= 220)`);
 });
 
 // =========================================================================
