@@ -129,8 +129,15 @@ const SquishyFX = (() => {
     { id: 'glacier', name: '冰渊浮渡', light: true, skyTop: '#E4FAFF', skyBot: '#9EE2F8', grid: 'rgba(70,155,195,.22)', body0: '#589EC8', body1: '#326A94', lip: '#C8FAFF', lipHi: '#F4FFFF', ink: '#10324A', accent: '#45E0FF', cloud: 'rgba(255,255,255,.86)', shadow: 'rgba(15,65,105,.28)', vignette: 'rgba(18,85,135,.26)', deco: 'ice' },
     { id: 'rose_spires', name: '绝壁双塔', light: true, skyTop: '#FFF0EC', skyBot: '#FFC8BC', grid: 'rgba(215,115,105,.22)', body0: '#D87C78', body1: '#A24848', lip: '#FFE0D8', lipHi: '#FFF6F2', ink: '#481818', accent: '#FF7888', cloud: 'rgba(255,255,255,.82)', shadow: 'rgba(110,35,35,.28)', vignette: 'rgba(145,45,50,.24)', deco: 'candy' },
     { id: 'aurora', name: '翡翠云梯', light: true, skyTop: '#E8FFF8', skyBot: '#A8F0DC', grid: 'rgba(65,175,145,.22)', body0: '#4CB89E', body1: '#28826E', lip: '#C8FFEE', lipHi: '#F2FFFA', ink: '#0E382E', accent: '#48F0C8', cloud: 'rgba(255,255,255,.84)', shadow: 'rgba(16,80,68,.28)', vignette: 'rgba(20,105,88,.24)', deco: 'leaf', rainbow: true },
-    { id: 'crystal_core', name: '终焉晶核', light: false, skyTop: '#16243E', skyBot: '#091020', grid: 'rgba(70,165,220,.20)', body0: '#2E4E72', body1: '#182A42', lip: '#64C8F0', lipHi: '#B8F2FF', ink: '#050B14', accent: '#58E4FF', cloud: 'rgba(100,220,255,.12)', shadow: 'rgba(0,0,0,.48)', vignette: 'rgba(0,8,24,.52)', deco: 'crystal' }
+    { id: 'crystal_core', name: '终焉晶核', light: false, skyTop: '#16243E', skyBot: '#091020', grid: 'rgba(70,165,220,.20)', body0: '#2E4E72', body1: '#182A42', lip: '#64C8F0', lipHi: '#B8F2FF', ink: '#050B14', accent: '#58E4FF', cloud: 'rgba(100,220,255,.12)', shadow: 'rgba(0,0,0,.48)', vignette: 'rgba(0,8,24,.52)', deco: 'crystal' },
+    // Stage 3 (Rooms 11-15: Chaos Firmament)
+    { id: 'magma_rift', name: '熔火断崖', light: true, skyTop: '#FFF2E2', skyBot: '#FFC498', grid: 'rgba(205,110,65,.22)', body0: '#B86448', body1: '#7E3824', lip: '#FFD278', lipHi: '#FFF4C8', ink: '#3A140A', accent: '#FF8A38', cloud: 'rgba(255,244,230,.82)', shadow: 'rgba(110,35,15,.28)', vignette: 'rgba(140,45,15,.25)', deco: 'crystal' },
+    { id: 'thunder_spire', name: '雷云涡流', light: true, skyTop: '#EEF2FF', skyBot: '#B8C8FA', grid: 'rgba(95,120,210,.22)', body0: '#687CC2', body1: '#3E4E8E', lip: '#FFE888', lipHi: '#FFFBE0', ink: '#182048', accent: '#FFD448', cloud: 'rgba(255,255,255,.86)', shadow: 'rgba(25,35,95,.28)', vignette: 'rgba(30,45,120,.25)', deco: 'ice' },
+    { id: 'void_corridor', name: '虚空回廊', light: true, skyTop: '#FCEEFF', skyBot: '#E6BCF8', grid: 'rgba(175,95,210,.22)', body0: '#A468C2', body1: '#6E388E', lip: '#98F8E8', lipHi: '#E8FFFA', ink: '#321246', accent: '#DF78FF', cloud: 'rgba(255,255,255,.82)', shadow: 'rgba(75,20,105,.28)', vignette: 'rgba(95,25,130,.25)', deco: 'crystal' },
+    { id: 'chroma_skyway', name: '五彩天梯', light: true, skyTop: '#FFFCE8', skyBot: '#BCE8FF', grid: 'rgba(110,165,200,.20)', body0: '#78A8C8', body1: '#487498', lip: '#FFE498', lipHi: '#FFFBE8', ink: '#1A344A', accent: '#FFD454', cloud: 'rgba(255,255,255,.88)', shadow: 'rgba(25,65,95,.26)', vignette: 'rgba(35,85,120,.22)', deco: 'meadow', rainbow: true },
+    { id: 'abyss_throne', name: '混沌王座', light: false, skyTop: '#1A0826', skyBot: '#08030E', grid: 'rgba(220,70,120,.18)', body0: '#3D1E4E', body1: '#1E0D2B', lip: '#FFD448', lipHi: '#FFF6B8', ink: '#06020A', accent: '#FFD448', cloud: 'rgba(255,80,140,.14)', shadow: 'rgba(0,0,0,.55)', vignette: 'rgba(12,0,22,.56)', deco: 'crystal' }
   ];
+  const BOSS_LAYER_COLORS = ['#FF385C', '#FFD448', '#48F288', '#38E4FF', '#C864FF']; // Layer 1 (Red) .. Layer 5 (Purple)
   const themeFor = (levelIndex) => THEMES[Math.max(0, Math.min(THEMES.length - 1, levelIndex | 0))];
 
   /* ---------------- buddy (droplet mochi) ---------------- */
@@ -268,13 +275,90 @@ const SquishyFX = (() => {
   }
 
   /* ---------------- enemies ---------------- */
-  // Sludge Titan (Stage 1) & Frost-Crystal Golem (Stage 2). x,y = body centre, R = horizontal radius
+  // Sludge Titan (Stage 1), Frost-Crystal Golem (Stage 2) & Abyssal Colossus (Stage 3). x,y = body centre, R = horizontal radius
   function drawBoss(ctx, x, y, R, t, o = {}) {
     const rage = !!o.rage, facing = o.facing || 1;
     const isCrystal = o.variant === 'CRYSTAL';
+    const isColossus = o.variant === 'COLOSSUS';
+    const stealth = o.stealth || 0;
+    const goldenShield = o.goldenShield || 0;
+    const layerColor = o.layerColor || '#C864FF';
+
     ctx.save();
     ctx.translate(x, y); ctx.scale(o.sx || 1, o.sy || 1);
-    if (isCrystal) {
+
+    // Void Stealth phantom after-images & ghostly alpha
+    if (stealth > 0) {
+      for (const side of [-1, 1]) {
+        const ox = side * (9 + 4 * Math.sin(t * 14 + side));
+        ctx.save();
+        ctx.translate(ox, -2);
+        ctx.globalAlpha *= 0.16;
+        ctx.fillStyle = '#38E4FF';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, R * 0.96, R * 0.80, 0, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.globalAlpha *= (0.20 + 0.08 * Math.sin(t * 18));
+    }
+
+    if (isColossus) {
+      // Colossal Abyssal Halo & 5-Pronged Imperial Dark-Gold Crown
+      const halo = ctx.createRadialGradient(0, -R * 0.1, R * 0.3, 0, -R * 0.1, R * 1.48);
+      halo.addColorStop(0, hexA(layerColor, 0.35));
+      halo.addColorStop(1, hexA(layerColor, 0));
+      ctx.fillStyle = halo;
+      ctx.beginPath(); ctx.arc(0, -R * 0.1, R * 1.48, 0, TAU); ctx.fill();
+
+      // Orbiting void armor shards
+      ctx.fillStyle = layerColor;
+      ctx.strokeStyle = '#12041E';
+      ctx.lineWidth = 1.1;
+      for (let i = 0; i < 10; i++) {
+        const a = i / 10 * TAU + t * 1.25;
+        const rr2 = R * (1.06 + .06 * Math.sin(t * 5 + i));
+        const px = Math.cos(a) * rr2, py = Math.sin(a) * rr2 * .86;
+        ctx.beginPath();
+        ctx.moveTo(px + Math.cos(a) * R * .24, py + Math.sin(a) * R * .24);
+        ctx.lineTo(px + Math.cos(a + 1.1) * R * .11, py + Math.sin(a + 1.1) * R * .11);
+        ctx.lineTo(px + Math.cos(a - 1.1) * R * .11, py + Math.sin(a - 1.1) * R * .11);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // 5-Pronged Imperial Gold Crown hovering above the head
+      const cyCrown = -R * 0.84 + Math.sin(t * 4) * 1.8;
+      const cg = ctx.createLinearGradient(0, cyCrown - R * 0.36, 0, cyCrown + R * 0.08);
+      cg.addColorStop(0, '#FFF6B0');
+      cg.addColorStop(0.5, '#FFD448');
+      cg.addColorStop(1, '#B87410');
+      ctx.fillStyle = cg;
+      ctx.strokeStyle = '#241004';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-R * 0.48, cyCrown);
+      ctx.lineTo(-R * 0.56, cyCrown - R * 0.24);
+      ctx.lineTo(-R * 0.30, cyCrown - R * 0.10);
+      ctx.lineTo(-R * 0.22, cyCrown - R * 0.32);
+      ctx.lineTo(-R * 0.08, cyCrown - R * 0.12);
+      ctx.lineTo(0, cyCrown - R * 0.42);
+      ctx.lineTo(R * 0.08, cyCrown - R * 0.12);
+      ctx.lineTo(R * 0.22, cyCrown - R * 0.32);
+      ctx.lineTo(R * 0.30, cyCrown - R * 0.10);
+      ctx.lineTo(R * 0.56, cyCrown - R * 0.24);
+      ctx.lineTo(R * 0.48, cyCrown);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // Crown center jewel matching current HP layer color
+      ctx.fillStyle = layerColor;
+      ctx.beginPath();
+      ctx.arc(0, cyCrown - R * 0.13, R * 0.08, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+    } else if (isCrystal) {
       // Orbiting crystal crown spikes
       ctx.fillStyle = rage ? '#FF5898' : '#58E4FF';
       ctx.strokeStyle = '#08182C';
@@ -309,7 +393,11 @@ const SquishyFX = (() => {
     }
     ctx.closePath();
     const g = ctx.createRadialGradient(-R * .3, -R * .4, R * .1, 0, 0, R * 1.1);
-    if (isCrystal) {
+    if (isColossus) {
+      g.addColorStop(0, layerColor);
+      g.addColorStop(0.45, rage ? '#8A1238' : '#4C1868');
+      g.addColorStop(1, '#12041E');
+    } else if (isCrystal) {
       g.addColorStop(0, rage ? '#FF78B8' : '#78F0FF');
       g.addColorStop(0.55, rage ? '#7A2068' : '#2668A8');
       g.addColorStop(1, rage ? '#280828' : '#0E2240');
@@ -318,43 +406,112 @@ const SquishyFX = (() => {
       g.addColorStop(1, rage ? '#2A0A26' : '#1A0B27');
     }
     ctx.fillStyle = g; ctx.fill();
-    ctx.lineWidth = Math.max(1, R * .05); ctx.strokeStyle = '#0A0510'; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.lineWidth = Math.max(1, R * .05);
+    ctx.strokeStyle = stealth > 0 ? '#38E4FF' : (isColossus ? '#FFD448' : '#0A0510');
+    ctx.lineJoin = 'round'; ctx.stroke();
     if (o.flash) { ctx.fillStyle = `rgba(255,255,255,${o.flash})`; ctx.fill(); }
     // slime gloss
     ctx.save(); ctx.clip();
-    ctx.fillStyle = 'rgba(255,255,255,.13)'; ctx.beginPath(); ctx.ellipse(-R * .38, -R * .5, R * .2, R * .11, -.5, 0, TAU); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.beginPath(); ctx.ellipse(-R * .38, -R * .5, R * .22, R * .12, -.5, 0, TAU); ctx.fill();
     ctx.restore();
     // glowing eyes
-    const er = R * (rage ? .14 : .12), ex = R * .27, ey = -R * .1, shift = facing * R * .05;
+    const er = R * (rage ? .14 : .12), ex = R * .27, ey = -R * .08, shift = facing * R * .05;
     for (const s of [-1, 1]) {
       const cx = s * ex + shift;
       const gl = ctx.createRadialGradient(cx, ey, 0, cx, ey, er * 3.2);
-      gl.addColorStop(0, `rgba(255,45,74,${rage ? .7 : .5})`); gl.addColorStop(1, 'rgba(255,45,74,0)');
+      gl.addColorStop(0, `rgba(255,45,74,${rage ? .75 : .55})`); gl.addColorStop(1, 'rgba(255,45,74,0)');
       ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(cx, ey, er * 3.2, 0, TAU); ctx.fill();
     }
-    ctx.fillStyle = '#FF3B4E';
-    for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(s * ex + shift, ey, er, er * .8, 0, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = isColossus ? '#FFD448' : '#FF3B4E';
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(s * ex + shift, ey, er, er * .82, 0, 0, TAU); ctx.fill(); }
     ctx.fillStyle = '#FFE1E5';
     for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(s * ex + shift - er * .3, ey - er * .3, er * .3, 0, TAU); ctx.fill(); }
     ctx.fillStyle = '#16000A';
     for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(s * ex + shift + facing * er * .3, ey + er * .05, er * .32, 0, TAU); ctx.fill(); }
-    if (rage) {
+
+    // Third Vertical Void Eye on Colossus forehead
+    if (isColossus) {
+      const tey = -R * 0.38;
+      ctx.fillStyle = '#FF2255';
+      ctx.strokeStyle = '#FFD448';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.ellipse(shift * 0.6, tey, R * 0.08, R * 0.16, 0, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#FFF8D0';
+      ctx.beginPath();
+      ctx.ellipse(shift * 0.6, tey, R * 0.028, R * 0.11, 0, 0, TAU);
+      ctx.fill();
+    }
+
+    if (rage || isColossus) {
       ctx.strokeStyle = '#0A0510'; ctx.lineWidth = Math.max(1, R * .05); ctx.lineCap = 'round';
-      for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(s * R * .45 + shift, -R * .32); ctx.lineTo(s * R * .12 + shift, -R * .2); ctx.stroke(); }
+      for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(s * R * .45 + shift, -R * .30); ctx.lineTo(s * R * .14 + shift, -R * .18); ctx.stroke(); }
     }
     // mouth
     const my = R * .28;
     if (o.charge) {
-      const gl = ctx.createRadialGradient(facing * R * .1, my, 0, facing * R * .1, my, R * .4);
+      const gl = ctx.createRadialGradient(facing * R * .1, my, 0, facing * R * .1, my, R * .42);
       gl.addColorStop(0, 'rgba(255,60,110,.95)'); gl.addColorStop(1, 'rgba(255,30,80,0)');
-      ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(facing * R * .1, my, R * .4, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#16000A'; ctx.beginPath(); ctx.ellipse(facing * R * .1, my, R * .2, R * .13, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(facing * R * .1, my, R * .42, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#16000A'; ctx.beginPath(); ctx.ellipse(facing * R * .1, my, R * .22, R * .14, 0, 0, TAU); ctx.fill();
     } else {
       ctx.strokeStyle = '#0A0510'; ctx.lineWidth = Math.max(.9, R * .045); ctx.lineJoin = 'round';
       ctx.beginPath(); ctx.moveTo(-R * .24, my);
       for (let i = 0; i <= 6; i++) ctx.lineTo(-R * .24 + i * R * .08, my + (i % 2 ? R * .05 : -R * .02));
       ctx.stroke();
     }
+
+    // Golden Bell Shield (金钟罩) Dome Overlay
+    if (goldenShield > 0) {
+      const pulse = 1 + 0.04 * Math.sin(t * 20);
+      const bw = R * 1.24 * pulse;
+      const bh = R * 1.08 * pulse;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, 0.55 + goldenShield * 0.35);
+      const bg = ctx.createLinearGradient(0, -bh * 1.15, 0, bh * 0.9);
+      bg.addColorStop(0, 'rgba(255, 248, 170, 0.62)');
+      bg.addColorStop(0.5, 'rgba(255, 208, 56, 0.34)');
+      bg.addColorStop(1, 'rgba(218, 130, 16, 0.58)');
+      ctx.fillStyle = bg;
+      ctx.strokeStyle = '#FFF4A8';
+      ctx.lineWidth = 2.0;
+
+      // Temple bell silhouette path
+      ctx.beginPath();
+      ctx.moveTo(-bw * 1.06, bh * 0.82);
+      ctx.quadraticCurveTo(-bw * 0.98, -bh * 0.88, 0, -bh * 1.05);
+      ctx.quadraticCurveTo(bw * 0.98, -bh * 0.88, bw * 1.06, bh * 0.82);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Golden Bell handle on top & horizontal rune bands
+      ctx.beginPath();
+      ctx.arc(0, -bh * 1.12, R * 0.14, Math.PI, 0);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255, 244, 168, 0.78)';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(-bw * 0.82, -bh * 0.15);
+      ctx.lineTo(bw * 0.82, -bh * 0.15);
+      ctx.moveTo(-bw * 0.96, bh * 0.45);
+      ctx.lineTo(bw * 0.96, bh * 0.45);
+      ctx.stroke();
+
+      // Orbiting golden bell runes
+      for (let k = 0; k < 5; k++) {
+        const ang = (k / 5) * TAU + t * 3.2;
+        const rx = Math.cos(ang) * bw * 0.68;
+        const ry = bh * 0.15 + Math.sin(ang) * bh * 0.18;
+        star4(ctx, rx, ry, 3.2, t * 4, 0.35);
+        ctx.fillStyle = '#FFFBE0';
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
     ctx.restore();
   }
 
@@ -704,8 +861,8 @@ const SquishyFX = (() => {
     ctx.rect(x, y, 19 * s, 7 * s);
     ctx.fill();
   }
-  // moving ambience: drifting clouds + twinkles (light rooms) / rising spores (dusk room)
-  function drawAmbient(ctx, th, t) {
+  // moving ambience: drifting clouds + twinkles (light rooms) / rising spores & Abyssal Colossus (dark boss rooms)
+  function drawAmbient(ctx, th, t, playerX = 160, playerY = 180) {
     if (th.light) {
       const defs = [[0, 34, 1.0, 5], [110, 82, .75, 3.5], [200, 56, 1.2, 4.2], [260, 128, .6, 2.6]];
       for (const [x0, y, s, sp] of defs) {
@@ -718,6 +875,60 @@ const SquishyFX = (() => {
         ctx.fillStyle = `rgba(255,255,255,${a * .9})`; star4(ctx, x, y, 2.4 * a + .6, 0, .25); ctx.fill();
       }
     } else {
+      // Room 15 Final Boss Arena: Towering Background Abyssal Colossus Silhouette ("巨物视觉")
+      if (th.id === 'abyss_throne') {
+        ctx.save();
+        const cx = 160 + Math.sin(t * 0.6) * 4;
+        const cy = 92 + Math.cos(t * 0.8) * 3;
+        // Cosmic abyssal aura filling the sky
+        const skyGl = ctx.createRadialGradient(cx, cy - 10, 12, cx, cy, 155);
+        skyGl.addColorStop(0, 'rgba(255, 48, 96, 0.24)');
+        skyGl.addColorStop(0.5, 'rgba(140, 40, 220, 0.14)');
+        skyGl.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = skyGl;
+        ctx.fillRect(0, 0, 320, 240);
+
+        // Colossal sweeping void wings & torso silhouette behind the horizon
+        ctx.fillStyle = 'rgba(18, 6, 30, 0.72)';
+        ctx.strokeStyle = 'rgba(255, 212, 72, 0.22)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(cx - 145, 220);
+        ctx.quadraticCurveTo(cx - 115, 70, cx - 55, 42);
+        ctx.lineTo(cx - 32, 24);
+        ctx.lineTo(cx - 16, 48);
+        ctx.lineTo(cx, 18);
+        ctx.lineTo(cx + 16, 48);
+        ctx.lineTo(cx + 32, 24);
+        ctx.lineTo(cx + 55, 42);
+        ctx.quadraticCurveTo(cx + 115, 70, cx + 145, 220);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Giant All-Seeing Abyssal Eye in the sky tracking the player
+        const eyeY = cy - 16;
+        const lookX = clamp((playerX - cx) / 110, -1, 1) * 8;
+        const lookY = clamp((playerY - eyeY) / 110, -1, 1) * 4;
+        ctx.fillStyle = 'rgba(255, 40, 88, 0.28)';
+        ctx.strokeStyle = 'rgba(255, 212, 72, 0.42)';
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.ellipse(cx, eyeY, 34, 15 + Math.sin(t * 2.2) * 1.5, 0, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255, 212, 72, 0.55)';
+        ctx.beginPath();
+        ctx.ellipse(cx + lookX, eyeY + lookY, 6, 12, 0, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#140008';
+        ctx.beginPath();
+        ctx.ellipse(cx + lookX * 1.15, eyeY + lookY, 2.2, 9.5, 0, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+
       for (let i = 0; i < 18; i++) {
         const sp = 5 + hash2(i, 1) * 9, x0 = hash2(i, 2) * 320, y0 = hash2(i, 5) * 260;
         const y = 250 - ((y0 + t * sp) % 270), x = x0 + Math.sin(t * .7 + i) * 6;
@@ -733,7 +944,7 @@ const SquishyFX = (() => {
   const GHOST_S = 7.4;
 
   return {
-    FONT, INK, TAU, ACTIVE_S, GHOST_S,
+    FONT, INK, TAU, ACTIVE_S, GHOST_S, BOSS_LAYER_COLORS,
     clamp, lerp, seg, outCubic, outBack, spring, hash2, hexA, mixHex,
     rr, text, panel, heart, star4, dropIcon, dropletPath,
     THEMES, themeFor,

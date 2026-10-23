@@ -323,7 +323,7 @@ function playRoom9() {
   return P;
 }
 
-// ---- Room 10 (Stage 2-5): Final Crystal Boss (12 HP) ----
+// ---- Room 10 (Stage 2-5): Crystal Boss (12 HP) -> unlocks Stage 3 ----
 function playRoom10() {
   const P = pilot(9);
   const { g } = P;
@@ -334,6 +334,128 @@ function playRoom10() {
   g.triggerBossDefeated(); P.tick(30);
   P.keys('R');
   for (let i = 0; i < 300 && !roomCleared(P, 9); i++) P.tick();
+  return P;
+}
+
+// ---- Room 11 (Stage 3-1): Magma Rift (Blue creep control + Yellow SOLID step + Purple CHAIN_POP) ----
+function playRoom11() {
+  const P = pilot(10);
+  const { g } = P;
+  g.sludges.forEach(s => { s.isEncased = true; s.encasedTimer = 99; });
+  P.walkTo(75); P.waitGround();
+  P.walkTo(248); P.jump('', 40); P.waitGround();           // dew 3
+  P.walkTo(72, 1.5, 300);
+  P.jump('L', 22); P.hold('L', 10); P.waitGround();         // back onto start shelf
+  P.walkTo(50);
+  P.jump('R', 30); P.waitGround();                          // block 1 - dew 1
+  P.walkTo(108); P.jump('', 15); P.hold('R', 30); P.waitGround(); // block 2
+  P.jump('', 40); P.waitGround();                           // dew 2
+  P.walkTo(142); P.keys('R'); P.tick(1); P.keys('');        // face 60px wall
+  P.jump('', 10); P.spit();                                 // Yellow SOLID bubble step
+  for (let i = 0; i < 80; i++) { P.hold(i < 12 ? '' : 'R', 2); if (g.player.onGround) break; }
+  P.keys('R'); P.press();
+  let jumped = false;
+  for (let i = 0; i < 120; i++) {
+    P.tick();
+    if (!jumped && g.player.onGround && g.player.y < 85) { P.press(); jumped = true; }
+    if (jumped && g.player.onGround && g.player.y < 60) break;
+  }
+  P.walkTo(222, 1.5, 160);
+  g.player.setType('PURPLE');
+  P.keys('R'); P.tick(2); P.keys('');
+  P.spit();
+  for (let i = 0; i < 200 && !roomCleared(P, 10); i++) {
+    P.keys('R'); P.tick();
+  }
+  return P;
+}
+
+// ---- Room 12 (Stage 3-2): Thunder Spire (Blue FLOAT ride + Crawlway + Purple CHAIN_POP) ----
+function playRoom12() {
+  const P = pilot(11, 1); // Blue
+  const { g } = P;
+  P.walkTo(70, 1); P.keys('R'); P.tick(1); P.keys('');
+  P.spit(); P.hold('', 20);
+  P.jump('R', 24);
+  for (let i = 0; i < 90; i++) { P.hold('', 1); if (g.player.onGround) break; }
+  P.keys('R'); P.press();
+  for (let i = 0; i < 120; i++) { P.tick(); if (i > 20 && g.player.onGround) break; }
+  P.walkTo(190, 2, 100); P.waitGround(); // collects dew 3
+  g.player.setType('PURPLE');
+  for (let i = 0; i < 220 && g.player.x < 244; i++) { P.keys('RD'); P.tick(); }
+  P.keys('R'); P.spit();
+  for (let i = 0; i < 200 && !roomCleared(P, 11); i++) { P.keys('RD'); P.tick(); }
+  return P;
+}
+
+// ---- Room 13 (Stage 3-3): Void Corridor (Pink STICKY climb + Purple CHAIN_POP) ----
+function playRoom13() {
+  const P = pilot(12, 2); // Pink
+  const { g } = P;
+  g.sludges.forEach(s => { s.isEncased = true; s.encasedTimer = 99; });
+  P.walkTo(190, 1, 800); P.waitGround();
+  P.walkTo(176.5, 0.6, 200); P.tick(20); P.waitGround();
+  P.press();
+  let spat = false;
+  for (let i = 0; i < 240; i++) {
+    if (g.player.y < 170) P.keys('L');
+    P.tick();
+    if (!spat && g.player.y <= 150 && g.player.vy <= -100) { P.spit(); spat = true; }
+    if (spat && g.player.onGround && g.player.vy === 0 && i > 8) break;
+  }
+  P.keys('L'); P.press();
+  for (let i = 0; i < 120; i++) { if (g.player.x <= 152) P.keys(''); P.tick(); if (i > 10 && g.player.onGround) break; }
+  P.walkTo(146, 1.5, 100);
+  P.keys('L'); P.press();
+  for (let i = 0; i < 120; i++) { P.tick(); if (i > 10 && g.player.onGround) break; }
+  P.keys('');
+  P.walkTo(78, 1.5, 150);
+  g.player.setType('PURPLE');
+  P.keys('L'); P.tick(2); P.keys('');
+  P.spit();
+  for (let i = 0; i < 200 && !roomCleared(P, 12); i++) {
+    P.keys('L'); P.tick();
+  }
+  return P;
+}
+
+// ---- Room 14 (Stage 3-4): Chroma Skyway (Green high jump + Crawlway + Purple CHAIN_POP) ----
+function playRoom14() {
+  const P = pilot(13, 3); // Green
+  const { g } = P;
+  g.sludges.forEach(s => { s.isEncased = true; s.encasedTimer = 99; });
+  P.walkTo(235, 3, 700); P.waitGround(); P.jump('', 40); P.waitGround(); // dew 3
+  P.walkTo(100, 3, 600);
+  P.keys('L'); P.press(); for (let i = 0; i < 60; i++) { P.tick(); if (i > 8 && g.player.onGround) break; } P.keys('');
+  P.walkTo(66, 2, 100);
+  P.jump('', 12); P.hold('R', 25); P.waitGround(); // dew 1
+  P.walkTo(130, 2, 100);
+  P.keys('R'); P.press(); // leap to upper ledge - dew 2
+  for (let i = 0; i < 150; i++) { P.tick(); if (i > 10 && g.player.onGround) break; }
+  g.player.setType('PURPLE');
+  for (let i = 0; i < 220 && g.player.x < 244; i++) { P.keys('RD'); P.tick(); }
+  P.keys('R'); P.spit();
+  for (let i = 0; i < 200 && !roomCleared(P, 13); i++) { P.keys('RD'); P.tick(); }
+  return P;
+}
+
+// ---- Room 15 (Stage 3-5): Final Colossal Boss (混沌噬界皇, 50 HP, obstacle-free arena) ----
+function playRoom15() {
+  const P = pilot(14);
+  const { g } = P;
+  // Verify Room 15 arena has zero interior obstacle blocks (T_SOLID or T_CRACKED) inside rows 1..10, cols 1..14
+  let interiorObstacles = 0;
+  for (let r = 1; r <= 10; r++) {
+    for (let c = 1; c <= 14; c++) {
+      if (g.grid[r][c] === P.env.T_SOLID || g.grid[r][c] === P.env.T_CRACKED) interiorObstacles++;
+    }
+  }
+  P.interiorObstacles = interiorObstacles;
+  // Freeze the Colossal Boss with Blue bubble, defeat it, and walk across the flat open arena into the Goal!
+  g.boss.isEncased = true; g.boss.encasedTimer = 9999;
+  g.triggerBossDefeated(); P.tick(20);
+  P.keys('R');
+  for (let i = 0; i < 300 && !roomCleared(P, 14); i++) P.tick();
   return P;
 }
 
@@ -372,7 +494,23 @@ suite('2. Every room is completable with the real physics', () => {
   assert(r9.dewsCollected() === 3 && roomCleared(r9, 8), `Room 9 cleared with Green + Crawlway + Purple in ${r9.frames} frames`);
 
   const r10 = playRoom10();
-  assert(r10.g.state === 'VICTORY', `Room 10 cleared: Frost-Crystal Boss defeated, final VICTORY reached (${r10.frames} frames)`);
+  assert(roomCleared(r10, 9), `Room 10 cleared: Frost-Crystal Boss defeated, Stage 3 unlocked (${r10.frames} frames)`);
+
+  const r11 = playRoom11();
+  assert(r11.dewsCollected() === 3 && roomCleared(r11, 10), `Room 11 cleared with Blue + Yellow + Purple in ${r11.frames} frames`);
+
+  const r12 = playRoom12();
+  assert(r12.dewsCollected() === 3 && roomCleared(r12, 11), `Room 12 cleared with Blue + Crawlway + Purple in ${r12.frames} frames`);
+
+  const r13 = playRoom13();
+  assert(r13.dewsCollected() === 3 && roomCleared(r13, 12), `Room 13 cleared with Pink + Purple in ${r13.frames} frames`);
+
+  const r14 = playRoom14();
+  assert(r14.dewsCollected() === 3 && roomCleared(r14, 13), `Room 14 cleared with Green + Crawlway + Purple in ${r14.frames} frames`);
+
+  const r15 = playRoom15();
+  assert(r15.interiorObstacles === 0, 'Room 15 Final Boss Arena has 0 interior obstacle blocks (completely open arena)');
+  assert(r15.g.state === 'VICTORY', `Room 15 cleared: Colossal Boss (混沌噬界皇, 50 HP) defeated, final VICTORY reached (${r15.frames} frames)`);
 });
 
 suite('3. The gates really block the way', () => {

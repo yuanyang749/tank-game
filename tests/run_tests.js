@@ -746,10 +746,11 @@ suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
   // Load and verify Handcrafted Levels
   loadScript(levelsJs, env);
   const LEVELS = env.LEVELS;
-  assert(Array.isArray(LEVELS) && LEVELS.length === 10, '10 handcrafted single-screen rooms exist across Stage 1 (1-5) and Stage 2 (6-10)');
+  assert(Array.isArray(LEVELS) && LEVELS.length === 15, '15 handcrafted single-screen rooms exist across Stage 1 (1-5), Stage 2 (6-10) & Stage 3 (11-15)');
   assert(LEVELS[0].grid.length === 12 && LEVELS[0].grid[0].length === 16, 'Level 1 has 16x12 dimensions');
   assert(LEVELS[0].dews.length === 3, 'Level 1 has 3 collectible dews');
   assert(LEVELS[9].boss && LEVELS[9].boss.hp === 12 && LEVELS[9].boss.variant === 'CRYSTAL', 'Room 10 has Stage 2 Final Boss (霜晶魔偶, 12 HP, CRYSTAL variant)');
+  assert(LEVELS[14].boss && LEVELS[14].boss.hp === 50 && LEVELS[14].boss.variant === 'COLOSSUS', 'Room 15 has Stage 3 Final Colossal Boss (混沌噬界皇, 50 HP, COLOSSUS variant)');
 
   // Test Game Boy Bridge in game.js
   const gameJsCode = fs.readFileSync(gameJs, 'utf8');
@@ -1152,6 +1153,67 @@ suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
   const closeWallBubble = game.player.spitBubble();
   game.pushBubble(closeWallBubble);
   assert(closeWallBubble.x + closeWallBubble.radius <= 140.01, `Bubble spat right against wall is clamped outside wall on Frame 0 (rightEdge=${(closeWallBubble.x + closeWallBubble.radius).toFixed(2)} <= 140)`);
+
+  // =========================================================================
+  // 12. Stage 3 Final Colossal Boss (Room 15: 混沌噬界皇, 50 HP, 5-Color Layers, Golden Bell Shield & Void Stealth)
+  // =========================================================================
+  game.loadLevel(14); // Room 15
+  game.state = 'PLAYING';
+  game.lives = 5;
+  assert(game.boss && game.boss.variant === 'COLOSSUS' && game.boss.hp === 50 && game.boss.maxHp === 50, 'Room 15 loads 50-HP Colossal Boss (混沌噬界皇)');
+  assert(game.boss.radius === 34, 'Colossal Boss has enlarged 34px radius ("巨物视觉")');
+
+  // Verify 5-color layer indices (5 layers x 10 points per layer)
+  assert(game.boss.getLayerIndex() === 4, 'At 50 HP, Colossal Boss is on Layer 5 (index 4: Astral Purple)');
+  game.boss.hp = 35; assert(game.boss.getLayerIndex() === 3, 'At 35 HP, Colossal Boss is on Layer 4 (index 3: Aurora Cyan)');
+  game.boss.hp = 25; assert(game.boss.getLayerIndex() === 2, 'At 25 HP, Colossal Boss is on Layer 3 (index 2: Emerald Green)');
+  game.boss.hp = 15; assert(game.boss.getLayerIndex() === 1, 'At 15 HP, Colossal Boss is on Layer 2 (index 1: Solar Gold)');
+  game.boss.hp = 5;  assert(game.boss.getLayerIndex() === 0, 'At 5 HP, Colossal Boss is on Layer 1 (index 0: Crimson Red)');
+  game.boss.hp = 50;
+
+  // Normal stomp on un-encased Colossal Boss deals 0 damage and triggers Golden Bell Shield (金钟罩)
+  game.boss.isEncased = false;
+  game.boss.goldenShieldTimer = 0;
+  game.player.x = game.boss.x;
+  game.player.y = game.boss.y - 26;
+  game.player.vy = 140; // Falling downward onto boss head
+  game.update(1 / 60);
+  assert(game.boss.hp === 50, 'Normal stomp on un-encased Colossal Boss deals 0 damage (HP stays 50)');
+  assert(game.boss.goldenShieldTimer > 0, 'Normal stomp triggers Colossal Boss Golden Bell Shield (goldenShieldTimer > 0)');
+  assert(game.player.vy < -200 && game.lives === 5, 'Golden Bell Shield bounces player away safely without losing a life');
+
+  // Purple (PURPLE) spitting a CHAIN_POP bubble triggers random Void Stealth or Golden Bell Shield
+  game.boss.goldenShieldTimer = 0;
+  game.boss.stealthTimer = 0;
+  game.boss.skillCooldown = 0;
+  game.player.setType('PURPLE');
+  game.player.x = 70;
+  game.player.y = 195;
+  game.player.facing = 1;
+  game.player.spitCooldown = 0;
+  const purpleBub = game.player.spitBubble();
+  game.pushBubble(purpleBub);
+  assert(game.boss.stealthTimer > 0 || game.boss.goldenShieldTimer > 0, `Purple CHAIN_POP attack triggers Colossal Boss smart counter skill (${game.boss.lastCounterSkill})`);
+
+  // Un-encased Colossal Boss takes 0 damage from CHAIN_POP explosion
+  game.triggerChainPop(game.boss.x, game.boss.y);
+  assert(game.boss.hp === 50, 'Un-encased Colossal Boss takes 0 damage from Purple CHAIN_POP explosion');
+
+  // Blue FLOAT bubble breaks Stealth / Golden Bell Shield and freezes Colossal Boss
+  game.boss.activateStealth(1.8);
+  assert(game.boss.stealthTimer > 0, 'Colossal Boss is in Void Stealth');
+  const freezeBub = new env.BubbleEntity(game.boss.x, game.boss.y, 1, 'FLOAT', env.BUDDY_TYPES.BLUE);
+  game.bubbles.push(freezeBub);
+  game.update(1 / 60);
+  assert(game.boss.isEncased === true && game.boss.stealthTimer === 0 && game.boss.goldenShieldTimer === 0, 'Blue FLOAT bubble breaks Void Stealth and freezes Colossal Boss');
+
+  // Stomping the frozen Colossal Boss deals 5 HP damage (half a 10-point color layer!)
+  game.boss.hurtTimer = 0;
+  game.player.x = game.boss.x;
+  game.player.y = game.boss.y - 26;
+  game.player.vy = 140;
+  game.update(1 / 60);
+  assert(game.boss.hp === 45, `Ice-Breaker Stomp on frozen Colossal Boss deals 5 HP damage (50 -> ${game.boss.hp})`);
 });
 
 // =========================================================================

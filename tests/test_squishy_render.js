@@ -34,10 +34,11 @@ suite('1. fx.js module & game wiring', () => {
   loadAll(env);
   const FX = env.SquishyFX;
   assert(FX && typeof FX.drawBuddy === 'function' && typeof FX.drawBubble === 'function' && typeof FX.drawBoss === 'function', 'SquishyFX exposes buddy / bubble / boss renderers');
-  assert(FX.THEMES.length === 10, 'ten room themes (5 Stage 1 + 5 Stage 2)');
-  assert(new Set(FX.THEMES.map(t => t.id)).size === 10, 'every room theme is unique');
-  assert(FX.themeFor(0).light === true && FX.themeFor(4).light === false && FX.themeFor(9).light === false, 'rooms 1-4 and 6-9 are bright worlds, rooms 5 & 10 are dark boss arenas');
-  assert(FX.themeFor(99).id === FX.THEMES[9].id && FX.themeFor(-3).id === FX.THEMES[0].id, 'themeFor clamps out-of-range room indexes');
+  assert(FX.THEMES.length === 15, 'fifteen room themes (5 Stage 1 + 5 Stage 2 + 5 Stage 3)');
+  assert(new Set(FX.THEMES.map(t => t.id)).size === 15, 'every room theme is unique');
+  assert(FX.themeFor(0).light === true && FX.themeFor(4).light === false && FX.themeFor(9).light === false && FX.themeFor(14).light === false, 'rooms 1-4, 6-9, 11-14 are bright worlds, rooms 5, 10 & 15 are dark boss arenas');
+  assert(FX.themeFor(99).id === FX.THEMES[14].id && FX.themeFor(-3).id === FX.THEMES[0].id, 'themeFor clamps out-of-range room indexes');
+  assert(Array.isArray(FX.BOSS_LAYER_COLORS) && FX.BOSS_LAYER_COLORS.length === 5, '5 distinct colors defined for 50-HP layered Boss bar');
 });
 
 suite('2. Hi-res back-buffer', () => {
@@ -105,6 +106,14 @@ suite('3. Every screen renders without errors', () => {
     g.loadLevel(9); g.state = 'PLAYING';
     g.boss.state = 'CHARGE_SPIT'; g.boss.hp = 3;
     g.sludgeProjectiles.push(new env.SludgeProjectile(140, 110, -70, -50));
+  });
+  run('Room 15 colossal boss: 5-color layered HP + Golden Bell Shield + Void Stealth', () => {
+    g.loadLevel(14); g.state = 'PLAYING';
+    g.boss.hp = 36; // Layer 4 (Cyan) with Layer 3 (Green) revealed underneath
+    g.boss.activateGoldenShield(1.4, null, g);
+    g.render();
+    g.boss.hp = 14; // Layer 2 (Gold) with Layer 1 (Red) underneath
+    g.boss.activateStealth(1.8, null, g);
   });
   run('Room 5 boss defeated fade-out', () => { g.loadLevel(4); g.triggerBossDefeated(); g.boss.takeDamage(99); });
   run('PAUSED overlay', () => { g.state = 'PAUSED'; });

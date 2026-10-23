@@ -148,6 +148,28 @@ class SquishyAudioEngine {
     this.playLand();
   }
 
+  // Boss Golden Bell Shield Clang (Metallic temple bell chime)
+  playBellShield() {
+    if (!this.enabled || !this.ctx) return;
+    this.playTone(880, 'sine', 0.24, 0.16, 860);
+    this.playTone(1320, 'triangle', 0.18, 0.12, 1280);
+    setTimeout(() => this.playTone(1760, 'sine', 0.22, 0.09, 1720), 25);
+  }
+
+  // Boss Void Stealth Phase Shift (Phantom whoosh)
+  playStealth() {
+    if (!this.enabled || !this.ctx) return;
+    this.playTone(540, 'sine', 0.20, 0.13, 190);
+    setTimeout(() => this.playTone(360, 'triangle', 0.16, 0.09, 720), 55);
+  }
+
+  // Frozen Boss Critical Stomp Shatter
+  playIceShatter() {
+    if (!this.enabled || !this.ctx) return;
+    this.playTone(1180, 'triangle', 0.12, 0.18, 420);
+    this.playBossHit();
+  }
+
   // Cheerful Bubble Pop Chiptune BGM
   startBgm() {
     if (!this.enabled || this.bgmPlaying || !this.ctx) return;

@@ -831,11 +831,11 @@ class SludgeBoss {
     this.x = x;
     this.y = y;
     this.startX = x;
-    this.radius = 24;
+    this.variant = opts.variant || 'SLUDGE'; // 'SLUDGE' (Stage 1), 'CRYSTAL' (Stage 2), 'COLOSSUS' (Stage 3)
+    this.radius = this.variant === 'COLOSSUS' ? 34 : 24;
     this.hp = hp;
     this.maxHp = hp;
-    this.variant = opts.variant || 'SLUDGE'; // 'SLUDGE' (Stage 1) or 'CRYSTAL' (Stage 2)
-    this.name = opts.name || (this.variant === 'CRYSTAL' ? '霜晶魔偶' : '暗影巨霸');
+    this.name = opts.name || (this.variant === 'COLOSSUS' ? '混沌噬界皇' : (this.variant === 'CRYSTAL' ? '霜晶魔偶' : '暗影巨霸'));
     this.alive = true;
     this.facing = -1;
     this.vx = -35;
@@ -846,11 +846,62 @@ class SludgeBoss {
     this.hurtTimer = 0;
     this.isEncased = false;
     this.encasedTimer = 0;
+    this.goldenShieldTimer = 0; // Golden Bell Shield (金钟罩) timer
+    this.stealthTimer = 0;      // Void Stealth (虚空隐身) timer
+    this.skillCooldown = 0;     // Cooldown for smart counter-skills
+    this.lastCounterSkill = null;
     this.squashX = 1.0;
     this.squashY = 1.0;
     this.animTimer = 0;
-    this.patrolRange = 65;
+    this.patrolRange = this.variant === 'COLOSSUS' ? 82 : 65;
     this.defeatedTimer = 0;
+  }
+
+  // Current 10-HP color layer index (0 = Red 1..10, 1 = Gold 11..20, 2 = Green 21..30, 3 = Cyan 31..40, 4 = Purple 41..50)
+  getLayerIndex() {
+    if (this.hp <= 0) return 0;
+    return Math.min(4, Math.floor((this.hp - 1) / 10));
+  }
+
+  activateGoldenShield(duration = 1.4, audio = null, game = null) {
+    if (!this.alive || this.state === 'DEFEATED' || this.isEncased) return false;
+    this.goldenShieldTimer = Math.max(this.goldenShieldTimer, duration);
+    this.stealthTimer = 0;
+    this.lastCounterSkill = 'SHIELD';
+    this.squashY = 0.78;
+    this.squashX = 1.22;
+    if (audio && audio.playBellShield) audio.playBellShield();
+    if (game && typeof game.showBossSkillBanner === 'function') {
+      game.showBossSkillBanner('🛡️ 金钟罩护体！需先切【蓝波波】水泡冰封破防！', '#FFD448');
+    }
+    return true;
+  }
+
+  activateStealth(duration = 1.8, audio = null, game = null) {
+    if (!this.alive || this.state === 'DEFEATED' || this.isEncased) return false;
+    this.stealthTimer = Math.max(this.stealthTimer, duration);
+    this.goldenShieldTimer = 0;
+    this.lastCounterSkill = 'STEALTH';
+    this.vx = this.facing * 88;
+    if (audio && audio.playStealth) audio.playStealth();
+    if (game && typeof game.showBossSkillBanner === 'function') {
+      game.showBossSkillBanner('👻 虚空隐身闪避！切【蓝波波】水泡显形冰封！', '#38E4FF');
+    }
+    return true;
+  }
+
+  // Smart reaction when Purple (紫灵灵) launches a CHAIN_POP bubble attack:
+  // Randomly activates Void Stealth (隐身) or Golden Bell Shield (金钟罩)
+  triggerCounterSkill(audio = null, game = null, forcedChoice = null) {
+    if (this.variant !== 'COLOSSUS' || !this.alive || this.state === 'DEFEATED' || this.isEncased) return null;
+    const choice = forcedChoice || (Math.random() < 0.5 ? 'STEALTH' : 'SHIELD');
+    this.skillCooldown = 2.2;
+    if (choice === 'STEALTH') {
+      this.activateStealth(1.85, audio, game);
+    } else {
+      this.activateGoldenShield(1.5, audio, game);
+    }
+    return choice;
   }
 
   takeDamage(amount = 1) {
@@ -858,6 +909,8 @@ class SludgeBoss {
     this.hp = Math.max(0, this.hp - amount);
     this.hurtTimer = 1.1;
     this.isEncased = false;
+    this.goldenShieldTimer = 0;
+    this.stealthTimer = 0;
     this.squashY = 0.6;
     this.squashX = 1.4;
 
@@ -882,6 +935,9 @@ class SludgeBoss {
     this.animTimer += dt;
 
     if (this.hurtTimer > 0) this.hurtTimer -= dt;
+    if (this.goldenShieldTimer > 0) this.goldenShieldTimer = Math.max(0, this.goldenShieldTimer - dt);
+    if (this.stealthTimer > 0) this.stealthTimer = Math.max(0, this.stealthTimer - dt);
+    if (this.skillCooldown > 0) this.skillCooldown = Math.max(0, this.skillCooldown - dt);
 
     const floorY = 220 - this.radius;
     const ceilingY = 28 + this.radius; // Buffer below Room 5 ceiling blocks and top HUD
@@ -910,8 +966,10 @@ class SludgeBoss {
       return;
     }
 
-    // Encased in Blue Float Bubble (harmless stun)
+    // Encased in Blue Float Bubble (harmless stun - clears stealth & shield)
     if (this.isEncased) {
+      this.goldenShieldTimer = 0;
+      this.stealthTimer = 0;
       this.encasedTimer -= dt;
       this.squashX = 1.0 + Math.sin(this.animTimer * 12) * 0.08;
       this.squashY = 1.0 - Math.sin(this.animTimer * 12) * 0.08;
@@ -920,11 +978,24 @@ class SludgeBoss {
       if (this.encasedTimer <= 0) {
         this.isEncased = false;
         this.state = 'PATROL';
-        this.stateTimer = 1.5;
+        this.stateTimer = 1.4;
         this.onGround = false;
         if (audio && audio.playPop) audio.playPop();
       }
       return;
+    }
+
+    // Smart AI threat sensor for Colossal Boss: detect incoming Purple CHAIN_POP bubbles
+    const isColossus = this.variant === 'COLOSSUS';
+    const isCrystal = this.variant === 'CRYSTAL';
+    if (isColossus && this.skillCooldown <= 0 && this.goldenShieldTimer <= 0 && this.stealthTimer <= 0 && game && game.bubbles) {
+      for (const b of game.bubbles) {
+        if (b.alive && b.type === 'CHAIN_POP' && Math.hypot(b.x - this.x, b.y - this.y) < 105) {
+          this.facing = player && player.x < this.x ? -1 : 1;
+          this.triggerCounterSkill(audio, game);
+          break;
+        }
+      }
     }
 
     this.stateTimer -= dt;
@@ -932,16 +1003,23 @@ class SludgeBoss {
     if (this.state === 'HURT') {
       if (this.stateTimer <= 0 && this.onGround) {
         this.state = 'PATROL';
-        this.stateTimer = 1.6;
+        this.stateTimer = isColossus ? 1.15 : 1.6;
       }
     } else if (this.state === 'PATROL') {
-      if (Math.random() < dt * 1.5) {
+      const turnRate = isColossus ? 3.2 : 1.5;
+      if (Math.random() < dt * turnRate) {
         this.facing = player.x < this.x ? -1 : 1;
       }
-      const isCrystal = this.variant === 'CRYSTAL';
-      const baseSpd = isCrystal ? 42 : 35;
-      const rageSpd = isCrystal ? 62 : 55;
-      const speed = (this.hp <= (isCrystal ? 4 : 2)) ? rageSpd : baseSpd;
+      let speed;
+      if (isColossus) {
+        const brokenLayers = 4 - this.getLayerIndex(); // 0..4
+        speed = 46 + brokenLayers * 6;
+        if (this.stealthTimer > 0) speed *= 1.45; // Phantom dash during stealth
+      } else {
+        const baseSpd = isCrystal ? 42 : 35;
+        const rageSpd = isCrystal ? 62 : 55;
+        speed = (this.hp <= (isCrystal ? 4 : 2)) ? rageSpd : baseSpd;
+      }
       this.vx = this.facing * speed;
 
       if (Math.abs(this.x - this.startX) > this.patrolRange) {
@@ -950,20 +1028,25 @@ class SludgeBoss {
       }
 
       if (this.stateTimer <= 0) {
-        const canStomp = isCrystal || (this.hp <= Math.ceil(this.maxHp * 0.6));
-        if (canStomp && Math.random() < (isCrystal ? 0.52 : 0.45)) {
+        this.facing = player.x < this.x ? -1 : 1;
+        const distToPlayer = Math.abs(player.x - this.x);
+        const canStomp = isColossus || isCrystal || (this.hp <= Math.ceil(this.maxHp * 0.6));
+        const stompChance = isColossus
+          ? (distToPlayer < 88 ? 0.65 : 0.42)
+          : (isCrystal ? 0.52 : 0.45);
+
+        if (canStomp && Math.random() < stompChance) {
           this.state = 'PREPARE_STOMP';
-          this.stateTimer = isCrystal ? 0.55 : 0.65;
+          this.stateTimer = isColossus ? 0.46 : (isCrystal ? 0.55 : 0.65);
           this.vx = 0;
           this.squashY = 0.55;
           this.squashX = 1.35;
         } else {
           this.state = 'CHARGE_SPIT';
-          this.stateTimer = isCrystal ? 0.55 : 0.65;
+          this.stateTimer = isColossus ? 0.48 : (isCrystal ? 0.55 : 0.65);
           this.vx = 0;
           this.squashY = 0.7;
           this.squashX = 1.25;
-          this.facing = player.x < this.x ? -1 : 1;
         }
       }
     } else if (this.state === 'CHARGE_SPIT') {
@@ -974,22 +1057,34 @@ class SludgeBoss {
         this.squashX = 0.75;
         this.facing = player.x < this.x ? -1 : 1;
 
-        const isCrystal = this.variant === 'CRYSTAL';
-        const count = isCrystal ? (this.hp <= 4 ? 3 : 2) : ((this.hp <= 2) ? 2 : 1);
+        let count;
+        if (isColossus) {
+          count = this.hp <= 20 ? 3 : 2;
+        } else {
+          count = isCrystal ? (this.hp <= 4 ? 3 : 2) : ((this.hp <= 2) ? 2 : 1);
+        }
+        // Smart predictive aiming for Colossal Boss: leads player velocity
+        const leadOffset = isColossus ? (player.vx || 0) * 0.30 : 0;
         for (let i = 0; i < count; i++) {
-          const spread = (i - (count - 1) / 2) * (isCrystal ? 26 : 30);
-          const targetX = player.x + spread;
+          const spread = (i - (count - 1) / 2) * (isColossus ? 24 : (isCrystal ? 26 : 30));
+          const targetX = player.x + leadOffset + spread;
           const dx = targetX - this.x;
-          const spdX = Math.max(-130, Math.min(130, dx * 1.2));
+          const maxSpdX = isColossus ? 150 : 130;
+          const spdX = Math.max(-maxSpdX, Math.min(maxSpdX, dx * (isColossus ? 1.32 : 1.2)));
           const spdY = -120 - Math.random() * 30;
           if (game && game.sludgeProjectiles) {
-            game.sludgeProjectiles.push(new SludgeProjectile(this.x + this.facing * 18, this.y - 6, spdX, spdY));
+            game.sludgeProjectiles.push(new SludgeProjectile(this.x + this.facing * (this.radius * 0.7), this.y - 6, spdX, spdY));
           }
         }
         if (audio && audio.playSpit) audio.playSpit();
 
         this.state = 'PATROL';
-        this.stateTimer = Math.max(1.2, (isCrystal ? 2.2 : 2.6) - (this.maxHp - this.hp) * 0.12);
+        if (isColossus) {
+          const brokenLayers = 4 - this.getLayerIndex();
+          this.stateTimer = Math.max(1.05, 1.85 - brokenLayers * 0.16);
+        } else {
+          this.stateTimer = Math.max(1.2, (isCrystal ? 2.2 : 2.6) - (this.maxHp - this.hp) * 0.12);
+        }
       }
     } else if (this.state === 'PREPARE_STOMP') {
       this.squashY = 0.55 + Math.sin(this.animTimer * 20) * 0.06;
@@ -997,12 +1092,18 @@ class SludgeBoss {
       this.vx = 0;
       if (this.stateTimer <= 0) {
         this.state = 'JUMP_STOMP';
-        // Controlled arcade leap velocity: apex stays safely at y≈142, well below HUD and ceiling
-        this.vy = -220;
+        // Controlled arcade leap velocity: apex stays safely below HUD and ceiling
+        this.vy = isColossus ? -230 : -220;
         this.squashY = 1.35;
         this.squashX = 0.75;
         this.onGround = false;
-        this.vx = (player.x > this.x ? 1 : -1) * 45;
+        // Smart horizontal pursuit towards player during jump stomp
+        if (isColossus) {
+          const dx = player.x - this.x;
+          this.vx = Math.max(-78, Math.min(78, dx * 0.85));
+        } else {
+          this.vx = (player.x > this.x ? 1 : -1) * 45;
+        }
         if (audio && audio.playBossRoar) audio.playBossRoar();
       }
     }
@@ -1039,16 +1140,16 @@ class SludgeBoss {
         this.squashY = 0.45;
         this.squashX = 1.45;
         this.state = 'PATROL';
-        this.stateTimer = 1.6;
+        this.stateTimer = isColossus ? 1.25 : 1.6;
 
         if (audio && audio.playBossStomp) audio.playBossStomp();
         if (game) {
-          game.screenShakeTimer = 0.35;
+          game.screenShakeTimer = isColossus ? 0.42 : 0.35;
           game.vibrate([40, 60, 40]);
           if (typeof game.onBossLand === 'function') game.onBossLand(this, floorY + this.radius);
           if (game.sludgeShockwaves) {
-            game.sludgeShockwaves.push(new SludgeShockwave(this.x - 12, floorY + this.radius - 8, -1));
-            game.sludgeShockwaves.push(new SludgeShockwave(this.x + 12, floorY + this.radius - 8, 1));
+            game.sludgeShockwaves.push(new SludgeShockwave(this.x - 14, floorY + this.radius - 8, -1));
+            game.sludgeShockwaves.push(new SludgeShockwave(this.x + 14, floorY + this.radius - 8, 1));
           }
         }
       }
@@ -1059,8 +1160,8 @@ class SludgeBoss {
     this.squashX += (1.0 - this.squashX) * dt * 8;
     this.squashY += (1.0 - this.squashY) * dt * 8;
 
-    const minX = 75;
-    const maxX = 225;
+    const minX = isColossus ? 64 : 75;
+    const maxX = isColossus ? 236 : 225;
     if (this.x < minX) { this.x = minX; this.facing = 1; }
     if (this.x > maxX) { this.x = maxX; this.facing = -1; }
   }

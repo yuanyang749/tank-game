@@ -54,6 +54,9 @@ class SquishyGame {
     this.lastTime = 0;
     this.stateTimer = 0;
     this.roomClearBannerTimer = 0;
+    this.bossSkillBannerTimer = 0;
+    this.bossSkillBannerText = '';
+    this.bossSkillBannerColor = '#FFD448';
     this.storySlideIndex = 0;
     this.storyTimer = 0;
 
@@ -103,7 +106,15 @@ class SquishyGame {
     this.particles = [];
     this.fx = [];
     this.roomClearBannerTimer = 0;
+    this.bossSkillBannerTimer = 0;
+    this.bossSkillBannerText = '';
     this.invincibleTimer = 0;
+  }
+
+  showBossSkillBanner(text, color = '#FFD448') {
+    this.bossSkillBannerText = text;
+    this.bossSkillBannerColor = color;
+    this.bossSkillBannerTimer = 2.0;
   }
 
   damagePlayer(respawnAtStart = false, knockVx = 0, knockVy = -120) {
@@ -539,6 +550,16 @@ class SquishyGame {
         life: 0.28, radius: 1.4, gravity: 0, drag: 4
       }));
     }
+
+    // Smart Colossal Boss reaction when Purple (紫灵灵) launches a CHAIN_POP bubble attack:
+    // Randomly activates Void Stealth (虚空隐身) or Golden Bell Shield (金钟罩)
+    if (b.type === 'CHAIN_POP' && this.boss && this.boss.alive && this.boss.variant === 'COLOSSUS' &&
+        !this.boss.isEncased && this.boss.state !== 'DEFEATED' && this.boss.skillCooldown <= 0) {
+      const skill = this.boss.triggerCounterSkill(this.audio, this);
+      const fxCol = skill === 'STEALTH' ? '#38E4FF' : '#FFD448';
+      this.fx.push(new FxRing(this.boss.x, this.boss.y, fxCol, this.boss.radius * 1.4, 0.42, 2.0));
+      this.spawnPopParticles(this.boss.x, this.boss.y - 10, fxCol, false);
+    }
   }
 
   // Boss slam: debris spray + ground ripples (called from SludgeBoss on landing)
@@ -787,16 +808,26 @@ class SquishyGame {
         if (!b.alive) continue;
         if (Physics.checkCircle(b.x, b.y, b.radius, this.boss.x, this.boss.y, this.boss.radius)) {
           if (b.type === 'FLOAT') {
-            // Blue Float bubble encasing stun
+            // Blue Float bubble encasing stun (breaks Colossal Boss stealth & Golden Bell Shield!)
+            const wasStealth = this.boss.stealthTimer > 0;
             this.boss.isEncased = true;
-            this.boss.encasedTimer = 3.5;
+            this.boss.encasedTimer = this.boss.variant === 'COLOSSUS' ? 4.2 : 3.5;
+            this.boss.goldenShieldTimer = 0;
+            this.boss.stealthTimer = 0;
             this.boss.vx = 0;
             this.boss.vy = 0;
             b.alive = false;
             this.audio.playPop();
             this.spawnPopParticles(this.boss.x, this.boss.y, '#75c8f8');
             this.vibrate(20);
+            if (this.boss.variant === 'COLOSSUS') {
+              this.showBossSkillBanner(wasStealth ? '❄️ 蓝泡识破隐身！巨皇冰封，快踩头破甲！' : '❄️ 巨皇已被蓝泡冰封！快跃起踩头破甲！', '#75C8F8');
+            }
           } else if (b.type === 'CHAIN_POP') {
+            // If Colossal Boss is in Void Stealth, CHAIN_POP bubble phases harmlessly through its phantom body
+            if (this.boss.variant === 'COLOSSUS' && this.boss.stealthTimer > 0) {
+              continue;
+            }
             // Purple explosive detonation on boss contact
             b.alive = false;
             this.audio.playPop();
@@ -808,24 +839,45 @@ class SquishyGame {
 
       // Check collision with player / Aerial Stomp
       if (this.boss.state !== 'DEFEATED' && Physics.checkCircle(this.player.x, this.player.y, this.player.radius, this.boss.x, this.boss.y, this.boss.radius)) {
-        const isStomp = (this.player.vy > 0 && this.player.y < this.boss.y - this.boss.radius * 0.35);
+        const isStomp = (this.player.vy > 0 && this.player.y < this.boss.y - this.boss.radius * 0.32);
         if (isStomp) {
-          // Aerial stomp bounce
-          this.player.vy = -210;
-          this.player.squashY = 0.45;
-          this.player.squashVelY = -12;
-          this.audio.playJump();
+          if (this.boss.variant === 'COLOSSUS' && !this.boss.isEncased) {
+            // Normal stomp on un-encased Colossal Boss deals 0 damage -> activates Golden Bell Shield (金钟罩)!
+            this.boss.activateGoldenShield(1.4, this.audio, this);
+            this.player.vy = -245;
+            this.player.vx = (this.player.x < this.boss.x ? -1 : 1) * 135;
+            this.player.squashY = 0.45;
+            this.player.squashVelY = -12;
+            this.vibrate([20, 30, 20]);
+            this.spawnPopParticles(this.boss.x, this.boss.y - this.boss.radius * 0.65, '#FFD448');
+            this.fx.push(new FxRing(this.boss.x, this.boss.y, '#FFD448', this.boss.radius * 1.4, 0.42, 2.2));
+          } else {
+            // Aerial stomp bounce (or Frozen Ice-Breaker Stomp on Colossal Boss!)
+            const isColossusFrozen = (this.boss.variant === 'COLOSSUS' && this.boss.isEncased);
+            const dmg = isColossusFrozen ? 5 : 1;
+            this.player.vy = isColossusFrozen ? -235 : -210;
+            this.player.squashY = 0.45;
+            this.player.squashVelY = -12;
+            this.audio.playJump();
 
-          const hit = this.boss.takeDamage(1);
-          if (hit) {
-            this.audio.playBossHit();
-            this.vibrate([35, 55]);
-            this.spawnPopParticles(this.boss.x, this.boss.y - 12, '#b060ff');
-            if (this.boss.hp <= 0) {
-              this.triggerBossDefeated();
+            const hit = this.boss.takeDamage(dmg);
+            if (hit) {
+              if (isColossusFrozen) {
+                if (this.audio && this.audio.playIceShatter) this.audio.playIceShatter();
+                else this.audio.playBossHit();
+                this.showBossSkillBanner(`❄️ 冰封破甲暴击！-${dmg} HP（剩余 ${this.boss.hp}/50）`, '#75C8F8');
+                this.spawnPopParticles(this.boss.x, this.boss.y - 16, '#75C8F8');
+              } else {
+                this.audio.playBossHit();
+              }
+              this.vibrate([35, 55]);
+              this.spawnPopParticles(this.boss.x, this.boss.y - 12, '#b060ff');
+              if (this.boss.hp <= 0) {
+                this.triggerBossDefeated();
+              }
             }
           }
-        } else if (!this.boss.isEncased) {
+        } else if (!this.boss.isEncased && !(this.boss.variant === 'COLOSSUS' && this.boss.stealthTimer > 0)) {
           // Side / bottom body collision knocks player back & deducts 1 life
           this.damagePlayer(false, (this.player.x > this.boss.x ? 1 : -1) * 140, -120);
           if (this.state !== 'PLAYING') return;
@@ -892,6 +944,7 @@ class SquishyGame {
     }
 
     if (this.roomClearBannerTimer > 0) this.roomClearBannerTimer -= dt;
+    if (this.bossSkillBannerTimer > 0) this.bossSkillBannerTimer = Math.max(0, this.bossSkillBannerTimer - dt);
   }
 
   triggerChainPop(cx, cy) {
@@ -904,14 +957,27 @@ class SquishyGame {
     }
 
     // Damage boss if near explosion
-    if (this.boss && this.boss.alive && Math.hypot(this.boss.x - cx, this.boss.y - cy) < 48) {
-      const hit = this.boss.takeDamage(1);
-      if (hit) {
-        this.audio.playBossHit();
-        this.vibrate([35, 55]);
-        this.spawnPopParticles(this.boss.x, this.boss.y, '#d060ff');
-        if (this.boss.hp <= 0) {
-          this.triggerBossDefeated();
+    const blastRadius = (this.boss && this.boss.variant === 'COLOSSUS') ? 62 : 48;
+    if (this.boss && this.boss.alive && Math.hypot(this.boss.x - cx, this.boss.y - cy) < blastRadius) {
+      if (this.boss.variant === 'COLOSSUS' && !this.boss.isEncased) {
+        // Un-encased Colossal Boss counters Purple CHAIN_POP with Void Stealth or Golden Bell Shield (0 dmg)
+        if (this.boss.stealthTimer > 0) {
+          this.showBossSkillBanner('👻 虚空隐身闪避了紫泡爆破！需先用蓝泡冰封！', '#38E4FF');
+        } else {
+          this.boss.activateGoldenShield(1.4, this.audio, this);
+          this.spawnPopParticles(this.boss.x, this.boss.y, '#FFD448');
+          this.fx.push(new FxRing(this.boss.x, this.boss.y, '#FFD448', this.boss.radius * 1.4, 0.4, 2.0));
+        }
+      } else {
+        const dmg = (this.boss.variant === 'COLOSSUS' && this.boss.isEncased) ? 5 : 1;
+        const hit = this.boss.takeDamage(dmg);
+        if (hit) {
+          this.audio.playBossHit();
+          this.vibrate([35, 55]);
+          this.spawnPopParticles(this.boss.x, this.boss.y, '#d060ff');
+          if (this.boss.hp <= 0) {
+            this.triggerBossDefeated();
+          }
         }
       }
     }
@@ -1170,7 +1236,7 @@ class SquishyGame {
     ctx.fillStyle = th.skyBot;
     ctx.fillRect(-8, -8, this.width + 16, this.height + 16);
     ctx.drawImage(L.backdrop, 0, 0, this.width, this.height);
-    FX.drawAmbient(ctx, th, t);
+    FX.drawAmbient(ctx, th, t, this.player ? this.player.x : 160, this.player ? this.player.y : 180);
 
     // 2. Tilemap (cached) + animated tiles
     this.renderTiles(ctx, L, th, t);
@@ -1258,13 +1324,38 @@ class SquishyGame {
       const fade = FX.clamp(this.roomClearBannerTimer / 0.35);
       const msg = this.levelIndex === 5
         ? '★ 第二阶段开启：星渊秘境！ ★'
-        : '★ 泉眼净化成功！进入下一关 ★';
+        : (this.levelIndex === 10
+          ? '★ 第三阶段开启：混沌天穹！ ★'
+          : (this.levelIndex === 14
+            ? '★ 终极决战：混沌噬界皇（50HP）！ ★'
+            : '★ 泉眼净化成功！进入下一关 ★'));
       ctx.save();
       ctx.globalAlpha = fade;
       ctx.translate(this.width / 2, padTop + 118);
       ctx.scale(p, p);
       FX.panel(ctx, -150, -19, 300, 38, { r: 10, lw: 1.6 });
       FX.text(ctx, msg, 0, 5, { size: 12, color: '#FFD454', align: 'center' });
+      ctx.restore();
+    }
+
+    // Colossal Boss Skill / Tactical Counter Banner
+    if (this.state === 'PLAYING' && this.bossSkillBannerTimer > 0 && this.bossSkillBannerText) {
+      const fade = FX.clamp(this.bossSkillBannerTimer / 0.3);
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.translate(this.width / 2, padTop + 34);
+      FX.panel(ctx, -138, -11, 276, 22, {
+        r: 6,
+        lw: 1.2,
+        border: this.bossSkillBannerColor || '#FFD448',
+        top: 'rgba(26, 12, 38, 0.92)',
+        bottom: 'rgba(12, 6, 20, 0.94)'
+      });
+      FX.text(ctx, this.bossSkillBannerText, 0, 3.5, {
+        size: 8.8,
+        color: this.bossSkillBannerColor || '#FFD448',
+        align: 'center'
+      });
       ctx.restore();
     }
 
@@ -1457,14 +1548,22 @@ class SquishyGame {
     ctx.save();
     ctx.globalAlpha *= fade;
     const isCrystal = boss.variant === 'CRYSTAL';
-    const rage = boss.hp <= (isCrystal ? 4 : 2);
+    const isColossus = boss.variant === 'COLOSSUS';
+    const layerColors = FX.BOSS_LAYER_COLORS || ['#FF385C', '#FFD448', '#48F288', '#38E4FF', '#C864FF'];
+    const layerIdx = (isColossus && boss.hp > 0) ? Math.min(4, Math.floor((boss.hp - 1) / 10)) : 0;
+    const curLayerColor = layerColors[layerIdx];
+    const rage = isColossus ? (boss.hp <= 15) : (boss.hp <= (isCrystal ? 4 : 2));
+
     FX.drawBoss(ctx, boss.x, cy, R, boss.animTimer, {
       sx, sy,
       flash: flashing ? 0.85 : 0,
       rage,
       charge: boss.state === 'CHARGE_SPIT',
       facing: boss.facing,
-      variant: boss.variant
+      variant: boss.variant,
+      goldenShield: boss.goldenShieldTimer || 0,
+      stealth: boss.stealthTimer || 0,
+      layerColor: curLayerColor
     });
 
     // Blue Bubble encasing (harmless stun visual)
@@ -1475,25 +1574,52 @@ class SquishyGame {
 
     // Floating segmented micro armor bar right above the Boss in the arena
     if (boss.alive && boss.state !== 'DEFEATED') {
-      const barW = 56, barH = 4.5;
+      const isLayered = (boss.maxHp || 10) > 12; // 50-HP 5-Color-Layer bar for Colossal Boss
+      const barW = isLayered ? 72 : 56, barH = isLayered ? 5.2 : 4.5;
       const bx = boss.x - barW / 2;
-      const by = Math.max(24, cy - R - 11);
+      const by = Math.max(24, cy - R - (isColossus ? 16 : 11));
       FX.rr(ctx, bx - 1.5, by - 1.5, barW + 3, barH + 3, 2.5);
-      ctx.fillStyle = 'rgba(18, 8, 28, 0.85)';
+      ctx.fillStyle = 'rgba(18, 8, 28, 0.88)';
       ctx.fill();
-      ctx.lineWidth = 0.8;
-      ctx.strokeStyle = rage ? '#FF3B5C' : (isCrystal ? '#58E4FF' : '#B98CFF');
+      ctx.lineWidth = 0.9;
+      ctx.strokeStyle = isLayered ? curLayerColor : (rage ? '#FF3B5C' : (isCrystal ? '#58E4FF' : '#B98CFF'));
       ctx.stroke();
 
-      const totalCells = boss.maxHp || 10;
-      const cellGap = 0.9;
-      const cellW = (barW - (totalCells - 1) * cellGap) / totalCells;
-      for (let i = 0; i < totalCells; i++) {
-        const cx = bx + i * (cellW + cellGap);
-        ctx.fillStyle = i < boss.hp
-          ? (rage ? '#FF3B5C' : (isCrystal ? '#58E4FF' : '#C864FF'))
-          : 'rgba(70, 50, 95, 0.45)';
-        ctx.fillRect(cx, by, cellW, barH);
+      if (isLayered) {
+        const cellsPerLayer = 10;
+        const activeCells = boss.hp > 0 ? (((boss.hp - 1) % 10) + 1) : 0;
+        const underColor = layerIdx > 0 ? layerColors[layerIdx - 1] : null;
+        const cellGap = 1.0;
+        const cellW = (barW - (cellsPerLayer - 1) * cellGap) / cellsPerLayer;
+        for (let i = 0; i < cellsPerLayer; i++) {
+          const cx = bx + i * (cellW + cellGap);
+          if (i < activeCells) {
+            ctx.fillStyle = curLayerColor;
+          } else if (underColor) {
+            ctx.fillStyle = FX.hexA(underColor, 0.38);
+          } else {
+            ctx.fillStyle = 'rgba(70, 50, 95, 0.45)';
+          }
+          ctx.fillRect(cx, by, cellW, barH);
+        }
+        // Layer badge (e.g. "×5") on the right of the floating bar
+        FX.text(ctx, `×${boss.hp > 0 ? layerIdx + 1 : 0}`, bx + barW + 4, by + barH - 0.3, {
+          size: 7.2,
+          color: curLayerColor,
+          stroke: '#12041E',
+          strokeW: 2
+        });
+      } else {
+        const totalCells = boss.maxHp || 10;
+        const cellGap = 0.9;
+        const cellW = (barW - (totalCells - 1) * cellGap) / totalCells;
+        for (let i = 0; i < totalCells; i++) {
+          const cx = bx + i * (cellW + cellGap);
+          ctx.fillStyle = i < boss.hp
+            ? (rage ? '#FF3B5C' : (isCrystal ? '#58E4FF' : '#C864FF'))
+            : 'rgba(70, 50, 95, 0.45)';
+          ctx.fillRect(cx, by, cellW, barH);
+        }
       }
     }
     ctx.restore();
@@ -1596,87 +1722,139 @@ class SquishyGame {
       }
     }
 
-    // 3. Right Panel (x=176, w=140): Boss Segmented Armor HP Bar (Room 5 & Room 10) OR Room Badge
+    // 3. Right Panel (x=176, w=140): Boss Segmented Armor HP Bar (Room 5, Room 10 & Room 15) OR Room Badge
     if (this.boss) {
       const bx = 176, bw = 140;
       const isCrystal = this.boss.variant === 'CRYSTAL';
-      const rageHud = this.boss.hp <= (isCrystal ? 4 : 3);
+      const isColossus = this.boss.variant === 'COLOSSUS';
+      const totalHp = this.boss.maxHp || 10;
+      const isLayered = totalHp > 12;
+      const layerColors = FX.BOSS_LAYER_COLORS || ['#FF385C', '#FFD448', '#48F288', '#38E4FF', '#C864FF'];
+      const layerIdx = (isLayered && this.boss.hp > 0) ? Math.min(4, Math.floor((this.boss.hp - 1) / 10)) : 0;
+      const curLayerColor = layerColors[layerIdx];
+      const rageHud = isColossus ? (this.boss.hp <= 15) : (this.boss.hp <= (isCrystal ? 4 : 3));
+
       FX.panel(ctx, bx, PY, bw, PH, {
         r: 5,
         lw: 1.4,
-        border: rageHud ? '#FF2244' : (isCrystal ? '#58E4FF' : '#FFD454'),
-        top: isCrystal ? 'rgba(18,38,68,.95)' : 'rgba(40,24,60,.95)',
-        bottom: isCrystal ? 'rgba(8,18,36,.95)' : 'rgba(20,10,32,.95)'
+        border: isLayered ? curLayerColor : (rageHud ? '#FF2244' : (isCrystal ? '#58E4FF' : '#FFD454')),
+        top: isColossus ? 'rgba(48,14,42,.95)' : (isCrystal ? 'rgba(18,38,68,.95)' : 'rgba(40,24,60,.95)'),
+        bottom: isColossus ? 'rgba(20,6,24,.96)' : (isCrystal ? 'rgba(8,18,36,.95)' : 'rgba(20,10,32,.95)')
       });
 
       // Tiny Boss emblem
       const bgr = ctx.createRadialGradient(bx + 7, 8, 0.5, bx + 9, 10, 4.8);
-      bgr.addColorStop(0, isCrystal ? '#78F0FF' : '#7A42B0');
-      bgr.addColorStop(1, isCrystal ? '#0E2240' : '#1A0B27');
+      bgr.addColorStop(0, isColossus ? curLayerColor : (isCrystal ? '#78F0FF' : '#7A42B0'));
+      bgr.addColorStop(1, isColossus ? '#1A0622' : (isCrystal ? '#0E2240' : '#1A0B27'));
       ctx.fillStyle = bgr;
       ctx.beginPath();
       ctx.arc(bx + 9, 10, 4.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.lineWidth = 0.8;
-      ctx.strokeStyle = '#0A0510';
+      ctx.strokeStyle = isColossus ? '#FFD448' : '#0A0510';
       ctx.stroke();
-      ctx.fillStyle = '#FF3B4E';
+      ctx.fillStyle = isColossus ? '#FFD448' : '#FF3B4E';
       ctx.beginPath();
       ctx.arc(bx + 7.6, 9.5, 0.95, 0, Math.PI * 2);
       ctx.arc(bx + 10.4, 9.5, 0.95, 0, Math.PI * 2);
       ctx.fill();
 
-      const shortBossName = isCrystal ? '霜晶' : '巨霸';
+      const shortBossName = isColossus ? '巨皇' : (isCrystal ? '霜晶' : '巨霸');
       FX.text(ctx, shortBossName, bx + 15, TY, {
         size: 8,
-        color: rageHud ? '#FF8A98' : (isCrystal ? '#78F0FF' : '#FFD454')
+        color: isLayered ? curLayerColor : (rageHud ? '#FF8A98' : (isCrystal ? '#78F0FF' : '#FFD454'))
       });
 
-      // Auto-scaled Segmented Boss Armor Gauge (supports 10 HP or 12 HP cleanly)
-      const totalCells = this.boss.maxHp || 10;
-      const segStartX = bx + 35;
-      const availW = 66;
+      const segStartX = bx + 34;
+      const availW = isLayered ? 64 : 66;
       const segGap = 1.2;
-      const segW = (availW - (totalCells - 1) * segGap) / totalCells;
       const segY = 6.2;
       const segH = 7.6;
 
-      for (let i = 0; i < totalCells; i++) {
-        const sx = segStartX + i * (segW + segGap);
-        const filled = i < this.boss.hp;
-        FX.rr(ctx, sx, segY, segW, segH, 1.2);
-        if (filled) {
-          const sg = ctx.createLinearGradient(0, segY, 0, segY + segH);
-          if (rageHud) {
-            sg.addColorStop(0, '#FF7A9A');
-            sg.addColorStop(1, '#E01035');
-          } else if (isCrystal) {
-            sg.addColorStop(0, '#98F8FF');
-            sg.addColorStop(1, '#2288E8');
-          } else {
-            sg.addColorStop(0, '#DF88FF');
-            sg.addColorStop(1, '#8A22D8');
-          }
-          ctx.fillStyle = sg;
-          ctx.fill();
-          ctx.lineWidth = 0.7;
-          ctx.strokeStyle = '#140828';
-          ctx.stroke();
-        } else {
-          ctx.fillStyle = 'rgba(65, 50, 88, 0.45)';
-          ctx.fill();
-          ctx.lineWidth = 0.6;
-          ctx.strokeStyle = '#4B3968';
-          ctx.stroke();
-        }
-      }
+      if (isLayered) {
+        // 5-Color x 10-Point Layered Boss Health Bar (50 HP total)
+        const cellsPerLayer = 10;
+        const activeCells = this.boss.hp > 0 ? (((this.boss.hp - 1) % 10) + 1) : 0;
+        const underColor = layerIdx > 0 ? layerColors[layerIdx - 1] : null;
+        const segW = (availW - (cellsPerLayer - 1) * segGap) / cellsPerLayer;
 
-      // Numeric Boss HP readout (e.g. "10/10" or "12/12")
-      FX.text(ctx, `${this.boss.hp}/${totalCells}`, bx + bw - 4, TY, {
-        size: 7.5,
-        color: rageHud ? '#FF8A98' : (isCrystal ? '#B8F6FF' : '#E5C6FF'),
-        align: 'right'
-      });
+        for (let i = 0; i < cellsPerLayer; i++) {
+          const sx = segStartX + i * (segW + segGap);
+          FX.rr(ctx, sx, segY, segW, segH, 1.2);
+          if (i < activeCells) {
+            const sg = ctx.createLinearGradient(0, segY, 0, segY + segH);
+            sg.addColorStop(0, '#FFFFFF');
+            sg.addColorStop(0.28, curLayerColor);
+            sg.addColorStop(1, curLayerColor);
+            ctx.fillStyle = sg;
+            ctx.fill();
+            ctx.lineWidth = 0.7;
+            ctx.strokeStyle = '#140828';
+            ctx.stroke();
+          } else if (underColor) {
+            // Reveal the next layer's color waiting underneath!
+            ctx.fillStyle = FX.hexA(underColor, 0.42);
+            ctx.fill();
+            ctx.lineWidth = 0.65;
+            ctx.strokeStyle = FX.hexA(underColor, 0.75);
+            ctx.stroke();
+          } else {
+            ctx.fillStyle = 'rgba(65, 50, 88, 0.45)';
+            ctx.fill();
+            ctx.lineWidth = 0.6;
+            ctx.strokeStyle = '#4B3968';
+            ctx.stroke();
+          }
+        }
+
+        // Layer multiplier + HP readout (e.g. "×5 50")
+        const layerNum = this.boss.hp > 0 ? layerIdx + 1 : 0;
+        FX.text(ctx, `×${layerNum} ${this.boss.hp}`, bx + bw - 3.5, TY, {
+          size: 7.3,
+          color: curLayerColor,
+          align: 'right'
+        });
+      } else {
+        // Standard 10-HP or 12-HP single-layer segmented bar
+        const totalCells = totalHp;
+        const segW = (availW - (totalCells - 1) * segGap) / totalCells;
+
+        for (let i = 0; i < totalCells; i++) {
+          const sx = segStartX + i * (segW + segGap);
+          const filled = i < this.boss.hp;
+          FX.rr(ctx, sx, segY, segW, segH, 1.2);
+          if (filled) {
+            const sg = ctx.createLinearGradient(0, segY, 0, segY + segH);
+            if (rageHud) {
+              sg.addColorStop(0, '#FF7A9A');
+              sg.addColorStop(1, '#E01035');
+            } else if (isCrystal) {
+              sg.addColorStop(0, '#98F8FF');
+              sg.addColorStop(1, '#2288E8');
+            } else {
+              sg.addColorStop(0, '#DF88FF');
+              sg.addColorStop(1, '#8A22D8');
+            }
+            ctx.fillStyle = sg;
+            ctx.fill();
+            ctx.lineWidth = 0.7;
+            ctx.strokeStyle = '#140828';
+            ctx.stroke();
+          } else {
+            ctx.fillStyle = 'rgba(65, 50, 88, 0.45)';
+            ctx.fill();
+            ctx.lineWidth = 0.6;
+            ctx.strokeStyle = '#4B3968';
+            ctx.stroke();
+          }
+        }
+
+        FX.text(ctx, `${this.boss.hp}/${totalCells}`, bx + bw - 4, TY, {
+          size: 7.5,
+          color: rageHud ? '#FF8A98' : (isCrystal ? '#B8F6FF' : '#E5C6FF'),
+          align: 'right'
+        });
+      }
       return;
     }
 
