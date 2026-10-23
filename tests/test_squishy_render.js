@@ -101,6 +101,7 @@ suite('3. Every screen renders without errors', () => {
   run('PAUSED overlay', () => { g.state = 'PAUSED'; });
   run('VICTORY overlay', () => { g.state = 'VICTORY'; });
   run('GAME_OVER overlay', () => { g.state = 'GAME_OVER'; g.lives = 0; });
+  run('Secret 99-Lives HUD badge & toast', () => { g.loadLevel(0); g.state = 'PLAYING'; g.activateSecret99Lives(); });
   run('Room clear toast', () => { g.loadLevel(1); g.state = 'PLAYING'; g.roomClearBannerTimer = 1.5; });
   assert(stats.nonFinite === 0, 'no NaN / Infinity ever reached a canvas call');
 });

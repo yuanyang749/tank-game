@@ -25,6 +25,10 @@ class SquishyGame {
     this.state = 'TITLE'; // 'TITLE', 'PLAYING', 'PAUSED', 'ROOM_CLEAR', 'VICTORY', 'GAME_OVER'
     this.maxLives = 5;
     this.lives = 5;
+    this.secret99Mode = false;
+    this.secretHeartTapCount = 0;
+    this.lastHeartTapTime = 0;
+    this.secretBannerTimer = 0;
     this.invincibleTimer = 0;
     this.levelIndex = 0;
     this.currentLevel = null;
@@ -163,11 +167,56 @@ class SquishyGame {
   startGame() {
     this.audio.init();
     this.audio.startBgm();
+    this.maxLives = this.secret99Mode ? 99 : 5;
     this.lives = this.maxLives;
     this.invincibleTimer = 0;
     this.loadLevel(0);
     this.state = 'PLAYING';
     this.vibrate([15, 30, 20]);
+  }
+
+  activateSecret99Lives() {
+    this.secret99Mode = true;
+    this.maxLives = 99;
+    this.lives = 99;
+    this.secretHeartTapCount = 0;
+    this.secretBannerTimer = 2.4;
+    if (this.audio && this.audio.playRoomClear) this.audio.playRoomClear();
+    this.vibrate([25, 35, 25, 35, 70]);
+    this.spawnDewBurst(124, 12);
+    if (this.player) {
+      this.spawnPopParticles(this.player.x, this.player.y, '#FFD454');
+    }
+  }
+
+  handleHeartZoneTap(clientX, clientY) {
+    let lx = clientX, ly = clientY;
+    if (this.canvas && typeof this.canvas.getBoundingClientRect === 'function') {
+      const rect = this.canvas.getBoundingClientRect();
+      if (rect && rect.width > 0 && rect.height > 0) {
+        lx = ((clientX - rect.left) / rect.width) * this.width;
+        ly = ((clientY - rect.top) / rect.height) * this.height;
+      }
+    }
+    // Top center heart HUD zone: x in [60, 188], y in [0, 38]
+    if (lx >= 60 && lx <= 188 && ly >= 0 && ly <= 38) {
+      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      if (now - this.lastHeartTapTime > 1500) {
+        this.secretHeartTapCount = 1;
+      } else {
+        this.secretHeartTapCount++;
+      }
+      this.lastHeartTapTime = now;
+      this.vibrate(10);
+      if (this.audio && this.audio.playDew) this.audio.playDew();
+      this.spawnPopParticles(124, 10, '#FF4D6D', false);
+
+      if (this.secretHeartTapCount >= 5) {
+        this.activateSecret99Lives();
+      }
+      return true;
+    }
+    return false;
   }
 
   togglePause() {
@@ -271,9 +320,26 @@ class SquishyGame {
   }
 
   initControls() {
-    // Canvas click / tap support for direct mobile interaction
-    this.canvas.addEventListener('click', () => {
+    // Canvas click / tap support for direct mobile interaction + 5-tap top heart zone secret 99 lives
+    let lastTouchTapTime = 0;
+    if (this.canvas && this.canvas.addEventListener) {
+      this.canvas.addEventListener('touchstart', (e) => {
+        if (!e.touches || !e.touches[0]) return;
+        this.audio.init();
+        const t = e.touches[0];
+        if (this.handleHeartZoneTap(t.clientX, t.clientY)) {
+          lastTouchTapTime = Date.now();
+          if (e.preventDefault) e.preventDefault();
+        }
+      }, { passive: false });
+    }
+
+    this.canvas.addEventListener('click', (e) => {
       this.audio.init();
+      if (Date.now() - lastTouchTapTime < 450) return;
+      if (e && typeof e.clientX === 'number' && this.handleHeartZoneTap(e.clientX, e.clientY)) {
+        return;
+      }
       if (this.state === 'TITLE') {
         this.startStory();
       } else if (this.state === 'STORY') {
@@ -1022,6 +1088,29 @@ class SquishyGame {
       FX.text(ctx, msg, 0, 5, { size: 12, color: '#FFD454', align: 'center' });
       ctx.restore();
     }
+
+    // Secret 99-Lives activation toast
+    if (this.secretBannerTimer > 0) {
+      const p = FX.outBack(FX.seg(2.4 - this.secretBannerTimer, 0, 0.3), 1.8);
+      const fade = FX.clamp(this.secretBannerTimer / 0.35);
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.translate(this.width / 2, 46);
+      ctx.scale(p, p);
+      FX.panel(ctx, -146, -15, 292, 30, {
+        r: 8,
+        lw: 1.6,
+        border: '#FFD454',
+        top: 'rgba(68, 42, 14, 0.96)',
+        bottom: 'rgba(32, 18, 6, 0.96)'
+      });
+      FX.text(ctx, '★ 隐藏秘籍激活：黄金水滴 ❤️ × 99 命！ ★', 0, 4, {
+        size: 10.5,
+        color: '#FFD454',
+        align: 'center'
+      });
+      ctx.restore();
+    }
   }
 
   renderTiles(ctx, L, th, t) {
@@ -1257,39 +1346,75 @@ class SquishyGame {
     FX.text(ctx, '水滴', 21, TY, { size: 8.5, color: '#FFFFFF' });
     FX.text(ctx, dewCount, 43, TY, { size: 8.5, color: '#7FF0FF' });
 
-    // 2. Center Panel (x=75, w=98): Active Buddy Mini-Icon + Player 5 Hearts (❤️❤️❤️❤️❤️)
-    FX.panel(ctx, 75, PY, 98, PH, { r: 5, border: this.boss ? '#6A5A8A' : undefined });
-    buddyIcon(84);
-    const lowLife = this.lives <= 1;
-    for (let i = 0; i < this.maxLives; i++) {
-      const hx = 98 + i * 15;
-      const filled = i < this.lives;
-      const pulse = filled && lowLife ? 1 + 0.14 * Math.sin(t * 12) : 1;
+    // 2. Center Panel (x=75, w=98): Active Buddy Mini-Icon + Player Lives (5 Hearts OR Golden "❤️ × 99" Badge)
+    const is99 = this.maxLives > 5 || this.lives > 5;
+    FX.panel(ctx, 75, PY, 98, PH, {
+      r: 5,
+      border: is99 ? '#FFD454' : (this.boss ? '#6A5A8A' : undefined),
+      lw: is99 ? 1.4 : 1.2
+    });
+    buddyIcon(86);
+
+    if (is99) {
+      // Golden 99-Lives Badge: 1 pulsing heart + "× 99" counter
+      const pulse = 1 + 0.1 * Math.sin(t * 7);
       ctx.save();
-      ctx.translate(hx, 10);
-      ctx.scale(pulse * 0.78, pulse * 0.78);
-      FX.heart(ctx, 0, 0, 5.2);
-      if (filled) {
-        const g = ctx.createLinearGradient(0, -5, 0, 4);
-        g.addColorStop(0, '#FF7A9A');
-        g.addColorStop(1, '#FF2255');
-        ctx.fillStyle = g;
-        ctx.fill();
-        ctx.lineWidth = 0.9;
-        ctx.strokeStyle = '#3A0814';
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(255,255,255,.75)';
-        ctx.beginPath();
-        ctx.ellipse(-2.2, -2.3, 0.95, 0.55, -0.6, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        ctx.fillStyle = 'rgba(70, 58, 82, 0.45)';
-        ctx.fill();
-        ctx.lineWidth = 0.85;
-        ctx.strokeStyle = 'rgba(130, 110, 150, 0.55)';
-        ctx.stroke();
-      }
+      ctx.translate(107, 10);
+      ctx.scale(pulse * 0.92, pulse * 0.92);
+      FX.heart(ctx, 0, 0, 5.5);
+      const g = ctx.createLinearGradient(0, -5, 0, 4);
+      g.addColorStop(0, '#FFE878');
+      g.addColorStop(0.45, '#FF5C8A');
+      g.addColorStop(1, '#E01040');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.lineWidth = 0.9;
+      ctx.strokeStyle = '#3A0814';
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.85)';
+      ctx.beginPath();
+      ctx.ellipse(-2.2, -2.3, 1.0, 0.6, -0.6, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
+
+      FX.text(ctx, `× ${this.lives}`, 118, TY, {
+        size: 9.5,
+        color: '#FFD454',
+        stroke: '#3A1808',
+        strokeW: 2.2
+      });
+    } else {
+      const lowLife = this.lives <= 1;
+      for (let i = 0; i < this.maxLives; i++) {
+        const hx = 98 + i * 15;
+        const filled = i < this.lives;
+        const pulse = filled && lowLife ? 1 + 0.14 * Math.sin(t * 12) : 1;
+        ctx.save();
+        ctx.translate(hx, 10);
+        ctx.scale(pulse * 0.78, pulse * 0.78);
+        FX.heart(ctx, 0, 0, 5.2);
+        if (filled) {
+          const g = ctx.createLinearGradient(0, -5, 0, 4);
+          g.addColorStop(0, '#FF7A9A');
+          g.addColorStop(1, '#FF2255');
+          ctx.fillStyle = g;
+          ctx.fill();
+          ctx.lineWidth = 0.9;
+          ctx.strokeStyle = '#3A0814';
+          ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,.75)';
+          ctx.beginPath();
+          ctx.ellipse(-2.2, -2.3, 0.95, 0.55, -0.6, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = 'rgba(70, 58, 82, 0.45)';
+          ctx.fill();
+          ctx.lineWidth = 0.85;
+          ctx.strokeStyle = 'rgba(130, 110, 150, 0.55)';
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
     }
 
     // 3. Right Panel (x=176, w=140): Boss Segmented Armor HP Bar (Room 5 & Room 10) OR Room Badge
@@ -1867,6 +1992,7 @@ class SquishyGame {
     this.lastTime = timestamp;
 
     this.fxTime += dt; // visual clock - keeps ambience & idle animations alive in every game state
+    if (this.secretBannerTimer > 0) this.secretBannerTimer = Math.max(0, this.secretBannerTimer - dt);
     this.update(dt);
     this.render();
 

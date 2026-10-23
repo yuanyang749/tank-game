@@ -970,6 +970,20 @@ suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
   game.loadLevel(4);
   game.state = 'PLAYING';
 
+  // Secret 99-Lives 5-tap on Top Heart Zone
+  assert(game.secret99Mode === false && game.lives === 5, 'Before secret 5-tap, player has 5 lives');
+  for (let tap = 1; tap <= 4; tap++) {
+    const handled = game.handleHeartZoneTap(124, 10);
+    assert(handled === true && game.lives === 5, `Top heart tap #${tap} registered in zone without triggering 99 lives yet`);
+  }
+  const fifthTap = game.handleHeartZoneTap(124, 10);
+  assert(fifthTap === true && game.secret99Mode === true && game.lives === 99 && game.maxLives === 99, '5th consecutive tap on top heart zone activates Secret 99 Lives (lives=99, maxLives=99)');
+  assert(game.secretBannerTimer > 0, 'Secret 99-lives activation banner timer started');
+  // Reset back to normal 5 lives for subsequent tests
+  game.secret99Mode = false;
+  game.maxLives = 5;
+  game.lives = 5;
+
   // Blue Float bubble contact encases Boss
   const blueBubble = new env.BubbleEntity(game.boss.x, game.boss.y, 1, 'FLOAT', env.BUDDY_TYPES.BLUE);
   game.bubbles.push(blueBubble);
