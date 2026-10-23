@@ -118,7 +118,7 @@ body[data-embedded="1"] canvas#gameCanvas {
   height: 100vh !important;
   max-height: 100% !important;
   aspect-ratio: auto !important;
-  object-fit: fill !important;
+  object-fit: contain !important;
   border-radius: 0 !important;
 }
 

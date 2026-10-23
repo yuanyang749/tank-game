@@ -194,8 +194,13 @@ class SquishyGame {
     if (this.canvas && typeof this.canvas.getBoundingClientRect === 'function') {
       const rect = this.canvas.getBoundingClientRect();
       if (rect && rect.width > 0 && rect.height > 0) {
-        lx = ((clientX - rect.left) / rect.width) * this.width;
-        ly = ((clientY - rect.top) / rect.height) * this.height;
+        const scale = Math.min(rect.width / this.width, rect.height / this.height);
+        const drawW = this.width * scale;
+        const drawH = this.height * scale;
+        const offsetX = (rect.width - drawW) / 2;
+        const offsetY = (rect.height - drawH) / 2;
+        lx = ((clientX - rect.left - offsetX) / drawW) * this.width;
+        ly = ((clientY - rect.top - offsetY) / drawH) * this.height;
       }
     }
     // Top center heart HUD zone: x in [60, 188], y in [0, 38]
