@@ -324,16 +324,16 @@ suite('5. Game Boy Console OS & Bridge Controller', () => {
 
   const gb = new env.GameBoyConsole();
   assert(gb.powerOn === true, 'Console initializes in powered ON state');
-  assert(gb.currentCartridge === 'tank-battle', 'Default cartridge is tank-battle');
+  assert(gb.currentCartridge === 'squishy-buddies', 'Default cartridge is squishy-buddies');
 
   // Test cartridge loading
   gb.loadCartridge('space-invaders');
   assert(gb.currentCartridge === 'space-invaders', 'Successfully switched cartridge to space-invaders');
   assert(gb.iframe.src.includes('space-invaders'), 'Iframe src routed to space invaders');
 
-  gb.loadCartridge('squishy-buddies');
-  assert(gb.currentCartridge === 'squishy-buddies', 'Successfully switched cartridge to squishy-buddies');
-  assert(gb.iframe.src.includes('squishy-buddies'), 'Iframe src routed to squishy-buddies');
+  gb.loadCartridge('tank-battle');
+  assert(gb.currentCartridge === 'tank-battle', 'Successfully switched cartridge to tank-battle');
+  assert(gb.iframe.src.includes('tank-battle'), 'Iframe src routed to tank-battle');
 
   gb.loadCartridge('tutorial');
   assert(gb.currentCartridge === 'tutorial', 'Successfully switched cartridge to tutorial');
@@ -358,16 +358,16 @@ suite('5. Game Boy Console OS & Bridge Controller', () => {
   assert(gb.inMenu === true, 'Console soft-resets back to Multi-Cartridge menu list');
 
   gb.navigateMenu(1);
-  assert(gb.menuIndex === 1, 'D-Pad DOWN moves menu cursor to index 1 (space-invaders)');
+  assert(gb.menuIndex === 1, 'D-Pad DOWN moves menu cursor to index 1 (tank-battle)');
+  assert(gb.currentCartridge === 'tank-battle', 'Current selection updated to tank-battle');
+
+  gb.navigateMenu(1);
+  assert(gb.menuIndex === 2, 'D-Pad DOWN moves menu cursor to index 2 (space-invaders)');
   assert(gb.currentCartridge === 'space-invaders', 'Current selection updated to space-invaders');
 
   gb.navigateMenu(1);
-  assert(gb.menuIndex === 2, 'D-Pad DOWN moves menu cursor to index 2 (tetris)');
+  assert(gb.menuIndex === 3, 'D-Pad DOWN moves menu cursor to index 3 (tetris)');
   assert(gb.currentCartridge === 'tetris', 'Current selection updated to tetris');
-
-  gb.navigateMenu(1);
-  assert(gb.menuIndex === 3, 'D-Pad DOWN moves menu cursor to index 3 (squishy-buddies)');
-  assert(gb.currentCartridge === 'squishy-buddies', 'Current selection updated to squishy-buddies');
 
   gb.navigateMenu(1);
   assert(gb.menuIndex === 4, 'D-Pad DOWN moves menu cursor to index 4 (tutorial document)');
@@ -700,7 +700,7 @@ suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
 
   // Verify multi-cart index.html registration
   const mainIndexHtml = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  assert(mainIndexHtml.includes('data-game="squishy-buddies"'), 'index.html contains ROM 04 Squishy Buddies 2006');
+  assert(mainIndexHtml.includes('data-game="squishy-buddies"'), 'index.html contains ROM 01 Squishy Buddies 2006');
   assert(mainIndexHtml.includes('软乎乎大冒险 2006'), 'index.html lists 软乎乎大冒险 2006');
 
   // Load and test Physics & Elastic Spring Oscillator

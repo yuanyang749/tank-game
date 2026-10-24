@@ -48,76 +48,8 @@ async function runHeadlessAutomation() {
   await page.screenshot({ path: menuShotPath });
   console.log(`✅ [1/3] 菜单页无头截图保存至: ${menuShotPath}`);
 
-  // 2. 点击 A 键启动坦克大战
-  console.log('🎮 模拟触控点击 A 键启动游戏 (坦克大战)...');
-  await page.tap('#gb-btn-a');
-  await new Promise(r => setTimeout(r, 1500)); // 等待游戏初始化及音效上下文就绪
-
-  const tankShotPath = path.join(screenshotsDir, 'headless_tank.png');
-  await page.screenshot({ path: tankShotPath });
-  console.log(`✅ [2/3] 坦克大战进入运行态截图: ${tankShotPath}`);
-
-  // 3. 复位到菜单并选择太空侵略者
-  console.log('🔄 模拟点击屏幕右上角【◄目录】徽章返回卡带选择页...');
-  await page.tap('#in-game-menu-btn');
-  await new Promise(r => setTimeout(r, 600));
-
-  // 模拟按下方向下选择第 2 项（太空侵略者）
-  console.log('⬇️ 按下方向键选择太空侵略者...');
-  await page.tap('#dpad-down');
-  await new Promise(r => setTimeout(r, 400));
-  await page.tap('#gb-btn-a');
-  await new Promise(r => setTimeout(r, 1500));
-
-  const spaceShotPath = path.join(screenshotsDir, 'headless_space.png');
-  await page.screenshot({ path: spaceShotPath });
-  console.log(`✅ [3/4] 太空侵略者运行态截图: ${spaceShotPath}`);
-
-  // 4. 复位到菜单并选择俄罗斯方块 1989 (使用新实体复位键 #gb-btn-reset)
-  console.log('🔄 模拟点击实体复位键【RESET: SELECT + START】返回卡带选择页...');
-  await page.tap('#gb-btn-reset');
-  await new Promise(r => setTimeout(r, 600));
-
-  // 模拟按下方向键选择第 3 项（俄罗斯方块 1989）
-  console.log('⬇️ 按下方向键选择俄罗斯方块 1989...');
-  await page.tap('#dpad-down');
-  await new Promise(r => setTimeout(r, 400));
-  await page.tap('#gb-btn-a');
-  await new Promise(r => setTimeout(r, 1200));
-
-  // 模拟在标题画面按下 A 键正式启动游戏
-  console.log('🎮 模拟按下 A 键进入方块堆叠实战...');
-  await page.tap('#gb-btn-a');
-  await new Promise(r => setTimeout(r, 1000));
-
-  // 模拟方块旋转与微移
-  await page.tap('#dpad-left');
-  await new Promise(r => setTimeout(r, 200));
-  await page.tap('#gb-btn-a'); // 旋转
-  await new Promise(r => setTimeout(r, 300));
-  await page.tap('#dpad-down'); // 软降落
-  await new Promise(r => setTimeout(r, 500));
-
-  const tetrisShotPath = path.join(screenshotsDir, 'headless_tetris.png');
-  await page.screenshot({ path: tetrisShotPath });
-  console.log(`✅ [4/6] 俄罗斯方块 1989 运行态截图: ${tetrisShotPath}`);
-
-  // 5. 复位到菜单并选择软乎乎大冒险 2006 (ROM 04)
-  console.log('🔄 模拟点击实体复位键返回菜单...');
-  await page.tap('#gb-btn-reset');
-  await new Promise(r => setTimeout(r, 600));
-
-  console.log('⬇️ 按下方向键选择 ROM 04 (软乎乎大冒险 2006)...');
-  await page.tap('#dpad-down');
-  await new Promise(r => setTimeout(r, 300));
-
-  const squishyIdx = await page.evaluate(() => window.consoleInstance.menuIndex);
-  console.log(`📋 当前选中卡带索引: ${squishyIdx} (期待: 3 - squishy-buddies)`);
-  if (squishyIdx !== 3) {
-    throw new Error(`菜单切换到软乎乎大冒险失败，当前索引为 ${squishyIdx}`);
-  }
-
-  console.log('🎮 模拟按下 A 键进入软乎乎大冒险标题界面...');
+  // 2. 点击 A 键启动软乎乎大冒险 2006 (ROM 01, 当前默认首选卡带)
+  console.log('🎮 模拟触控点击 A 键启动游戏 (软乎乎大冒险 2006)...');
   await page.tap('#gb-btn-a');
   await new Promise(r => setTimeout(r, 1200));
 
@@ -128,7 +60,7 @@ async function runHeadlessAutomation() {
 
   const squishyStoryShot = path.join(screenshotsDir, 'headless_squishy_story.png');
   await page.screenshot({ path: squishyStoryShot });
-  console.log(`✅ [5a] 软乎乎故事演出截图: ${squishyStoryShot}`);
+  console.log(`✅ [2a] 软乎乎故事演出截图: ${squishyStoryShot}`);
 
   // 翻页查看第二幕、第三幕并进入核心操作指南
   console.log('📖 按 A 键翻阅故事幕，进入核心玩法指南...');
@@ -141,7 +73,7 @@ async function runHeadlessAutomation() {
 
   const squishyGuideShot = path.join(screenshotsDir, 'headless_squishy_guide.png');
   await page.screenshot({ path: squishyGuideShot });
-  console.log(`✅ [5b] 软乎乎核心玩法指南截图: ${squishyGuideShot}`);
+  console.log(`✅ [2b] 软乎乎核心玩法指南截图: ${squishyGuideShot}`);
 
   // 在核心玩法指南页面点击 A 键正式开始彩虹泉冒险
   console.log('🎮 在玩法指南页面按 A 键正式开始彩虹泉关卡...');
@@ -163,7 +95,65 @@ async function runHeadlessAutomation() {
 
   const squishyShotPath = path.join(screenshotsDir, 'headless_squishy.png');
   await page.screenshot({ path: squishyShotPath });
-  console.log(`✅ [5c] 软乎乎大冒险 2006 实战运行态截图: ${squishyShotPath}`);
+  console.log(`✅ [2c] 软乎乎大冒险 2006 实战运行态截图: ${squishyShotPath}`);
+
+  // 3. 复位到菜单并选择坦克大战 1990 (ROM 02, 索引 1)
+  console.log('🔄 模拟点击屏幕右上角【◄目录】徽章返回卡带选择页...');
+  await page.tap('#in-game-menu-btn');
+  await new Promise(r => setTimeout(r, 600));
+
+  console.log('⬇️ 按下方向键选择 ROM 02 (坦克大战 1990)...');
+  await page.tap('#dpad-down');
+  await new Promise(r => setTimeout(r, 400));
+  await page.tap('#gb-btn-a');
+  await new Promise(r => setTimeout(r, 1500));
+
+  const tankShotPath = path.join(screenshotsDir, 'headless_tank.png');
+  await page.screenshot({ path: tankShotPath });
+  console.log(`✅ [3/6] 坦克大战进入运行态截图: ${tankShotPath}`);
+
+  // 4. 复位到菜单并选择太空侵略者 (ROM 03, 索引 2)
+  console.log('🔄 模拟点击实体复位键【RESET: SELECT + START】返回卡带选择页...');
+  await page.tap('#gb-btn-reset');
+  await new Promise(r => setTimeout(r, 600));
+
+  console.log('⬇️ 按下方向键选择太空侵略者...');
+  await page.tap('#dpad-down');
+  await new Promise(r => setTimeout(r, 400));
+  await page.tap('#gb-btn-a');
+  await new Promise(r => setTimeout(r, 1500));
+
+  const spaceShotPath = path.join(screenshotsDir, 'headless_space.png');
+  await page.screenshot({ path: spaceShotPath });
+  console.log(`✅ [4/6] 太空侵略者运行态截图: ${spaceShotPath}`);
+
+  // 5. 复位到菜单并选择俄罗斯方块 1989 (ROM 04, 索引 3)
+  console.log('🔄 模拟点击实体复位键返回菜单...');
+  await page.tap('#gb-btn-reset');
+  await new Promise(r => setTimeout(r, 600));
+
+  console.log('⬇️ 按下方向键选择俄罗斯方块 1989...');
+  await page.tap('#dpad-down');
+  await new Promise(r => setTimeout(r, 400));
+  await page.tap('#gb-btn-a');
+  await new Promise(r => setTimeout(r, 1200));
+
+  // 模拟在标题画面按下 A 键正式启动游戏
+  console.log('🎮 模拟按下 A 键进入方块堆叠实战...');
+  await page.tap('#gb-btn-a');
+  await new Promise(r => setTimeout(r, 1000));
+
+  // 模拟方块旋转与微移
+  await page.tap('#dpad-left');
+  await new Promise(r => setTimeout(r, 200));
+  await page.tap('#gb-btn-a'); // 旋转
+  await new Promise(r => setTimeout(r, 300));
+  await page.tap('#dpad-down'); // 软降落
+  await new Promise(r => setTimeout(r, 500));
+
+  const tetrisShotPath = path.join(screenshotsDir, 'headless_tetris.png');
+  await page.screenshot({ path: tetrisShotPath });
+  console.log(`✅ [5/6] 俄罗斯方块 1989 运行态截图: ${tetrisShotPath}`);
 
   // 6. 点击复位键回到菜单，并用方向下选择第 5 项（TERMUX 开发攻略）
   console.log('🔄 模拟点击复位键返回菜单...');
