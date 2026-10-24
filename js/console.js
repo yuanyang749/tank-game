@@ -186,8 +186,9 @@ class GameBoyConsole {
       this.inGameMenuBtn.addEventListener('click', triggerReturn);
     }
 
-    // Hardware RESET button on lower deck (Silkscreen button)
+    // Hardware RESET button on lower deck (Rubber pill button alongside SELECT & START)
     const btnReset = document.getElementById('gb-btn-reset');
+    const unitReset = document.getElementById('gb-unit-reset') || btnReset;
     if (btnReset) {
       const triggerReset = (e) => {
         if (e && (e.type === 'touchstart' || e.type === 'pointerdown')) e.preventDefault();
@@ -198,6 +199,11 @@ class GameBoyConsole {
       btnReset.addEventListener('touchstart', triggerReset, { passive: false });
       btnReset.addEventListener('pointerdown', triggerReset);
       btnReset.addEventListener('click', triggerReset);
+      if (unitReset && unitReset !== btnReset) {
+        unitReset.addEventListener('touchstart', triggerReset, { passive: false });
+        unitReset.addEventListener('pointerdown', triggerReset);
+        unitReset.addEventListener('click', triggerReset);
+      }
     }
 
     // Listen for postMessage from nested iframes (games / docs)
