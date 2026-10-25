@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Squishy Buddies 2006 - Level Design Audit & Scripted Playthroughs
+   Squishy Buddies 2026 - Level Design Audit & Scripted Playthroughs
    1. Topology audit: every gate must really seal the fountain chamber (no way around it), every dew
       must be collectable BEFORE the gate opens, and the fountain must be reachable once it opens.
    2. Autopilot playthroughs: a scripted player clears every room with the REAL game physics

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Squishy Buddies 2006 - Elastic Physics & Grid Collision System
+   Squishy Buddies 2026 - Elastic Physics & Grid Collision System
    Squash & Stretch Damped Spring Oscillator + Mobile-First Tile Collision
    ========================================================================== */
 

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Squishy Buddies 2006 - Hi-Res Vector FX Renderer
+   Squishy Buddies 2026 - Hi-Res Vector FX Renderer
    Jelly characters, crystal-clear bubbles, themed room maps & juicy particles.
    Ported from the promo film's art direction (agy-mobile-film/js/lib.js + scenes.js).
 

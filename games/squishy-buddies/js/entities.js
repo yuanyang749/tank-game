@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Squishy Buddies 2006 - Character, Bubble & Monster Entities
+   Squishy Buddies 2026 - Character, Bubble & Monster Entities
    The 5 Color Droplet IP Roster + 5 Elemental Bubble Types
    ========================================================================== */
 

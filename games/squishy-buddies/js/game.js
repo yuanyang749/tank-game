@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Squishy Buddies 2006 - Main Game Engine, Canvas Renderer & Controller Bridge
+   Squishy Buddies 2026 - Main Game Engine, Canvas Renderer & Controller Bridge
    Chunky Pixel Visuals, Mochi Follower Train & Game Boy Console Bridge
    ========================================================================== */
 
@@ -1870,7 +1870,7 @@ class SquishyGame {
     ctx.fillRect(0, 0, this.width, this.height);
     FX.panel(ctx, 20, 32, this.width - 40, 176, { r: 12, lw: 2, top: 'rgba(70,50,34,.98)', bottom: 'rgba(36,26,18,.98)' });
 
-    FX.text(ctx, '软乎乎大冒险 2006', this.width / 2, 68, { size: 18, color: '#FFD454', align: 'center', stroke: '#3B2A1C', strokeW: 3.5 });
+    FX.text(ctx, '软乎乎大冒险 2026', this.width / 2, 68, { size: 18, color: '#FFD454', align: 'center', stroke: '#3B2A1C', strokeW: 3.5 });
     FX.text(ctx, 'SQUISHY BUDDIES · 5 COLOR POP', this.width / 2, 87, { size: 10, weight: 'normal', color: '#E8D7B8', align: 'center' });
 
     // Draw all 5 buddies hopping in a row (squash on takeoff/landing)

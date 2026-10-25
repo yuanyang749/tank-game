@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Squishy Buddies 2006 - Hi-Res Renderer / Jelly Feel / Map Theme Tests
+   Squishy Buddies 2026 - Hi-Res Renderer / Jelly Feel / Map Theme Tests
    Node.js (no browser needed): runs the real game scripts inside a vm sandbox
    with a recording Canvas2D mock, so every render path is actually executed.
    Usage: node tests/test_squishy_render.js

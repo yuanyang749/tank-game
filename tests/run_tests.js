@@ -679,9 +679,9 @@ suite('8. Authentic Tetris 1989 Game Boy Cartridge & Matrix Engine', () => {
 });
 
 // =========================================================================
-// TEST SUITE 9: Squishy Buddies 2006 Physics, 5 Characters & Bubble System
+// TEST SUITE 9: Squishy Buddies 2026 Physics, 5 Characters & Bubble System
 // =========================================================================
-suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
+suite('9. Squishy Buddies 2026 Physics, 5 Characters & Bubble System', () => {
   const squishyHtml = path.join(__dirname, '../games/squishy-buddies/index.html');
   const squishyCss = path.join(__dirname, '../games/squishy-buddies/css/squishy.css');
   const physicsJs = path.join(__dirname, '../games/squishy-buddies/js/physics.js');
@@ -700,8 +700,8 @@ suite('9. Squishy Buddies 2006 Physics, 5 Characters & Bubble System', () => {
 
   // Verify multi-cart index.html registration
   const mainIndexHtml = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  assert(mainIndexHtml.includes('data-game="squishy-buddies"'), 'index.html contains ROM 01 Squishy Buddies 2006');
-  assert(mainIndexHtml.includes('软乎乎大冒险 2006'), 'index.html lists 软乎乎大冒险 2006');
+  assert(mainIndexHtml.includes('data-game="squishy-buddies"'), 'index.html contains ROM 01 Squishy Buddies 2026');
+  assert(mainIndexHtml.includes('软乎乎大冒险 2026'), 'index.html lists 软乎乎大冒险 2026');
 
   // Load and test Physics & Elastic Spring Oscillator
   const env = createMockEnv();

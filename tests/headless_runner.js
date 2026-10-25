@@ -48,8 +48,8 @@ async function runHeadlessAutomation() {
   await page.screenshot({ path: menuShotPath });
   console.log(`✅ [1/3] 菜单页无头截图保存至: ${menuShotPath}`);
 
-  // 2. 点击 A 键启动软乎乎大冒险 2006 (ROM 01, 当前默认首选卡带)
-  console.log('🎮 模拟触控点击 A 键启动游戏 (软乎乎大冒险 2006)...');
+  // 2. 点击 A 键启动软乎乎大冒险 2026 (ROM 01, 当前默认首选卡带)
+  console.log('🎮 模拟触控点击 A 键启动游戏 (软乎乎大冒险 2026)...');
   await page.tap('#gb-btn-a');
   await new Promise(r => setTimeout(r, 1200));
 
@@ -95,7 +95,7 @@ async function runHeadlessAutomation() {
 
   const squishyShotPath = path.join(screenshotsDir, 'headless_squishy.png');
   await page.screenshot({ path: squishyShotPath });
-  console.log(`✅ [2c] 软乎乎大冒险 2006 实战运行态截图: ${squishyShotPath}`);
+  console.log(`✅ [2c] 软乎乎大冒险 2026 实战运行态截图: ${squishyShotPath}`);
 
   // 3. 复位到菜单并选择坦克大战 1990 (ROM 02, 索引 1)
   console.log('🔄 模拟点击屏幕右上角【◄目录】徽章返回卡带选择页...');

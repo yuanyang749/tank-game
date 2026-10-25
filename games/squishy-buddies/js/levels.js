@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Squishy Buddies 2006 - 5 Handcrafted Single-Screen Puzzle Rooms
+   Squishy Buddies 2026 - 5 Handcrafted Single-Screen Puzzle Rooms
    Chunky 16x12 Tile Grid Layout with Minimal Visual Clutter
    ========================================================================== */
 
