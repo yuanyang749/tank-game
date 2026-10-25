@@ -127,6 +127,29 @@ tank-game/
 
 ---
 
+## 🔗 移动端开发核心软件下载与官方文档索引
+
+1. **Termux 终端与系统桥接插件（请保持同源签名）**
+   - **Termux GitHub Releases**：[https://github.com/termux/termux-app/releases](https://github.com/termux/termux-app/releases)
+   - **Termux:API GitHub Releases**：[https://github.com/termux/termux-api/releases](https://github.com/termux/termux-api/releases)
+   - **F-Droid 官方发布页**：[https://f-droid.org/packages/com.termux/](https://f-droid.org/packages/com.termux/)
+
+2. **Shizuku 免 Root 无线调试提权（`uid=2000` ADB Shell）**
+   - **Shizuku 官网与使用文档**：[https://shizuku.rikka.app/zh-hans/](https://shizuku.rikka.app/zh-hans/)
+   - **Shizuku GitHub Releases**：[https://github.com/RikkaApps/Shizuku/releases](https://github.com/RikkaApps/Shizuku/releases)
+
+3. **MT 管理器与官方 MCP 服务文档**
+   - **MT 管理器官方下载**：[https://mt2.cn/download/](https://mt2.cn/download/) / [https://binmt.cc/download/](https://binmt.cc/download/)
+   - **MT 管理器官方 MCP 服务文档**：[https://binmt.cc/doc/guide/mcp.html](https://binmt.cc/doc/guide/mcp.html)
+   - **MT 管理器在线手册中心**：[https://binmt.cc/doc/guide/](https://binmt.cc/doc/guide/)
+   - **MT 官方论坛交流区**：[https://bbs.binmt.cc/](https://bbs.binmt.cc/)
+
+4. **在线体验与开源仓库**
+   - **Game Boy 掌机在线体验 (GitHub Pages)**：[https://yuanyang749.github.io/tank-game/](https://yuanyang749.github.io/tank-game/)
+   - **GitHub 源码仓库**：[https://github.com/yuanyang749/tank-game](https://github.com/yuanyang749/tank-game)
+
+---
+
 ## 📄 开源许可证
 
 本项目遵循 [MIT License](LICENSE) 开源协议。
